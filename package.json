@@ -1,8 +1,8 @@
 {
-  "name": "hmpps-template-typescript",
+  "name": "hmpps-manage-online-check-ins-ui",
   "version": "0.0.1",
-  "description": "HMPPS Typescript Template",
-  "repository": "git@github.com:ministryofjustice/hmpps-template-typescript.git",
+  "description": "HMPPS Manage Online Check Ins Ui",
+  "repository": "git@github.com:ministryofjustice/hmpps-manage-online-check-ins-ui.git",
   "license": "MIT",
   "scripts": {
     "prepare": "hmpps-precommit-hooks-prepare",
