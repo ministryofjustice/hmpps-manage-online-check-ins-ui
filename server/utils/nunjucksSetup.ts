@@ -3,9 +3,12 @@ import path from 'path'
 import nunjucks from 'nunjucks'
 import express from 'express'
 import fs from 'fs'
+import { arnsNunjucksSetup } from '@ministryofjustice/hmpps-arns-frontend-components-lib'
 import { initialiseName } from './utils'
 import config from '../config'
 import logger from '../../logger'
+import { dateWithYear } from './dateWithYear'
+import yearsSince from './yearsSince'
 
 export default function nunjucksSetup(app: express.Express): void {
   app.set('view engine', 'njk')
@@ -28,8 +31,13 @@ export default function nunjucksSetup(app: express.Express): void {
   const njkEnv = nunjucks.configure(
     [
       path.join(__dirname, '../../server/views'),
-      'node_modules/govuk-frontend/dist/',
+      'node_modules/govuk-frontend/dist',
+      'node_modules/govuk-frontend/dist/components/',
       'node_modules/@ministryofjustice/frontend/',
+      'node_modules/@ministryofjustice/frontend/moj/components/',
+      'node_modules/@ministryofjustice/probation-search-frontend/components',
+      'node_modules/@ministryofjustice/hmpps-arns-frontend-components-lib/dist/',
+      'node_modules/@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/',
     ],
     {
       autoescape: true,
@@ -39,5 +47,9 @@ export default function nunjucksSetup(app: express.Express): void {
   )
 
   njkEnv.addFilter('initialiseName', initialiseName)
+  njkEnv.addFilter('dateWithYear', dateWithYear)
+  njkEnv.addFilter('yearsSince', yearsSince)
+
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)
+  arnsNunjucksSetup(njkEnv)
 }

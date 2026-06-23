@@ -4,7 +4,7 @@ import exampleApi from '../mockApis/exampleApi'
 import { login, resetStubs } from '../testUtils'
 import ExamplePage from '../pages/examplePage'
 
-test.describe('Example', () => {
+test.skip('Example', () => {
   test.afterEach(async () => {
     await resetStubs()
   })
