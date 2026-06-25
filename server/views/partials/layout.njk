@@ -4,13 +4,24 @@
   <link href="{{ '/assets/css/index.css' | assetMap }}" rel="stylesheet"/>
 {% endblock %}
 
-{% block pageTitle %}{{pageTitle | default(applicationName)}}{% endblock %}
+{% block pageTitle %}
+  {{ pageTitle | default(applicationName) }}
+{% endblock %}
 
 {% block header %}
   {% include "./header.njk" %}
 {% endblock %}
 
 {% block bodyStart %}
+{% endblock %}
+
+{% block content %}
+  {% if headerCRN %}
+    {% include "partials/pop-header.njk" %}
+    <hr class="govuk-section-break--l">
+  {% endif %}
+
+  {% block pageContent %}{% endblock %}
 {% endblock %}
 
 {% block bodyEnd %}

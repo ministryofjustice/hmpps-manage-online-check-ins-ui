@@ -81,6 +81,15 @@ export default {
       },
       agent: new AgentConfig(Number(get('EXAMPLE_API_TIMEOUT_RESPONSE', 5000))),
     },
+    esupervisionApi: {
+      url: get('ESUPERVISION_API_URL', 'http://localhost:8080', requiredInProduction),
+      healthPath: '/health/ping',
+      timeout: {
+        response: Number(get('ESUPERVISION_API_TIMEOUT_RESPONSE', 5000)),
+        deadline: Number(get('ESUPERVISION_API_TIMEOUT_DEADLINE', 5000)),
+      },
+      agent: new AgentConfig(Number(get('ESUPERVISION_API_TIMEOUT_RESPONSE', 5000))),
+    },
   },
   sqs: {
     audit: auditConfig(),

@@ -1,10 +1,8 @@
 {% extends "../partials/layout.njk" %}
-
 {% set pageTitle = applicationName + " - Home" %}
 {% set mainClasses = "govuk-body" %}
 
-{% block content %}
-
-{% include "partials/pop-header.njk" %}
-
+{% block pageContent %}
+  <h2 class="govuk-heading-l">Online check ins</h2>
+  <p>Visit /case/crn to view POP data, eg localhost:3000/case/x123456</p>
 {% endblock %}

@@ -1,0 +1,20 @@
+
+{% extends "../partials/layout.njk" %}
+{% set pageTitle = applicationName + " - Home" %}
+{% set mainClasses = "govuk-body" %}
+
+{% block pageContent %}
+  <h2 class="govuk-heading-l">Online check ins</h2>
+<dl class="govuk-summary-list">
+  {% for item in offenderDetails %}
+    <div class="govuk-summary-list__row">
+      <dt class="govuk-summary-list__key">
+        {{ item.label }}
+      </dt>
+      <dd class="govuk-summary-list__value">
+        {{ item.value or 'Not available' }}
+      </dd>
+    </div>
+  {% endfor %}
+</dl>
+{% endblock %}
