@@ -53,7 +53,7 @@ function appSetup(services: Services, production: boolean, userSupplier: () => H
   })
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
-  app.use(routes(services))
+  app.use(routes())
   app.use((_req, _res, next) => next(new NotFound()))
   app.use(errorHandler(production))
 
