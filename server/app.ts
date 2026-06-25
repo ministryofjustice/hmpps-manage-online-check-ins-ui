@@ -51,13 +51,13 @@ export default function createApp(services: Services): express.Application {
     next()
   })
   app.get(
-    '*',
+    '/{*splat}',
     pdsComponents.getPageComponents({
       pdsUrl: config.apis.probationApi.url,
       logger,
     }),
   )
-  app.use(routes(services))
+  app.use(routes())
 
   app.use((_req, _res, next) => next(createError(404, 'Not found')))
   app.use(errorHandler(process.env.NODE_ENV === 'production'))
