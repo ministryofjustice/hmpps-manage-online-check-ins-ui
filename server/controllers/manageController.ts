@@ -1,6 +1,5 @@
 import type { RequestHandler } from 'express'
 import type { Services } from '../services'
-import { Page } from '../services/auditService'
 import { TemporaryOffenderResponse } from '../data/model/esupervision'
 
 const offenderDetails = (crn: string, offender: TemporaryOffenderResponse['offender']) => [
