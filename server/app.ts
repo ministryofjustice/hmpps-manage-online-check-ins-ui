@@ -37,19 +37,6 @@ export default function createApp(services: Services): express.Application {
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
-  app.use((req, res, next) => {
-    logger.info(
-      {
-        pdsUrl: config.apis.probationApi.url,
-        hasUser: !!res.locals.user,
-        hasToken: !!res.locals.user?.token,
-        displayName: res.locals.user?.displayName,
-        tokenStart: res.locals.user?.token,
-      },
-      'Before probation frontend components',
-    )
-    next()
-  })
   app.get(
     '/{*splat}',
     pdsComponents.getPageComponents({
