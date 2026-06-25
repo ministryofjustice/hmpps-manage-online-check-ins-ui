@@ -2,7 +2,6 @@ import express from 'express'
 
 import createError from 'http-errors'
 
-
 import pdsComponents from '@ministryofjustice/hmpps-probation-frontend-components'
 import nunjucksSetup from './utils/nunjucksSetup'
 import errorHandler from './errorHandler'
