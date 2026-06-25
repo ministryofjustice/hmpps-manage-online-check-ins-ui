@@ -2,11 +2,11 @@ import express from 'express'
 
 import createError from 'http-errors'
 
+
 import pdsComponents from '@ministryofjustice/hmpps-probation-frontend-components'
 import nunjucksSetup from './utils/nunjucksSetup'
 import errorHandler from './errorHandler'
 import authorisationMiddleware from './middleware/authorisationMiddleware'
-
 import setUpAuthentication from './middleware/setUpAuthentication'
 import setUpCsrf from './middleware/setUpCsrf'
 import setUpCurrentUser from './middleware/setUpCurrentUser'
@@ -51,7 +51,8 @@ export default function createApp(services: Services): express.Application {
     )
     next()
   })
-  app.use(
+  app.get(
+    '*',
     pdsComponents.getPageComponents({
       pdsUrl: config.apis.probationApi.url,
       logger,

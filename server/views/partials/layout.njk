@@ -2,23 +2,17 @@
 
 {% block head %}
   <link href="{{ '/assets/css/index.css' | assetMap }}" rel="stylesheet"/>
-  {% if feComponents.jsIncludes %}
-    {% for js in feComponents.jsIncludes %}
-      <script src="{{ js }}" nonce="{{ cspNonce }}"></script>
-    {% endfor %}
-{% endif %}
-{% if feComponents.cssIncludes %}
   {% for css in feComponents.cssIncludes %}
     <link href="{{ css }}" nonce="{{ cspNonce }}" rel="stylesheet" />
   {% endfor %}
-{% endif %}
 {% endblock %}
 
 {% block pageTitle %}{{pageTitle | default(applicationName)}}{% endblock %}
 
 {% block header %}
-    {% include "./prob_fe_header.njk" %}
+  {{ feComponents.header | safe }}
 {% endblock %}
+
 {% block bodyStart %}
 {% endblock %}
 
@@ -27,5 +21,5 @@
 {% endblock %}
 
 {% block footer %}
-  {% include "./prob_fe_footer.njk" %}
+    {{ feComponents.footer | safe }}
 {% endblock %}
