@@ -19,7 +19,6 @@ export default function routes({ auditService, esupervisionService }: Services):
   router.get(
     '/case/:crn',
     manageController.getViewCase({
-      auditService,
       esupervisionService,
     }),
   )

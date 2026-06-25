@@ -28,14 +28,9 @@ const offenderDetails = (crn: string, offender: TemporaryOffenderResponse['offen
 
 export default {
   getViewCase:
-    ({ auditService, esupervisionService }: Pick<Services, 'auditService' | 'esupervisionService'>): RequestHandler =>
+    ({ esupervisionService }: Pick<Services, 'esupervisionService'>): RequestHandler =>
     async (req, res) => {
       const { crn } = req.params as Record<string, string>
-
-      await auditService.logPageView(Page.EXAMPLE_PAGE, {
-        who: res.locals.user.username,
-        correlationId: req.id,
-      })
 
       const offenderResponse = await esupervisionService.getOffenderByCrn(crn)
 
