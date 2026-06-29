@@ -44,7 +44,7 @@ export default function createApp(services: Services): express.Application {
       logger,
     }),
   )
-  app.use(routes())
+  app.use(routes(services))
 
   app.use((_req, _res, next) => next(createError(404, 'Not found')))
   app.use(errorHandler(process.env.NODE_ENV === 'production'))

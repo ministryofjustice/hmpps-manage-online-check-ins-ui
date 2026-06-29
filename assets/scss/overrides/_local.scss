@@ -1,3 +1,24 @@
+@use 'govuk-frontend/dist/govuk/index' as *;
+
 .govuk-main-wrapper {
   min-height: 600px;
+}
+
+.govuk-flex {
+  display: flex;
+}
+
+.inline-list-from-tablet {
+  @include govuk-media-query($from: tablet) {
+    display: flex;
+    gap: govuk-spacing(2);
+  }
+}
+
+.hide-mobile {
+  display: none;
+
+  @include govuk-media-query($from: tablet) {
+    display: inline;
+  }
 }

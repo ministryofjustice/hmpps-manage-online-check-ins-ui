@@ -1,10 +1,13 @@
-@use 'govuk-frontend/dist/govuk/index' with (
+@use 'govuk-frontend/dist/govuk/index' as * with (
   $govuk-global-styles: true,
   $govuk-assets-path: '/assets/'
 );
+
 @use '@ministryofjustice/frontend/moj/all' as moj;
 
 @use './overrides/local';
 
 @use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
 @use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
+
+@import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';
