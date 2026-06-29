@@ -1,6 +1,9 @@
+@use 'govuk-frontend/dist/govuk/index' as *;
+
 .govuk-main-wrapper {
   min-height: 600px;
 }
+
 .govuk-flex {
   display: flex;
 }

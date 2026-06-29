@@ -1,10 +1,13 @@
-@import 'govuk-frontend/dist/govuk/index';
+@use 'govuk-frontend/dist/govuk/index' as * with (
+  $govuk-global-styles: true,
+  $govuk-assets-path: '/assets/'
+);
 
-@import '@ministryofjustice/frontend/moj/all';
+@use '@ministryofjustice/frontend/moj/all' as moj;
 
-@import '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
-@import '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
+@use './overrides/local';
+
+@use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
+@use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
 
 @import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';
-
-@import './overrides/local';
