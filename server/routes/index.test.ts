@@ -1,7 +1,7 @@
 import type { Express } from 'express'
 import request from 'supertest'
 import { appWithAllRoutes, user } from './testutils/appSetup'
-import AuditService, { Page } from '../services/auditService'
+import AuditService from '../services/auditService'
 import HmppsAuditClient from '../data/hmppsAuditClient'
 import EsupervisionService from '../services/esupervisionService'
 import { EsupervisionApiClient } from '../data'
@@ -28,18 +28,13 @@ afterEach(() => {
 })
 
 describe('GET /', () => {
-  it('should render index page', () => {
-    auditService.logPageView.mockResolvedValue(undefined)
-
+  it('should render the index page', () => {
     return request(app)
       .get('/')
       .expect('Content-Type', /html/)
       .expect(200)
       .expect(res => {
-        expect(auditService.logPageView).toHaveBeenCalledWith(Page.EXAMPLE_PAGE, {
-          who: user.username,
-          correlationId: expect.any(String),
-        })
+        expect(res.text).toContain('This site is under construction...')
       })
   })
 })

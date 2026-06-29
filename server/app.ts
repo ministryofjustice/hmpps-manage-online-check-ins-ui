@@ -2,10 +2,10 @@ import express from 'express'
 
 import createError from 'http-errors'
 
+import pdsComponents from '@ministryofjustice/hmpps-probation-frontend-components'
 import nunjucksSetup from './utils/nunjucksSetup'
 import errorHandler from './errorHandler'
 import authorisationMiddleware from './middleware/authorisationMiddleware'
-
 import setUpAuthentication from './middleware/setUpAuthentication'
 import setUpCsrf from './middleware/setUpCsrf'
 import setUpCurrentUser from './middleware/setUpCurrentUser'
@@ -17,6 +17,8 @@ import setUpWebSession from './middleware/setUpWebSession'
 
 import routes from './routes'
 import type { Services } from './services'
+import config from './config'
+import logger from '../logger'
 
 export default function createApp(services: Services): express.Application {
   const app = express()
@@ -35,7 +37,13 @@ export default function createApp(services: Services): express.Application {
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
-
+  app.get(
+    '/{*splat}',
+    pdsComponents.getPageComponents({
+      pdsUrl: config.apis.probationApi.url,
+      logger,
+    }),
+  )
   app.use(routes(services))
 
   app.use((_req, _res, next) => next(createError(404, 'Not found')))

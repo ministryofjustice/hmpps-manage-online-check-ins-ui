@@ -49,9 +49,9 @@ export default {
   },
   apis: {
     hmppsAuth: {
-      url: get('HMPPS_AUTH_URL', 'http://localhost:9090/auth', requiredInProduction),
+      url: get('HMPPS_AUTH_URL', 'http://localhost:8090/auth', requiredInProduction),
       healthPath: '/health/ping',
-      externalUrl: get('HMPPS_AUTH_EXTERNAL_URL', get('HMPPS_AUTH_URL', 'http://localhost:9090/auth')),
+      externalUrl: get('HMPPS_AUTH_EXTERNAL_URL', get('HMPPS_AUTH_URL', 'http://localhost:8090/auth')),
       timeout: {
         response: Number(get('HMPPS_AUTH_TIMEOUT_RESPONSE', 10000)),
         deadline: Number(get('HMPPS_AUTH_TIMEOUT_DEADLINE', 10000)),
@@ -71,6 +71,14 @@ export default {
       },
       agent: new AgentConfig(Number(get('TOKEN_VERIFICATION_API_TIMEOUT_RESPONSE', 5000))),
       enabled: get('TOKEN_VERIFICATION_ENABLED', 'false') === 'true',
+    },
+    probationApi: {
+      url: get(
+        'COMPONENT_API_URL',
+        'https://probation-frontend-components-dev.hmpps.service.justice.gov.uk',
+        requiredInProduction,
+      ),
+      healthPath: '/health/ping',
     },
     esupervisionApi: {
       url: get('ESUPERVISION_API_URL', 'http://localhost:8080', requiredInProduction),

@@ -1,12 +1,10 @@
-$govuk-global-styles: true;
-$path: "/assets/images/";
+@import 'govuk-frontend/dist/govuk/index';
 
-$moj-page-width: 1170px;
-$govuk-page-width: $moj-page-width;
+@import '@ministryofjustice/frontend/moj/all';
 
-@import "govuk-frontend/dist/govuk/index";
-@import "@ministryofjustice/frontend/moj/all";
+@import '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
+@import '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
+
 @import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';
 
-@import './components/header-bar';
 @import './overrides/local';

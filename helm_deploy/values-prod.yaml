@@ -11,6 +11,8 @@ generic-service:
     TOKEN_VERIFICATION_API_URL: "https://token-verification-api.prison.service.justice.gov.uk"
     ESUPERVISION_API_URL: 'https://esupervision-api.hmpps.service.justice.gov.uk'
     AUDIT_ENABLED: "false"
+    COMPONENT_API_URL: "https://probation-frontend-components.hmpps.service.justice.gov.uk"
+    ENVIRONMENT_NAME: "PRODUCTION"
 
 generic-prometheus-alerts:
   alertSeverity: warning
