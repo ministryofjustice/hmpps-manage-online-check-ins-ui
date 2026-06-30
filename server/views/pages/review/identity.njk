@@ -1,0 +1,69 @@
+{% extends "../../partials/layout.njk" %}
+{%- from "govuk/components/tag/macro.njk" import govukTag -%}
+{% set pageTitle = "Online check in submitted - Review check-in - Identity" %}
+{% set mainClasses = "govuk-body" %}
+
+{% block pageContent %}
+  {% if backLink %}
+    <a href="{{ backLink }}" class="govuk-back-link">Back</a>
+  {% endif %}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        {% include "../../partials/pop-header.njk" %}
+        <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">Online check in submitted</h2>
+        <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
+        <div class="govuk-body">You need to confirm the system identity check result is correct and confirm whether the person in the image is the person who should be checking in.</div>
+        <dl class="govuk-summary-list">
+            <div class="govuk-summary-list__row" data-qa="datetimeSummary">
+                <dt class="govuk-summary-list__key">Checked in on</dt>
+                <dd class="govuk-summary-list__value">{{checkIn.submittedAt | dateWithYearTimeFirst }}</dd>
+            </div>
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Review due</dt>
+                <dd class="govuk-summary-list__value">{{checkIn.reviewDueDate }}</dd>
+            </div>
+        </dl>
+
+           <h3 class="govuk-heading-m">Review and confirm identity</h3>
+                <hr class="govuk-section-break govuk-section-break--visible">
+                <dl class="govuk-summary-list govuk-!-margin-top-0" data-qa="identitySummary">
+                    <div class="govuk-summary-list__row">
+                        <dt class="govuk-summary-list__key">{{"System ID and liveness check result" if checkIn.livenessEnabled else "System ID check result"}}</dt>
+                        <dd class="govuk-summary-list__value">{{"Pass" if systemIdCheckPass else "Fail"}}</dd>
+                        <dd class="govuk-summary-list__actions">
+                            {% if not systemIdCheckPass %}
+                                {{ govukTag({ text: "Needs attention", classes: "govuk-tag govuk-tag--red" }) }}
+                            {% endif %}
+                        </dd>
+                    </div>
+                      <div class="govuk-summary-list__row">
+                          <dt class="govuk-summary-list__key">Image of {{ checkIn.personalDetails.name.forename }}</dt>
+                          <dd class="govuk-summary-list__value">
+                              <img
+                              src="{{ "/assets/images/placeholder.png" if checkIn.photoUrl == null else checkIn.photoUrl }}"
+                              class="es-profile-image es-profile-image--small"
+                              alt="Profile image of {{ checkIn.personalDetails.name.forename }} {{ checkIn.personalDetails.name.surname }}"
+                              crossorigin />
+                          </dd>
+                      </div>
+                      <div class="govuk-summary-list__row">
+                          <dt class="govuk-summary-list__key">Image from check in</dt>
+                          <dd class="govuk-summary-list__value">
+                              {% if checkIn.snapshotUrl %}
+                                  <img
+                                  src="{{ checkIn.snapshotUrl }}"
+                                  class="es-profile-image es-profile-image--small"
+                                  alt="Image from identity check of {{ checkIn.personalDetails.name.forename }} {{ checkIn.personalDetails.name.surname }}"
+                                  crossorigin />
+                              {% else %}
+                              <span>No image available</span>
+                              {% endif %}
+                          </dd>
+                      </div>
+                  </dl>
+
+    </div>
+</div>
+
+{% endblock %}

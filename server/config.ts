@@ -35,6 +35,7 @@ export default {
   branchName: get('GIT_BRANCH', 'xxxxxxxxxxxxxxxxxxx', requiredInProduction),
   production,
   https: process.env.NO_HTTPS === 'true' ? false : production,
+  env: get('ENVIRONMENT', 'local', requiredInProduction) as 'local' | 'dev' | 'preprod' | 'prod',
   staticResourceCacheDuration: '1h',
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
@@ -92,6 +93,18 @@ export default {
   },
   sqs: {
     audit: auditConfig(),
+  },
+  probationFrontendComponents: {
+    connectSrc: get(
+      'PROBATION_FRONTEND_COMPONENTS_CONNECT_SRC',
+      'https://probation-frontend-components-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
+    fontSrc: get(
+      'PROBATION_FRONTEND_COMPONENTS_FONT_SRC',
+      'https://probation-frontend-components-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
   },
   ingressUrl: get('INGRESS_URL', 'http://localhost:3000', requiredInProduction),
   environmentName: get('ENVIRONMENT_NAME', ''),

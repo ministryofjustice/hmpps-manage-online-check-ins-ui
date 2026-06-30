@@ -5,6 +5,7 @@
 
 @use '@ministryofjustice/frontend/moj/all' as moj;
 
+@use './components/photo';
 @use './overrides/local';
 
 @use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';

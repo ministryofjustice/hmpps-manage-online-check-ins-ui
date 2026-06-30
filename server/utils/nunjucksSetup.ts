@@ -7,7 +7,7 @@ import { arnsNunjucksSetup } from '@ministryofjustice/hmpps-arns-frontend-compon
 import { initialiseName } from './utils'
 import config from '../config'
 import logger from '../../logger'
-import { dateWithYear } from './dateWithYear'
+import { dateWithYear, dateWithYearTimeFirst } from '.'
 import yearsSince from './yearsSince'
 
 export default function nunjucksSetup(app: express.Express): void {
@@ -50,6 +50,7 @@ export default function nunjucksSetup(app: express.Express): void {
 
   njkEnv.addFilter('initialiseName', initialiseName)
   njkEnv.addFilter('dateWithYear', dateWithYear)
+  njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
   njkEnv.addFilter('yearsSince', yearsSince)
 
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)

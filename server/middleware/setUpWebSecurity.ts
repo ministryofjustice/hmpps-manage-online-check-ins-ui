@@ -25,14 +25,28 @@ export default function setUpWebSecurity(): Router {
           // <link href="http://example.com/" rel="stylesheet" nonce="{{ cspNonce }}">
           // This ensures only scripts we trust are loaded, and not anything injected into the
           // page by an attacker.
+          imgSrc: [
+            "'self'",
+            // This is required for the S3 bucket to upload checkin images
+            // (either have a custom domain for each environment or use the default wild card domain)
+            // data: Allow inline base64 images across all environments (needed for data URL previews)
+            'data:',
+            'https://*.s3.eu-west-2.amazonaws.com/',
+          ],
           scriptSrc: [
             "'self'",
             (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
           ],
-          styleSrc: [
-            "'self'",
-            (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
-          ],
+          connectSrc: (() => {
+            const sources = [config.probationFrontendComponents.connectSrc]
+            // Allow localhost for local development only
+            if (config.env === 'local') {
+              sources.push('http://localhost:9091')
+              sources.push('http://localhost:3000')
+            }
+            return sources
+          })(),
+          styleSrc: ["'self'", (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`],
           fontSrc: ["'self'"],
           formAction: [`'self' ${config.apis.hmppsAuth.externalUrl}`],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),

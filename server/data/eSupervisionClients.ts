@@ -1,11 +1,21 @@
 import { AuthenticationClient, RestClient, asSystem } from '@ministryofjustice/hmpps-rest-client'
 import config from '../config'
 import logger from '../../logger'
-import { TemporaryOffenderResponse } from './model/esupervision'
+import { ESupervisionCheckIn, TemporaryOffenderResponse } from './model/esupervision'
 
 export default class EsupervisionApiClient extends RestClient {
   constructor(authenticationClient: AuthenticationClient) {
     super('eSupervision API', config.apis.esupervisionApi, logger, authenticationClient)
+  }
+
+  async getCheckIn(uuid: string, includePersonalDetails = true): Promise<ESupervisionCheckIn> {
+    return this.get<ESupervisionCheckIn>(
+      {
+        path: `/v2/offender_checkins/${uuid}`,
+        query: { 'include-personal-details': includePersonalDetails },
+      },
+      asSystem(),
+    )
   }
 
   async getOffenderByCrn(crn: string): Promise<TemporaryOffenderResponse> {
