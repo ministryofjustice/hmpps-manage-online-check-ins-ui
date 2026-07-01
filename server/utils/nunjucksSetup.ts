@@ -15,6 +15,7 @@ import { dateWithYear } from './dateWithYear'
 import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
 import decorateFormAttributes from './decorateFormAttributes'
+import toErrorList from './toErrorList'
 
 export default function nunjucksSetup(app: express.Express): void {
   app.set('view engine', 'njk')
@@ -78,6 +79,7 @@ export default function nunjucksSetup(app: express.Express): void {
 
     return decorateFormAttributes(ctx.req, ctx.res)(obj, sections)
   })
+  njkEnv.addFilter('toErrorList', toErrorList)
 
   njkEnv.addGlobal('makePageTitle', makePageTitle)
 
