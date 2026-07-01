@@ -1,5 +1,3 @@
-import { AgentConfig } from '@ministryofjustice/hmpps-rest-client'
-
 const production = process.env.NODE_ENV === 'production'
 
 function get<T>(name: string, fallback: T, options = { requireInProduction: false }): T | string {
@@ -28,6 +26,28 @@ const auditConfig = () => {
   }
 }
 
+export class AgentConfig {
+  // Sets the working socket to timeout after timeout milliseconds of inactivity on the working socket.
+  timeout: number
+
+  constructor(timeout = 8000) {
+    this.timeout = timeout
+  }
+}
+
+export interface ApiConfig {
+  url: string
+  timeout: {
+    // sets maximum time to wait for the first byte to arrive from the server, but it does not limit how long the
+    // entire download can take.
+    response: number
+    // sets a deadline for the entire request (including all uploads, redirects, server processing time) to complete.
+    // If the response isn't fully downloaded within that time, the request will be aborted.
+    deadline: number
+  }
+  agent: AgentConfig
+}
+
 export default {
   buildNumber: get('BUILD_NUMBER', '1_0_0', requiredInProduction),
   productId: get('PRODUCT_ID', 'UNASSIGNED', requiredInProduction),
@@ -35,6 +55,7 @@ export default {
   branchName: get('GIT_BRANCH', 'xxxxxxxxxxxxxxxxxxx', requiredInProduction),
   production,
   https: process.env.NO_HTTPS === 'true' ? false : production,
+  applicationName: 'Manage online check ins',
   staticResourceCacheDuration: '1h',
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
@@ -80,7 +101,7 @@ export default {
       ),
       healthPath: '/health/ping',
     },
-    esupervisionApi: {
+    eSupervisionApi: {
       url: get('ESUPERVISION_API_URL', 'http://localhost:8080', requiredInProduction),
       healthPath: '/health/ping',
       timeout: {
@@ -95,4 +116,10 @@ export default {
   },
   ingressUrl: get('INGRESS_URL', 'http://localhost:3000', requiredInProduction),
   environmentName: get('ENVIRONMENT_NAME', ''),
+  dateFields: ['date'],
+  timeFields: [
+    { name: 'start', dateField: 'date' },
+    { name: 'end', dateField: 'date' },
+  ],
+  maxCharCount: get('CHAR_COUNT', 12000, requiredInProduction),
 }

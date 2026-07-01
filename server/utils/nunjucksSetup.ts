@@ -1,14 +1,20 @@
 /* eslint-disable no-param-reassign */
 import path from 'path'
-import nunjucks from 'nunjucks'
-import express from 'express'
 import fs from 'fs'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import express, { Request, RequestHandler } from 'express'
+import nunjucks from 'nunjucks'
 import { arnsNunjucksSetup } from '@ministryofjustice/hmpps-arns-frontend-components-lib'
-import { initialiseName } from './utils'
+
+import type { AppResponse } from '../models/Locals'
 import config from '../config'
 import logger from '../../logger'
+
+import { initialiseName } from './utils'
 import { dateWithYear } from './dateWithYear'
 import yearsSince from './yearsSince'
+import makePageTitle from './makePageTitle'
+import decorateFormAttributes from './decorateFormAttributes'
 
 export default function nunjucksSetup(app: express.Express): void {
   app.set('view engine', 'njk')
@@ -17,6 +23,15 @@ export default function nunjucksSetup(app: express.Express): void {
   app.locals.applicationName = 'HMPPS Manage Online Check Ins Ui'
   app.locals.environmentName = config.environmentName
   app.locals.environmentNameColour = config.environmentName === 'PRE-PRODUCTION' ? 'govuk-tag--green' : ''
+
+  const requestContext = new AsyncLocalStorage<{ req: Request; res: AppResponse }>()
+
+  const requestContextMiddleware: RequestHandler = (req, res, next) => {
+    requestContext.run({ req, res: res as AppResponse }, next)
+  }
+
+  app.use(requestContextMiddleware)
+
   let assetManifest: Record<string, string> = {}
 
   try {
@@ -36,7 +51,6 @@ export default function nunjucksSetup(app: express.Express): void {
       'node_modules/@ministryofjustice/frontend/',
       'node_modules/@ministryofjustice/frontend/moj/components/',
       'node_modules/@ministryofjustice/hmpps-probation-frontend-components/dist/assets/',
-      'node_modules/@ministryofjustice/frontend/moj/components/',
       'node_modules/@ministryofjustice/probation-search-frontend/components',
       'node_modules/@ministryofjustice/hmpps-arns-frontend-components-lib/dist/',
       'node_modules/@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/',
@@ -53,5 +67,19 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addFilter('yearsSince', yearsSince)
 
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)
+
+  njkEnv.addFilter('decorateFormAttributes', (obj: unknown, sections?: string[]) => {
+    const ctx = requestContext.getStore()
+
+    if (!ctx) {
+      logger.warn('decorateFormAttributes called without request context')
+      return obj
+    }
+
+    return decorateFormAttributes(ctx.req, ctx.res)(obj, sections)
+  })
+
+  njkEnv.addGlobal('makePageTitle', makePageTitle)
+
   arnsNunjucksSetup(njkEnv)
 }

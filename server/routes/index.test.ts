@@ -3,13 +3,10 @@ import request from 'supertest'
 import { appWithAllRoutes, user } from './testutils/appSetup'
 import AuditService from '../services/auditService'
 import HmppsAuditClient from '../data/hmppsAuditClient'
-import EsupervisionService from '../services/esupervisionService'
-import { EsupervisionApiClient } from '../data'
 
 jest.mock('../services/auditService')
 
 const auditService = new AuditService({} as HmppsAuditClient) as jest.Mocked<AuditService>
-const esupervisionService = new EsupervisionService({} as EsupervisionApiClient) as jest.Mocked<EsupervisionService>
 
 let app: Express
 
@@ -17,7 +14,6 @@ beforeEach(() => {
   app = appWithAllRoutes({
     services: {
       auditService,
-      esupervisionService,
     },
     userSupplier: () => user,
   })

@@ -1,27 +1,8 @@
 import { Router } from 'express'
-
 import type { Services } from '../services'
-import { Page } from '../services/auditService'
-import manageController from '../controllers/manageController'
+import eSuperVisionCheckInsRoutes from './eSupervisionCheckins'
 
-export default function routes({ auditService, esupervisionService }: Services): Router {
-  const router = Router()
-
-  router.get('/', async (req, res) => {
-    await auditService.logPageView(Page.EXAMPLE_PAGE, {
-      who: res.locals.user.username,
-      correlationId: req.id,
-    })
-
-    res.render('pages/index')
-  })
-
-  router.get(
-    '/case/:crn',
-    manageController.getViewCase({
-      esupervisionService,
-    }),
-  )
-
+export default function routes(router: Router, services: Services): Router {
+  eSuperVisionCheckInsRoutes(router, services)
   return router
 }

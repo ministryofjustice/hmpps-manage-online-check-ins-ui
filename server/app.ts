@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Router } from 'express'
 
 import createError from 'http-errors'
 
@@ -44,7 +44,8 @@ export default function createApp(services: Services): express.Application {
       logger,
     }),
   )
-  app.use(routes(services))
+  const router = Router()
+  app.use(routes(router, services))
 
   app.use((_req, _res, next) => next(createError(404, 'Not found')))
   app.use(errorHandler(process.env.NODE_ENV === 'production'))

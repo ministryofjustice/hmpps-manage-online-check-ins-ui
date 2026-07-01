@@ -1,49 +1,35 @@
-import { AuthenticationClient, RestClient, asSystem } from '@ministryofjustice/hmpps-rest-client'
 import config from '../config'
-import logger from '../../logger'
-import { TemporaryOffenderResponse } from './model/esupervision'
 
-export default class EsupervisionApiClient extends RestClient {
-  constructor(authenticationClient: AuthenticationClient) {
-    super('eSupervision API', config.apis.esupervisionApi, logger, authenticationClient)
+import {
+  CheckinScheduleResponse,
+  DeactivateOffenderRequest,
+  ESupervisionCheckIn,
+  OffenderCheckinsByCRNResponse,
+} from './model/esupervision'
+import RestClient from './restClient'
+
+export default class ESupervisionClient extends RestClient {
+  constructor(token: string) {
+    super('HMPPS E-Supervision API', config.apis.eSupervisionApi, token)
   }
 
-  async getOffenderByCrn(crn: string): Promise<TemporaryOffenderResponse> {
-    const offender = await this.get<TemporaryOffenderResponse>(
-      {
-        path: `/v2/offenders/crn/${crn}`,
-      },
-      asSystem(),
-    )
-    return {
-      // actually comes from the endpoint
-      offender,
+  async getOffenderCheckIn(uuid: string, personalDetails: boolean = true): Promise<ESupervisionCheckIn> {
+    return this.get({
+      path: `/v2/offender_checkins/${uuid}?include-personal-details=${personalDetails}`,
+    })
+  }
 
-      // mock data
-      tierCalculation: {
-        tierScore: 'A3',
-      },
+  async getOffenderCheckinsByCRN(crn: string): Promise<OffenderCheckinsByCRNResponse | null> {
+    return this.get({ path: `/v2/offenders/crn/${crn}`, handle404: true })
+  }
 
-      risksWidget: {
-        overallRisk: 'VERY_HIGH',
-      },
-
-      riskData: {
-        assessments: [
-          {
-            combinedSeriousReoffendingPredictor: {
-              band: 'HIGH',
-              score: 78,
-            },
-            rsr: {
-              band: 'MEDIUM',
-              score: 6.8,
-            },
-          },
-        ],
-      },
-
-      headerTierLink: `/case/${crn}/tier`,
-    }
+  async postDeactivateOffender(
+    uuid: string,
+    deactivateOffenderRequest: DeactivateOffenderRequest,
+  ): Promise<CheckinScheduleResponse> {
+    return this.post({
+      path: `/v2/offenders/${uuid}/deactivate`,
+      data: deactivateOffenderRequest,
+    })
   }
 }
