@@ -37,8 +37,7 @@ export default function createApp(services: Services): express.Application {
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
-  app.get(
-    '/{*splat}',
+  app.use(
     pdsComponents.getPageComponents({
       pdsUrl: config.apis.probationApi.url,
       logger,
