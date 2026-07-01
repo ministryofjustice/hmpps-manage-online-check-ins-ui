@@ -1,0 +1,8 @@
+{% extends "../../partials/layout.njk" %}
+{% set text = "Stop online check ins for " + crn %}
+  {% block pageContent %}
+
+<a class='govuk-button' href="/case/{{ crn }}/appointments/check-in/manage/{{ id }}/stop-checkin">
+  {{text}}
+</a>
+{% endblock %}
