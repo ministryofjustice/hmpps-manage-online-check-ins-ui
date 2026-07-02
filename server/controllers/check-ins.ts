@@ -3,6 +3,7 @@ import {
   OffenderCheckinsByCRNResponse,
   ESupervisionCheckIn,
   ESupervisionReview,
+  ESupervisionNote,
 } from '../data/model/esupervision'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
@@ -29,6 +30,10 @@ const routes = [
   'getReviewNotesCheckIn',
   'postReviewCheckIn',
   'getReviewExpiredCheckIn',
+  'getUpdateCheckIn',
+  'getViewCheckIn',
+  'postViewCheckIn',
+  'getViewExpiredCheckIn',
 ] as const
 
 // const offenderDetails = (crn: string, offender: TemporaryOffenderResponse['offender']) => [
@@ -99,6 +104,7 @@ const checkInsController: Controller<typeof routes, void> = {
       })
     }
   },
+
   getStopCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -239,7 +245,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getReviewExpiredCheckIn: hmppsAuthClient => {
+  getReviewExpiredCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
@@ -255,6 +261,110 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       // await sendAuditMessage(res, 'VIEW_MAS_ONLINE_CHECK_IN_MISSED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/expired.njk', { crn, id, back, checkIn })
+    }
+  },
+
+  getViewExpiredCheckIn: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_MISSED_AND_REVIEWED', crn, SubjectType.CRN)
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const { back } = req.query
+      const { checkIn } = res.locals
+
+      if (checkIn.status !== 'EXPIRED' || !checkIn.reviewedAt) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+      }
+      return res.render('pages/check-in/view-expired.njk', { crn, id, back, checkIn })
+    }
+  },
+
+  getUpdateCheckIn: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const { back } = req.query
+      const { checkIn } = res.locals
+      const statusMap = {
+        REVIEWED: 'view',
+        SUBMITTED: 'review/identity',
+        EXPIRED: 'review/expired',
+      }
+      if (checkIn.status === 'SUBMITTED' || checkIn.status === 'EXPIRED') {
+        const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+        const practitionerId = res.locals.user.username
+        const eSupervisionClient = new ESupervisionClient(token)
+        await eSupervisionClient.postOffenderCheckInStarted(id, practitionerId)
+      }
+      if (Object.keys(statusMap).includes(checkIn.status)) {
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${back}` : ''}`,
+        )
+      }
+      return renderError(404)(req, res)
+    }
+  },
+
+  getViewCheckIn: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const { back } = req.query
+
+      const { checkIn } = res.locals
+
+      if (checkIn.status !== 'REVIEWED') {
+        return res.render('pages/check-in/update.njk', {
+          crn,
+          id,
+          back,
+          checkIn,
+          systemIdCheckPass: systemIdCheckPass(checkIn),
+        })
+      }
+      return res.render('pages/check-in/view.njk', {
+        crn,
+        id,
+        back,
+        checkIn,
+        systemIdCheckPass: systemIdCheckPass(checkIn),
+      })
+    }
+  },
+
+  postViewCheckIn: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const { back } = req.query
+      const { url } = req
+
+      const { data } = req.session
+      const checkIn = getDataValue(data, ['esupervision', crn, id, 'checkins'])
+
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+
+      const practitionerUsername = res.locals.user.username
+
+      const eSupervisionClient = new ESupervisionClient(token)
+      const notes: ESupervisionNote = {
+        updatedBy: practitionerUsername,
+        notes: checkIn.note,
+        sensitive: checkIn?.sensitiveContact === 'true',
+      }
+      await eSupervisionClient.postOffenderCheckInNote(id, notes)
+
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'note'], null)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'sensitiveContact'], null)
+      return res.redirect(url)
     }
   },
 }

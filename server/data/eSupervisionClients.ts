@@ -4,6 +4,7 @@ import {
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
+  ESupervisionNote,
   ESupervisionReview,
   OffenderCheckinsByCRNResponse,
 } from './model/esupervision'
@@ -24,6 +25,20 @@ export default class ESupervisionClient extends RestClient {
     return this.post({
       path: `/v2/offender_checkins/${uuid}/review`,
       data: review,
+    })
+  }
+
+  async postOffenderCheckInStarted(uuid: string, practitioner: string): Promise<ESupervisionCheckIn> {
+    return this.post({
+      path: `/v2/offender_checkins/${uuid}/review-started`,
+      data: { practitionerId: practitioner },
+    })
+  }
+
+  async postOffenderCheckInNote(uuid: string, notes: ESupervisionNote): Promise<void> {
+    return this.post({
+      path: `/v2/offender_checkins/${uuid}/annotate`,
+      data: notes,
     })
   }
 
