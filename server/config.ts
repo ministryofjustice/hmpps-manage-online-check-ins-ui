@@ -56,6 +56,7 @@ export default {
   production,
   https: process.env.NO_HTTPS === 'true' ? false : production,
   applicationName: 'Manage online check ins',
+  env: get('ENVIRONMENT', 'dev', requiredInProduction) as 'local' | 'dev' | 'test' | 'preprod' | 'prod',
   staticResourceCacheDuration: '1h',
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
@@ -72,6 +73,18 @@ export default {
     link: get(
       'MANAGE_PEOPLE_ON_PROBATION_LINK',
       'https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
+  },
+  probationFrontendComponents: {
+    connectSrc: get(
+      'COMPONENT_API_URL',
+      'https://probation-frontend-components-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
+    fontSrc: get(
+      'COMPONENT_API_URL',
+      'https://probation-frontend-components-dev.hmpps.service.justice.gov.uk',
       requiredInProduction,
     ),
   },

@@ -19,7 +19,21 @@ export default function setUpWebSecurity(): Router {
     helmet({
       contentSecurityPolicy: {
         directives: {
-          defaultSrc: ["'self'"],
+          mediaSrc: [
+            "'self'",
+            // This is required for the S3 bucket to upload checkin images
+            // (either have a custom domain for each environment or use the default wild card domain)
+            'https://*.s3.eu-west-2.amazonaws.com/',
+          ],
+          imgSrc: [
+            "'self'",
+            // This is required for the S3 bucket to upload checkin images
+            // (either have a custom domain for each environment or use the default wild card domain)
+            // data: Allow inline base64 images across all environments (needed for data URL previews)
+            'data:',
+            'https://*.s3.eu-west-2.amazonaws.com/',
+          ],
+          defaultSrc: ["'self'", 'js.monitor.azure.com', '*.applicationinsights.azure.com/v2/track'],
           // This nonce allows us to use scripts with the use of the `cspNonce` local, e.g (in a Nunjucks template):
           // <script nonce="{{ cspNonce }}">
           // or
@@ -27,14 +41,34 @@ export default function setUpWebSecurity(): Router {
           // This ensures only scripts we trust are loaded, and not anything injected into the
           // page by an attacker.
           scriptSrc: [
-            "'self'",
-            (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
+            "'self' https://browser.sentry-cdn.com https://js.sentry-cdn.com",
+            'js.monitor.azure.com',
+            '*.applicationinsights.azure.com/v2/track',
+            (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
           ],
-          styleSrc: [
-            "'self'",
-            (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
-          ],
-          fontSrc: ["'self'"],
+          // Build connect-src dynamically so we can relax it for local development only
+          // NOTE: Keep localhost allowances out of non-local environments
+          connectSrc: (() => {
+            const sources = [
+              "'self' https://*.sentry.io",
+              "'self' https://*.sentry-cdn.com",
+              'js.monitor.azure.com',
+              '*.applicationinsights.azure.com/v2/track',
+              config.probationFrontendComponents.connectSrc,
+              // This is required for the S3 bucket to upload checkin images
+              // (either have a custom domain for each environment or use the default wild card domain)
+              'https://*.s3.eu-west-2.amazonaws.com',
+            ]
+            // Allow localhost for local development only
+            if (config.env === 'local') {
+              sources.push('http://localhost:9091')
+              sources.push('http://localhost:3000')
+            }
+            return sources
+          })(),
+          workerSrc: ["'self' blob:"],
+          styleSrc: ["'self'", (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`],
+          fontSrc: ["'self'", config.probationFrontendComponents.fontSrc],
           formAction: [`'self' ${(config.apis.hmppsAuth.externalUrl, managePeopleOnProbationUrl)}`],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
