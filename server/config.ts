@@ -68,6 +68,13 @@ export default {
     secret: get('SESSION_SECRET', 'app-insecure-default-session', requiredInProduction),
     expiryMinutes: Number(get('WEB_SESSION_TIMEOUT_IN_MINUTES', 120)),
   },
+  managePeopleOnProbation: {
+    link: get(
+      'MANAGE_PEOPLE_ON_PROBATION_LINK',
+      'https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
+  },
   apis: {
     hmppsAuth: {
       url: get('HMPPS_AUTH_URL', 'http://localhost:8090/auth', requiredInProduction),

@@ -6,6 +6,7 @@ import config from '../config'
 
 export default function setUpWebSecurity(): Router {
   const router = express.Router()
+  const managePeopleOnProbationUrl = new URL(config.managePeopleOnProbation.link).origin
 
   // Secure code best practice - see:
   // 1. https://expressjs.com/en/advanced/best-practice-security.html,
@@ -34,7 +35,7 @@ export default function setUpWebSecurity(): Router {
             (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
           ],
           fontSrc: ["'self'"],
-          formAction: [`'self' ${config.apis.hmppsAuth.externalUrl}`],
+          formAction: [`'self' ${(config.apis.hmppsAuth.externalUrl, managePeopleOnProbationUrl)}`],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },
