@@ -16,6 +16,8 @@ import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
 import decorateFormAttributes from './decorateFormAttributes'
 import toErrorList from './toErrorList'
+import getUserFriendlyString from './eSupervisionFriendlyString'
+import { splitString } from './splitString'
 
 export default function nunjucksSetup(app: express.Express): void {
   app.set('view engine', 'njk')
@@ -67,6 +69,8 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addFilter('dateWithYear', dateWithYear)
   njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
   njkEnv.addFilter('yearsSince', yearsSince)
+  njkEnv.addFilter('split', splitString)
+  njkEnv.addFilter('userFriendlyString', getUserFriendlyString)
 
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)
 

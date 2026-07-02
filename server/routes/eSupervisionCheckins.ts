@@ -44,4 +44,21 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postReviewIdentityCheckIn(hmppsAuthClient),
   ])
+
+  router.get('/case/:crn/appointments/:id/check-in/review/notes', [
+    getCheckIn(hmppsAuthClient),
+    controllers.checkIns.getReviewNotesCheckIn(hmppsAuthClient),
+  ])
+
+  router.post('/case/:crn/appointments/:id/check-in/review/notes', [
+    getCheckIn(hmppsAuthClient),
+    validate.checkInReview,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postReviewCheckIn(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/:id/check-in/review/expired', [
+    getCheckIn(hmppsAuthClient),
+    controllers.checkIns.getReviewExpiredCheckIn(hmppsAuthClient),
+  ])
 }
