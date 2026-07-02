@@ -29,10 +29,12 @@
 {% endblock %}
 
 {% block content %}
-  {# {% if not checkinPhotoPage %}
-    {% include "../partials/pop-header.njk" %}
-    <hr class="govuk-section-break--l">
-  {% endif %} #}
+  {% if crn %}
+    {% if not checkinPhotoPage %}
+      {% include "../partials/pop-header.njk" %}
+      <hr class="govuk-section-break--l">
+    {% endif %}
+  {% endif %}
 
   <div id="main-content" class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
