@@ -11,7 +11,7 @@ import config from '../config'
 import logger from '../../logger'
 
 import { initialiseName } from './utils'
-import { dateWithYear } from './dateWithYear'
+import { dateWithYear, dateWithYearTimeFirst } from './dateWithYear'
 import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
 import decorateFormAttributes from './decorateFormAttributes'
@@ -65,6 +65,7 @@ export default function nunjucksSetup(app: express.Express): void {
 
   njkEnv.addFilter('initialiseName', initialiseName)
   njkEnv.addFilter('dateWithYear', dateWithYear)
+  njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
   njkEnv.addFilter('yearsSince', yearsSince)
 
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)

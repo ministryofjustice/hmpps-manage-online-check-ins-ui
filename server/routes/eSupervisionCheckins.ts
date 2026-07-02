@@ -4,6 +4,8 @@ import validate from '../middleware/validation'
 import autoStoreSessionData from '../middleware/autoStoreSessionData'
 import controllers from '../controllers'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
+import getCheckIn from '../middleware/getCheckIn'
+
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient }: Services) {
   router.get('/', async (req, res) => {
@@ -30,4 +32,16 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validate.eSuperVision,
     controllers.checkIns.postManageStopCheckin(hmppsAuthClient),
   )
+
+  router.get('/case/:crn/appointments/:id/check-in/review/identity', [
+    getCheckIn(hmppsAuthClient),
+    controllers.checkIns.getReviewIdentityCheckIn(hmppsAuthClient),
+  ])
+
+  router.post('/case/:crn/appointments/:id/check-in/review/identity', [
+    getCheckIn(hmppsAuthClient),
+    validate.checkInReview,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postReviewIdentityCheckIn(hmppsAuthClient),
+  ])
 }
