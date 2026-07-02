@@ -6,7 +6,6 @@ import controllers from '../controllers'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import getCheckIn from '../middleware/getCheckIn'
 
-
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient }: Services) {
   router.get('/', async (req, res) => {
     res.render('pages/index')

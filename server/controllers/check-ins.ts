@@ -1,7 +1,8 @@
 import {
   DeactivateOffenderRequest,
   OffenderCheckinsByCRNResponse,
-  ESupervisionCheckIn, ESupervisionReview,
+  ESupervisionCheckIn,
+  ESupervisionReview,
 } from '../data/model/esupervision'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
