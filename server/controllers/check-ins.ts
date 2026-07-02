@@ -146,7 +146,9 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
-      return res.redirect(`/case/${crn}/appointments/check-in/manage`)
+      const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+      const redirectUrl = `${mpopBaseUrl}/case/${crn}`
+      return res.redirect(redirectUrl)
     }
   },
 
