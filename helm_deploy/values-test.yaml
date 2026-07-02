@@ -16,6 +16,7 @@ generic-service:
     ENVIRONMENT_NAME: TEST
     AUDIT_ENABLED: 'false'
     AUTHORISED_USER_ROLES: 'ROLE_ESUPERVISION__PRACTITIONER__RW'
+    MPOP_UI_URL: "https://manage-people-on-probation-test.hmpps.service.justice.gov.uk"
 
 generic-prometheus-alerts:
   alertSeverity: hmpps_esupervision_alerts_nonprod
