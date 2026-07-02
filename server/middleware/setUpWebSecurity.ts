@@ -49,7 +49,7 @@ export default function setUpWebSecurity(): Router {
             (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
           ],
           fontSrc: ["'self'"],
-          formAction: [`'self' ${(config.apis.hmppsAuth.externalUrl, managePeopleOnProbationUrl)}`],
+          formAction: ["'self'", config.apis.hmppsAuth.externalUrl, config.managePeopleOnProbation.link],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },

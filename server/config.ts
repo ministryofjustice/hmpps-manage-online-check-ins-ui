@@ -57,7 +57,6 @@ export default {
   https: process.env.NO_HTTPS === 'true' ? false : production,
   applicationName: 'Manage online check ins',
   staticResourceCacheDuration: '1h',
-  mpop: get('MPOP_UI_URL', 'https://manage-online-check-ins-ui-dev.hmpps.service.justice.gov.uk', requiredInProduction),
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
     host: get('REDIS_HOST', 'localhost', requiredInProduction),

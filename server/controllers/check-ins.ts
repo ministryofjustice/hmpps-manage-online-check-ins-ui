@@ -234,7 +234,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const eSupervisionClient = new ESupervisionClient(token)
       await eSupervisionClient.postOffenderCheckInReview(id, review)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'sensitiveContact'], null)
-      return res.redirect(`${config.mpop}/case/${crn}/activity-log`)
+      return res.redirect(`${config.managePeopleOnProbation.link}/case/${crn}/activity-log`)
     }
   },
 
