@@ -1,5 +1,5 @@
 import type { Response } from 'express'
-import { Errors } from '../data/model/Errors'
+import { Errors } from './Errors'
 
 export interface LocalsUser {
   userId?: string

@@ -1,4 +1,4 @@
-import { Errors } from '../data/model/Errors'
+import { Errors } from './Errors'
 import { EsupervisionQuestionTemplatesList } from '../data/model/esupervision'
 
 export interface ESupervisionSession {
