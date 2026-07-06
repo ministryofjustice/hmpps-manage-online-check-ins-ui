@@ -289,7 +289,7 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       const { back } = req.query
       const { checkIn } = res.locals
-      const statusMap = {
+      const statusMap: Record<string, string> = {
         REVIEWED: 'view',
         SUBMITTED: 'review/identity',
         EXPIRED: 'review/expired',
