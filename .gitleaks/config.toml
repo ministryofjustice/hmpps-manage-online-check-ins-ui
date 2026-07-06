@@ -1,3 +1,8 @@
 title = "HMPPS Gitleaks configuration"
 [extend]
 path = "./node_modules/@ministryofjustice/hmpps-precommit-hooks/config.toml"
+[allowlist]
+description = "Allow fake JWTs in WireMock auth mappings"
+paths = [
+  '''wiremock/mappings/hmpps-auth\.json''',
+]

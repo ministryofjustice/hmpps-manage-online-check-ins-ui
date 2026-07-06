@@ -16,12 +16,18 @@ const checkInsController: Controller<typeof routes, void> = {
   getManageCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
-      const offenderCheckinsByCRNResponse = res.locals.offenderCheckinsByCRNResponse as OffenderCheckinsByCRNResponse
+
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
 
       return res.render('pages/check-in/index.njk', {
         crn,
-        id: offenderCheckinsByCRNResponse.uuid,
-        offenderCheckinsByCRNResponse,
+        id: offenderDetails.uuid,
+        case: offenderDetails.details,
+        offenderCheckinsByCRNResponse: offenderDetails,
       })
     }
   },
@@ -72,7 +78,7 @@ const checkInsController: Controller<typeof routes, void> = {
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-      return res.redirect(redirectUrl)
+      return res.redirect(303, redirectUrl)
     }
   },
 }
