@@ -19,6 +19,7 @@ import routes from './routes'
 import type { Services } from './services'
 import config from './config'
 import logger from '../logger'
+import baseController from './baseController'
 
 export default function createApp(services: Services): express.Application {
   const app = express()
@@ -30,6 +31,7 @@ export default function createApp(services: Services): express.Application {
   app.use(setUpHealthChecks(services.applicationInfo))
   app.use(setUpWebSecurity())
   app.use(setUpWebSession())
+  app.use(baseController())
   app.use(setUpWebRequestParsing())
   app.use(setUpStaticResources())
   nunjucksSetup(app)
