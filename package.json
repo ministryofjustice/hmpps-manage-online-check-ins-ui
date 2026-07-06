@@ -8,10 +8,9 @@
     "prepare": "hmpps-precommit-hooks-prepare",
     "build": "node esbuild/esbuild.config.js --build",
     "start": "node $NODE_OPTIONS dist/server.js | bunyan -o short",
-"start:dev": "concurrently -k -p \"[{name}]\" -n \"Build,Node\" -c \"green.bold,blue.bold\" \"node esbuild/esbuild.config.js --build --watch\" \"node esbuild/esbuild.config.js --dev-server\"",
-
+    "start:dev": "concurrently -k -p \"[{name}]\" -n \"Build,Node\" -c \"green.bold,blue.bold\" \"node esbuild/esbuild.config.js --build --watch\" \"node esbuild/esbuild.config.js --dev-server\"",
     "start-feature": "concurrently -k -p \"[{name}]\" -n \"WireMock,Node\" -c \"magenta.bold,green.bold\" \"npm run wiremock\" \"npm run start-node-feature\"",
-"start-feature:dev": "export $(cat feature.env) && concurrently -k -p \"[{name}]\" -n \"WireMock,Build,Node\" -c \"magenta.bold,green.bold,blue.bold\" \"npm run wiremock\" \"node esbuild/esbuild.config.js --build --watch\" \"node esbuild/esbuild.config.js --feature-dev-server\"",
+    "start-feature:dev": "export $(cat feature.env) && concurrently -k -p \"[{name}]\" -n \"WireMock,Build,Node\" -c \"magenta.bold,green.bold,blue.bold\" \"npm run wiremock\" \"node esbuild/esbuild.config.js --build --watch\" \"node esbuild/esbuild.config.js --feature-dev-server\"",
     "start-node-feature": "npx nyc instrument dist --nycrc-path ./.nycrc && node $NODE_DEBUG_OPTION --env-file=feature.env dist/server.js | bunyan -o short",
     "watch-node-feature": "export $(cat feature.env) && nodemon --watch dist/ $NODE_DEBUG_OPTION dist/server.js | bunyan -o short",
     "wiremock": "npx wiremock --port 9091 --root-dir wiremock --local-response-templating",
@@ -166,6 +165,7 @@
   },
   "devDependencies": {
     "@cypress/code-coverage": "4.0.3",
+    "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@jgoz/esbuild-plugin-typecheck": "^4.0.4",
     "@ministryofjustice/eslint-config-hmpps": "^1.0.3",
     "@ministryofjustice/frontend-types": "2.0.0",
