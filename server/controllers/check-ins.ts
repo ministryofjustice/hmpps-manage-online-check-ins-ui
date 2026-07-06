@@ -10,62 +10,9 @@ import config from '../config'
 
 const routes = ['getManageCheckinPage', 'postManageStopCheckin', 'getStopCheckinPage'] as const
 
-// const offenderDetails = (crn: string, offender: TemporaryOffenderResponse['offender']) => [
-//   {
-//     label: 'CRN',
-//     value: offender.crn ?? crn,
-//   },
-//   {
-//     label: 'Status',
-//     value: offender.status,
-//   },
-//   {
-//     label: 'First check in',
-//     value: offender.firstCheckin,
-//   },
-//   {
-//     label: 'Check in interval',
-//     value: offender.checkinInterval,
-//   },
-//   {
-//     label: 'Contact preference',
-//     value: offender.contactPreference,
-//   },
-// ]
-
 const handleQuotes = (value?: string): string => value?.replace(/"/g, '\\"') ?? ''
 
 const checkInsController: Controller<typeof routes, void> = {
-  // getViewCase:
-  //   ({ esupervisionService }: Pick<Services, 'esupervisionService'>): RequestHandler =>
-  //   async (req, res) => {
-  //     const { crn } = req.params as Record<string, string>
-
-  //     const offenderResponse = await esupervisionService.getOffenderByCrn(crn)
-
-  //     const { offender, tierCalculation, risksWidget, riskData, headerTierLink } = offenderResponse
-
-  //     return res.render('pages/viewCase', {
-  //       title: 'Appointments',
-
-  //       popHeader: true,
-
-  //       headerCRN: offender.crn ?? crn,
-  //       headerDob: offender.dateOfBirth ?? '1980-01-01',
-  //       headerPersonName: {
-  //         forename: offender.forename ?? 'Joe',
-  //         surname: offender.surname ?? 'Bloggs',
-  //       },
-
-  //       headerTierLink,
-  //       tierCalculation,
-  //       risksWidget,
-  //       riskData,
-
-  //       offenderDetails: offenderDetails(crn, offender),
-  //     })
-  //   },
-
   getManageCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
@@ -85,14 +32,11 @@ const checkInsController: Controller<typeof routes, void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       return res.render('pages/check-in/manage/stop-checkin.njk', {
-        crn,
-        id,
-        case: {
-          name: {
-            forename: 'the person',
-          },
-        },
+        crn: offenderDetails.crn,
+        id: offenderDetails.uuid,
+        case: offenderDetails.details,
       })
     }
   },

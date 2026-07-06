@@ -19,8 +19,8 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  async getOffenderCheckinsByCRN(crn: string): Promise<OffenderCheckinsByCRNResponse | null> {
-    return this.get({ path: `/v2/offenders/crn/${crn}`, handle404: true })
+  async getOffenderByCRN(crn: string): Promise<OffenderCheckinsByCRNResponse | null> {
+    return this.get({ path: `/v2/offenders/crn/${crn}?include-personal-details=true`, handle404: true })
   }
 
   async postDeactivateOffender(

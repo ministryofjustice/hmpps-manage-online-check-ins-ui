@@ -45,8 +45,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
   validateStopCheckins()
 
   if (Object.keys(errorMessages).length) {
+    const offenderDetails = res.locals.offenderCheckinsByCRNResponse
     res.locals.errorMessages = errorMessages
-    return res.render(render, { errorMessages, ...localParams })
+    return res.render(render, {
+      errorMessages,
+      ...localParams,
+      case: offenderDetails?.details,
+    })
   }
   return next()
 }
