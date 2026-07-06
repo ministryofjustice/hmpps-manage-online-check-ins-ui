@@ -1,5 +1,5 @@
 import { ESupervisionSession } from '../models/Esupervision'
-import { Errors } from './model/Errors'
+import { Errors } from '../models/Errors'
 
 export interface Data {
   errors?: Errors

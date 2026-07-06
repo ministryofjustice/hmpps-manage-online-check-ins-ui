@@ -1,4 +1,4 @@
-import { ValidationSpec } from '../../data/model/Errors'
+import { ValidationSpec } from '../../models/Errors'
 import { isNotEmpty } from '../../utils/validationUtils'
 
 export interface ESupervisionValidationArgs {

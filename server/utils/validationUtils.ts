@@ -4,7 +4,7 @@ import logger from '../../logger'
 
 import config from '../config'
 import dateTime from './dateTime'
-import { ErrorCheck, ValidationSpec } from '../data/model/Errors'
+import { ErrorCheck, ValidationSpec } from '../models/Errors'
 
 export const isEmail = (string: string) => /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(string)
 export const hasAllDigits = (string: string) => /^\d+$/.test(string)
