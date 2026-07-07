@@ -39,6 +39,11 @@ const checkInsController: Controller<typeof routes, void> = {
         return renderError(404)(req, res)
       }
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+      const redirectUrl = `${mpopBaseUrl}/case/${crn}`
+      if (offenderDetails.status !== 'VERIFIED') {
+        return res.redirect(303, redirectUrl)
+      }
       return res.render('pages/check-in/manage/stop-checkin.njk', {
         crn: offenderDetails.crn,
         id: offenderDetails.uuid,
