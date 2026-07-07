@@ -4,7 +4,7 @@ import isValidUUID from '../utils/isValidUUID'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
-import ESupervisionClient from '../data/eSupervisionClients'
+import ESupervisionClient from '../data/eSupervisionClient'
 import { Controller } from '../@types/Controller.type'
 import config from '../config'
 

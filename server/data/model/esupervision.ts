@@ -152,6 +152,12 @@ export interface OffenderCheckinsByCRNResponse {
   checkinInterval: CheckInterval
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
+  details?: {
+    name?: {
+      forename?: string
+      surname?: string
+    }
+  }
 }
 
 export interface CheckinScheduleRequest {

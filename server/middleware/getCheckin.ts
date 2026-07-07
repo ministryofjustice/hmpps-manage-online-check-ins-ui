@@ -2,7 +2,7 @@ import { NextFunction, Request } from 'express'
 import { DateTime } from 'luxon'
 import { AppResponse } from '../models/Locals'
 import { HmppsAuthClient } from '../data'
-import ESupervisionClient from '../data/eSupervisionClients'
+import ESupervisionClient from '../data/eSupervisionClient'
 
 const getCheckIn = (hmppsAuthClient: HmppsAuthClient) => {
   return async (req: Request, res: AppResponse, next: NextFunction): Promise<void> => {

@@ -1,6 +1,6 @@
 import { Route } from '../@types/Route.type'
 import { HmppsAuthClient } from '../data'
-import ESupervisionClient from '../data/eSupervisionClients'
+import ESupervisionClient from '../data/eSupervisionClient'
 
 const getOffenderDetails = (hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {
   return async (req, res, next) => {
