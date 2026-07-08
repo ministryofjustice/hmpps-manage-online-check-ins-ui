@@ -6,6 +6,7 @@ import controllers from '../controllers'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import getCheckIn from '../middleware/getCheckIn'
 import config from '../config'
+import getOffenderDetails from '../middleware/getOffenderDetails'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient }: Services) {
   router.get('/', async (req, res) => {
@@ -22,10 +23,12 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id', [
     getCheckinOffenderDetails(hmppsAuthClient),
+    getOffenderDetails(hmppsAuthClient),
     controllers.checkIns.getManageCheckinPage(hmppsAuthClient),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/stop-checkin', [
+    getOffenderDetails(hmppsAuthClient),
     controllers.checkIns.getStopCheckinPage(hmppsAuthClient),
   ])
 

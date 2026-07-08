@@ -3,10 +3,10 @@
 
 generic-service:
   ingress:
-    host: manage-online-check-ins-ui.hmpps.service.justice.gov.uk
+    host: manage-online-check-ins.hmpps.service.justice.gov.uk
 
   env:
-    INGRESS_URL: "https://manage-online-check-ins-ui.hmpps.service.justice.gov.uk"
+    INGRESS_URL: "https://manage-online-check-ins.hmpps.service.justice.gov.uk"
     HMPPS_AUTH_URL: "https://sign-in.hmpps.service.justice.gov.uk/auth"
     TOKEN_VERIFICATION_API_URL: "https://token-verification-api.prison.service.justice.gov.uk"
     ESUPERVISION_API_URL: 'https://esupervision-api.hmpps.service.justice.gov.uk'

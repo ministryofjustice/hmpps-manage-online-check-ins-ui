@@ -12,10 +12,12 @@ import logger from '../../logger'
 
 import { initialiseName } from './utils'
 import { dateWithYear, dateWithYearTimeFirst } from './dateWithYear'
+
 import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
 import decorateFormAttributes from './decorateFormAttributes'
 import toErrorList from './toErrorList'
+
 import getUserFriendlyString from './eSupervisionFriendlyString'
 import { handleQuotes } from './handleQuotes'
 import { formatEnforcementActionNote } from './formatEnforcementActionNote'

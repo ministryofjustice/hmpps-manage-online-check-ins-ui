@@ -1,0 +1,237 @@
+export type PageElement = Cypress.Chainable<JQuery>
+
+export default abstract class Page {
+  static verifyOnPage<T>(constructor: new () => T): T {
+    return new constructor()
+  }
+
+  constructor(private title?: string) {
+    if (this.title) {
+      this.checkOnPage()
+    }
+  }
+
+  checkOnPage(): void {
+    cy.get('[data-qa=pageHeading]').contains(this.title)
+  }
+
+  checkPageTitle = (title?: string) => {
+    if (title) {
+      this.title = title
+    }
+    this.checkOnPage()
+  }
+
+  menuButton = (): PageElement => cy.get('button[aria-controls="probation-common-header-user-menu"]')
+
+  menuButtonBySpan = (): PageElement => cy.get('span.probation-common-header__menu-toggle-label')
+
+  feSignOut = (): PageElement => cy.get('a.probation-common-header__submenu-link')
+
+  signOut = (): PageElement => cy.get('[data-qa=signOut]')
+
+  manageDetails = (): PageElement => cy.get('[data-qa=manageDetails]')
+
+  headerCrn = (): PageElement => cy.get('[data-qa=crn]')
+
+  headerName = (): PageElement => cy.get('[data-qa=name]')
+
+  pageHeading = (): PageElement => cy.get('[data-qa=pageHeading]')
+
+  getAlert = (): PageElement => cy.get('[data-module="moj-alert"]')
+
+  getNavigationLink = (index: number): PageElement => cy.get(`.moj-primary-navigation__list li:nth-of-type(${index}) a`)
+
+  getTab = (tabName: string): PageElement => cy.get(`[data-qa=${tabName}Tab]`)
+
+  getCardHeader = (cardName: string): PageElement =>
+    cy.get(`[class=app-summary-card__header]`).get(`[data-qa=${cardName}Card]`)
+
+  getCardElement = (cardName: string, element: string, index: number): PageElement =>
+    this.getCardHeader(cardName).within(() => cy.get(element).eq(index))
+
+  getRowData = (cardName: string, rowName: string, type: string, index = 0): PageElement => {
+    return cy.get(`[data-qa=${cardName}Card]`).within(() => cy.get(`[data-qa=${rowName}${type}]`).eq(index))
+  }
+
+  getLicenceConditionsSummaryLink = (detailsIndex = 0) =>
+    cy.get('[data-qa="licenceConditionsValue"]').find('details').eq(detailsIndex).find('summary')
+
+  getLicenceConditionsLabel = (detailsIndex = 0, rowIndex = 0, element = 'key') =>
+    cy
+      .get('[data-qa="licenceConditionsValue"]')
+      .find('details')
+      .eq(detailsIndex)
+      .find('.govuk-details__text .govuk-summary-list div')
+      .eq(rowIndex)
+      .find(`.govuk-summary-list__${element}`)
+
+  getColumnHeader = (cardName: string, index = 0): PageElement => {
+    return cy.get(`[data-qa=${cardName}Card]`).find(`.govuk-table__header`).eq(index)
+  }
+
+  getElementData = (name: string): PageElement => {
+    return cy.get(`[data-qa=${name}]`)
+  }
+
+  getBreachOrRecallWarning = ({ type = 'breach' }: { type?: 'breach' | 'recall' } = {}): PageElement =>
+    cy.get(`[data-qa="${type}-warning"]`)
+
+  getTicketPanel = (): PageElement => cy.get(`[data-qa="ticket-panel"]`)
+
+  getRowDataIndex = (cardName: string, rowName: string, type: string, index: number): PageElement => {
+    return cy
+      .get(`[data-qa=${cardName}Card]`)
+      .eq(index)
+      .within(() => cy.get(`[data-qa=${rowName}${type}]`))
+  }
+
+  assertPageElementAtIndexWithin = (
+    element: string,
+    index: number,
+    withinElement: string,
+    withinIndex: number,
+    value: string,
+  ) => {
+    cy.get(element)
+      .eq(index)
+      .within(() => cy.get(withinElement).eq(withinIndex).contains(value))
+  }
+
+  assertAnchorElementAtIndex = (element: string, index: number, value: string) => {
+    cy.get(element)
+      .eq(index)
+      .within(() => cy.get('a').invoke('attr', 'href').should('equal', value))
+  }
+
+  assertTextElementAtIndex = (element: string, index: number, value: string) => {
+    cy.get(element).eq(index).should('contain.text', value)
+  }
+
+  assertTextAtElementAtIndex = (element: string, index: number, value: string) => {
+    cy.get(element)
+      .eq(index)
+      .within(() => cy.contains(value))
+  }
+
+  assertAnchorElementAtIndexWithin = (element: string, index: number, anchorIndex: number, value: string) => {
+    cy.get(element)
+      .eq(index)
+      .within(() => cy.get('a').eq(anchorIndex).invoke('attr', 'href').should('equal', value))
+  }
+
+  createAliasAtIndexWithin = (
+    element: string,
+    index: number,
+    withinElement: string,
+    withinIndex: number,
+    aliasName: string,
+  ) => {
+    cy.get(element)
+      .eq(index)
+      .within(() => cy.get(withinElement).eq(withinIndex).as(aliasName))
+  }
+
+  getBackLink = (): PageElement => cy.get('.govuk-back-link')
+
+  getInsetText = (): PageElement => cy.get('.govuk-inset-text')
+
+  getCancelGoBackLink = (): PageElement => cy.get('[data-qa="cancelGoBackLink"]')
+
+  getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
+
+  getRadio = (id: string, index: number): PageElement => {
+    return cy.get(`[data-qa="${id}"] .govuk-radios__item:nth-child(${index}) input`)
+  }
+
+  getCheckboxField = (name: string): PageElement => {
+    return cy.get(`input[type="checkbox"]`)
+  }
+
+  getRadioLabel = (id: string, index: number): PageElement => {
+    return cy.get(`[data-qa="${id}"] .govuk-radios__item:nth-child(${index}) label`)
+  }
+
+  getRadios = (id: string) => {
+    return cy.get(`[data-qa="${id}"] .govuk-radios__item input`)
+  }
+
+  getRadioLabels = (id: string) => {
+    return cy.get(`[data-qa="${id}"].govuk-radios__item label`)
+  }
+
+  getErrorSummaryBox = (): PageElement => {
+    return cy.get('.govuk-error-summary')
+  }
+
+  getAllErrorSummaryLinks = (): PageElement => {
+    return cy.get('.govuk-error-summary__list a')
+  }
+
+  getErrorSummaryLink = (index: number): PageElement => {
+    return cy.get('.govuk-error-summary__list li').eq(index).find('a')
+  }
+
+  getElement = (selector: string) => {
+    return cy.get(selector)
+  }
+
+  getElementInput = (name: string): PageElement => {
+    return cy.get(`[data-qa="${name}"] input`)
+  }
+
+  checkErrorSummaryBox = (summaryErrors: string[]): void => {
+    this.getErrorSummaryBox().should('be.visible')
+    this.getAllErrorSummaryLinks().should('have.length', summaryErrors.length)
+    this.getAllErrorSummaryLinks().each(($item, index) => {
+      expect($item.text()).to.eq(summaryErrors[index])
+    })
+  }
+
+  getSummaryListRow = (index: number, summary?: string) => {
+    if (summary) {
+      return cy.get(`[data-qa="${summary}"] .govuk-summary-list__row:nth-child(${index})`)
+    }
+    return cy.get(`.govuk-summary-list__row:nth-child(${index})`)
+  }
+
+  assertRiskTags(ogrs4 = false) {
+    if (ogrs4) {
+      cy.get('[data-test-id=nameAndBand')
+        .should('contain.text', 'Combined serious reoffending predictor')
+        .should('contain.text', 'LOW')
+        .get('[data-test-id=score')
+        .should('contain.text', '0.28%')
+        .get('[data-test-id=staticOrDynamic')
+        .should('contain.text', 'Dynamic')
+
+      cy.get('[data-test-id=nameAndBand')
+        .should('contain.text', 'RISK OF SERIOUS HARM')
+        .should('contain.text', 'VERY HIGH')
+    } else {
+      cy.get('[data-test-id=nameAndBand')
+        .should('contain.text', 'RSR')
+        .should('contain.text', 'LOW')
+        .get('[data-test-id=score')
+        .should('contain.text', '0.05%')
+        .get('[data-test-id=staticOrDynamic')
+        .should('contain.text', 'Dynamic')
+
+      cy.get('[data-test-id=nameAndBand').should('contain.text', 'ROSH').should('contain.text', 'VERY HIGH')
+    }
+  }
+
+  getElementByDataQA = (name: string): PageElement => cy.get(`[data-qa="${name}"]`)
+
+  hideMessageLink = (): PageElement => cy.get('#hide-message')
+
+  getLogOutcomesAlertBanner = (): PageElement => cy.get('[data-module="serviceAlert"]')
+
+  getDatePickerToggle = () => {
+    return cy.get('.moj-datepicker__toggle')
+  }
+
+  getDatePickerInput = () => {
+    return cy.get('.moj-js-datepicker-input')
+  }
+}

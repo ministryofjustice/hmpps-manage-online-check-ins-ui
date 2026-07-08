@@ -153,31 +153,30 @@ The secret scanner hook can also be configured as described [here](https://githu
 - `npm run lint` runs `eslint`.
 - `npm run typecheck` runs the TypeScript compiler `tsc`.
 
+## Testing
+
 ### Run unit tests
 
 `npm run test`
 
 ### Running integration tests
 
-For local running, start a wiremock instance by:
+To run the Cypress integration tests locally:
 
-`docker compose -f docker-compose-test.yml up`
+```shell
+# Start the UI in test mode
+npm run start-feature:dev
 
-Then run the server in test mode by:
+# Start the UI in test with integration test coverage instrumentation
+npm run start-feature
 
-`npm run start-feature` (or `npm run start-feature:dev` to run with auto-restart on changes)
+# Run the tests in headless mode:
+npm run int-test
 
-After first install ensure playwright is initialised:
+# Or, run the tests with the Cypress UI:
+npm run int-test-ui
+```
 
-`npm run int-test-init:ci`
-
-And then either, run tests in headless mode with:
-
-`npm run int-test`
-
-Or run tests with the UI:
-
-`npm run int-test-ui`
 
 ## Keeping your app up-to-date
 
