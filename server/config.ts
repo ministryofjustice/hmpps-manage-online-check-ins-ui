@@ -76,6 +76,13 @@ export default {
       requiredInProduction,
     ),
   },
+  feedbackBanner: {
+    link: get(
+      'FEEDBACK_BANNER_LINK',
+      'https://www.smartsurvey.co.uk/t/AAGPPN?service=Online%20check%20ins',
+      requiredInProduction,
+    ),
+  },
   probationFrontendComponents: {
     connectSrc: get(
       'COMPONENT_API_URL',

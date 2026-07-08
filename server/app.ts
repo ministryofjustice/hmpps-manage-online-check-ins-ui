@@ -35,6 +35,7 @@ export default function createApp(services: Services): express.Application {
   nunjucksSetup(app)
   app.use((req, res, next) => {
     res.locals.managePeopleOnProbationUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+    res.locals.feedbackBannerUrl = config.feedbackBanner.link.replace(/\/$/, '')
     next()
   })
   app.use(setUpAuthentication())
