@@ -2,6 +2,7 @@
 {%- from "govuk/components/tag/macro.njk" import govukTag -%}
 
 {% set title = "Online check in missed" %}
+{% set pageTitle = title %}
 {% set backLink = back | default('/case/' + crn + '/activity-log') %}
 {% set hideButton = true %}
 
@@ -11,7 +12,7 @@
     <div class="govuk-grid-column-full">
 
         {% include "../../../partials/pop-header.njk" %}
-        <hr class="govuk-section-break--l">
+        <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l" />
 
         {% if errorMessages %}
           {% set errorList = errorMessages | toErrorList %}

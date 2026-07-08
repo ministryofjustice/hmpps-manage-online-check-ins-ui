@@ -1,6 +1,6 @@
 {% extends "../partials/layout.njk" %}
 {% block beforeContent %}
-  {# {% if breadcrumb and not change %}
+  {% if breadcrumb and not change %}
     {{ govukBreadcrumbs({
       items: [
         {
@@ -25,14 +25,14 @@
     {{ govukBackLink({
       href: backLink
     }) }}
-  {% endif %} #}
+  {% endif %}
 {% endblock %}
 
 {% block content %}
   {% if headerCRN %}
     {% if not checkinPhotoPage %}
       {% include "../partials/pop-header.njk" %}
-      <hr class="govuk-section-break--l">
+      <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
     {% endif %}
   {% endif %}
   {% if notStandardForm %}
