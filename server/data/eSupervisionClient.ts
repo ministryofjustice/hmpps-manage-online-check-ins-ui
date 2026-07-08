@@ -4,7 +4,7 @@ import {
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
-  OffenderCheckinsByCRNResponse,
+  OffenderByCRNResponse,
 } from './model/esupervision'
 import RestClient from './restClient'
 
@@ -19,7 +19,7 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  async getOffenderByCRN(crn: string): Promise<OffenderCheckinsByCRNResponse | null> {
+  async getOffenderByCRN(crn: string): Promise<OffenderByCRNResponse | null> {
     return this.get({ path: `/v2/offenders/crn/${crn}?include-personal-details=true`, handle404: true })
   }
 

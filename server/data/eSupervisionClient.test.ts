@@ -1,7 +1,7 @@
 import nock from 'nock'
 
 import config from '../config'
-import { DeactivateOffenderRequest, ESupervisionCheckIn, OffenderCheckinsByCRNResponse } from './model/esupervision'
+import { DeactivateOffenderRequest, ESupervisionCheckIn, OffenderByCRNResponse } from './model/esupervision'
 import isValidHost from '../utils/isValidHost'
 import isValidPath from '../utils/isValidPath'
 import ESupervisionClient from './eSupervisionClient'
@@ -95,7 +95,7 @@ describe('ESupervisionClient', () => {
             surname: 'Bloggs',
           },
         },
-      } as OffenderCheckinsByCRNResponse
+      } as OffenderByCRNResponse
 
       fakeESupervisionApi
         .get(`/v2/offenders/crn/${crn}`)

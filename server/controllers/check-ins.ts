@@ -1,4 +1,4 @@
-import { DeactivateOffenderRequest, OffenderCheckinsByCRNResponse } from '../data/model/esupervision'
+import { DeactivateOffenderRequest, OffenderByCRNResponse } from '../data/model/esupervision'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from '../middleware/renderError'
@@ -17,7 +17,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
 
-      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      const offenderDetails = res.locals.offenderByCRNResponse
 
       if (!offenderDetails) {
         return renderError(404)(req, res)
@@ -27,7 +27,7 @@ const checkInsController: Controller<typeof routes, void> = {
         crn,
         id: offenderDetails.uuid,
         case: offenderDetails.details,
-        offenderCheckinsByCRNResponse: offenderDetails,
+        offenderByCRNResponse: offenderDetails,
       })
     }
   },
@@ -38,7 +38,7 @@ const checkInsController: Controller<typeof routes, void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      const offenderDetails = res.locals.offenderByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
       if (offenderDetails.status !== 'VERIFIED') {
@@ -79,7 +79,7 @@ const checkInsController: Controller<typeof routes, void> = {
         reason: handleQuotes(reasonData),
         sensitive: isSensitive,
       }
-      res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
+      res.locals.offenderByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`

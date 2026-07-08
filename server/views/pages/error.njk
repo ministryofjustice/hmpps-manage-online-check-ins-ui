@@ -7,4 +7,8 @@
   <h1 class="govuk-heading-l">{{ title | safe  }}</h1>
 
   <p class="govuk-body">{{ message | safe  }}</p>
+
+  {% if stack %}
+  <pre>{{ stack }}</pre>
+{% endif %}
 {% endblock %}

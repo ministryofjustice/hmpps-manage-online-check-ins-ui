@@ -1,7 +1,7 @@
 import httpMocks from 'node-mocks-http'
 import controllers from '.'
 
-import { CheckinScheduleResponse, OffenderCheckinsByCRNResponse } from '../data/model/esupervision'
+import { CheckinScheduleResponse, OffenderByCRNResponse } from '../data/model/esupervision'
 import ESupervisionClient from '../data/eSupervisionClient'
 import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
@@ -58,7 +58,7 @@ const mockSetDataValue = setDataValue as jest.MockedFunction<typeof setDataValue
 const crn = 'X000001'
 const uuid = 'f1654ea3-0abb-46eb-860b-654a96edbe20'
 
-const offenderCheckinsByCRNResponse = {
+const offenderByCRNResponse = {
   uuid,
   crn,
   status: 'VERIFIED',
@@ -72,7 +72,7 @@ const offenderCheckinsByCRNResponse = {
       surname: 'Bloggs',
     },
   },
-} as OffenderCheckinsByCRNResponse
+} as OffenderByCRNResponse
 
 const baseReq = (data?: any) =>
   httpMocks.createRequest({
@@ -85,7 +85,7 @@ const baseReq = (data?: any) =>
   })
 
 const res = mockAppResponse()
-res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
+res.locals.offenderByCRNResponse = offenderByCRNResponse
 
 const renderSpy = jest.spyOn(res, 'render')
 const redirectSpy = jest.spyOn(res, 'redirect')
@@ -95,7 +95,7 @@ describe('checkInsController', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.useRealTimers()
-    res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
+    res.locals.offenderByCRNResponse = offenderByCRNResponse
   })
 
   describe('getManageCheckinPage', () => {
@@ -112,8 +112,8 @@ describe('checkInsController', () => {
       expect(template).toBe('pages/check-in/index.njk')
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
-      expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
-      expect(context.offenderCheckinsByCRNResponse).toEqual(offenderCheckinsByCRNResponse)
+      expect(context.case).toEqual(offenderByCRNResponse.details)
+      expect(context.offenderByCRNResponse).toEqual(offenderByCRNResponse)
     })
 
     it('returns 404 when offender details are missing', async () => {
@@ -121,7 +121,7 @@ describe('checkInsController', () => {
         params: { crn },
       })
 
-      res.locals.offenderCheckinsByCRNResponse = undefined
+      res.locals.offenderByCRNResponse = undefined
 
       await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
 
@@ -147,7 +147,7 @@ describe('checkInsController', () => {
       expect(template).toBe('pages/check-in/manage/stop-checkin.njk')
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
-      expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+      expect(context.case).toEqual(offenderByCRNResponse.details)
     })
 
     it('returns 404 when CRN is invalid', async () => {

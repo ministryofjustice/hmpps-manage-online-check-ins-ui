@@ -137,6 +137,12 @@ export default class RestClient {
   ): Promise<Response | null> {
     logger.info(escapeForLog(`${this.name} ${method.toUpperCase()}: ${path}`))
 
+    const apiUrl = this.apiUrl()
+    if (!isValidHost(apiUrl) || !isValidPath(path)) {
+      logger.warn(escapeForLog(`Invalid API URL or path: apiUrl='${apiUrl}', path='${path}'`))
+      throw new Error(`Invalid API URL or path`)
+    }
+
     try {
       const request = superagent[method](`${this.apiUrl()}${path}`)
         .query(query)

@@ -28,10 +28,13 @@ function restClientMetricsMiddleware(agent: SuperAgentRequest) {
       })
     })
 
-    req.on('response', (res: Response, err: Error) => {
+    req.on('response', (res: Response) => {
       res.on('end', () => {
-        const responseTime = Date.now() - startTime
-        requestHistogram.labels(hostname, req.method, normalizedPath, String(res.statusCode)).observe(responseTime)
+        const responseTimeSeconds = (Date.now() - startTime) / 1000
+
+        requestHistogram
+          .labels(hostname, req.method, normalizedPath, String(res.statusCode))
+          .observe(responseTimeSeconds)
       })
     })
   })
@@ -43,6 +46,7 @@ function normalizePath(url: string) {
   const { pathname } = new URL(url)
   const urlPathReplacement = '#val'
   const urlValueParser = new UrlValueParser({ extraMasks: [/^[A-Z|0-9]+/] })
+
   return urlValueParser.replacePathValues(pathname, urlPathReplacement)
 }
 

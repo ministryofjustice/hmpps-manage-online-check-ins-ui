@@ -69,15 +69,10 @@ const mockError = (status = 500): HTTPError => {
 const checkLocalsVars = (error: HTTPError, production = false): void => {
   it('should set res.locals correctly', () => {
     const { stack } = error
-    const status = error?.status || 500
-    const devError = `<pre>${error.stack}</pre>`
+    const status = error?.status ?? 500
+
     expect(res.locals.title).toEqual(statusErrors[status as StatusErrorCode].title)
-    expect(res.locals.message).toContain(`${statusErrors[status as StatusErrorCode].message}`)
-    if (!production) {
-      expect(res.locals.message).toContain(devError)
-    } else {
-      expect(res.locals.message).not.toContain(devError)
-    }
+    expect(res.locals.message).toEqual(statusErrors[status as StatusErrorCode].message)
     expect(res.locals.status).toEqual(status)
     expect(res.locals.stack).toEqual(production ? null : stack)
   })

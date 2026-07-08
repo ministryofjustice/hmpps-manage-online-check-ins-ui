@@ -144,7 +144,8 @@ interface Name {
   forename: string
   surname: string
 }
-export interface OffenderCheckinsByCRNResponse {
+// This was OffenderCheckinsByCRNResponse but I've renamed it because it doesn't actually fetch any check ins
+export interface OffenderByCRNResponse {
   uuid: string
   crn: string
   status: OffenderStatus
