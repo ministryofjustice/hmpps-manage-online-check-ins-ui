@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Router } from 'express'
 
 import createError from 'http-errors'
 
@@ -33,18 +33,22 @@ export default function createApp(services: Services): express.Application {
   app.use(setUpWebRequestParsing())
   app.use(setUpStaticResources())
   nunjucksSetup(app)
+  app.use((req, res, next) => {
+    res.locals.managePeopleOnProbationUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+    next()
+  })
   app.use(setUpAuthentication())
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
-  app.get(
-    '/{*splat}',
+  app.use(
     pdsComponents.getPageComponents({
       pdsUrl: config.apis.probationApi.url,
       logger,
     }),
   )
-  app.use(routes(services))
+  const router = Router()
+  app.use(routes(router, services))
 
   app.use((_req, _res, next) => next(createError(404, 'Not found')))
   app.use(errorHandler(process.env.NODE_ENV === 'production'))

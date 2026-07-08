@@ -1,11 +1,12 @@
 import crypto from 'crypto'
 import express, { Router, Request, Response, NextFunction } from 'express'
 import helmet from 'helmet'
-import { IncomingMessage, ServerResponse } from 'http'
 import config from '../config'
 
 export default function setUpWebSecurity(): Router {
   const router = express.Router()
+  const managePeopleOnProbationUrl = new URL(config.managePeopleOnProbation.link).origin
+  const hmppsAuthUrl = new URL(config.apis.hmppsAuth.externalUrl).origin
 
   // Secure code best practice - see:
   // 1. https://expressjs.com/en/advanced/best-practice-security.html,
@@ -14,10 +15,25 @@ export default function setUpWebSecurity(): Router {
     res.locals.cspNonce = crypto.randomBytes(16).toString('hex')
     next()
   })
+
   router.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
+          mediaSrc: [
+            "'self'",
+            // This is required for the S3 bucket to upload checkin images
+            // (either have a custom domain for each environment or use the default wild card domain)
+            'https://*.s3.eu-west-2.amazonaws.com/',
+          ],
+          imgSrc: [
+            "'self'",
+            // This is required for the S3 bucket to upload checkin images
+            // (either have a custom domain for each environment or use the default wild card domain)
+            // data: Allow inline base64 images across all environments (needed for data URL previews)
+            'data:',
+            'https://*.s3.eu-west-2.amazonaws.com/',
+          ],
           defaultSrc: ["'self'"],
           // This nonce allows us to use scripts with the use of the `cspNonce` local, e.g (in a Nunjucks template):
           // <script nonce="{{ cspNonce }}">
@@ -27,19 +43,40 @@ export default function setUpWebSecurity(): Router {
           // page by an attacker.
           scriptSrc: [
             "'self'",
-            (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
+            'js.monitor.azure.com',
+            (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
           ],
-          styleSrc: [
-            "'self'",
-            (_req: IncomingMessage, res: ServerResponse) => `'nonce-${(res as Response).locals.cspNonce}'`,
-          ],
-          fontSrc: ["'self'"],
-          formAction: [`'self' ${config.apis.hmppsAuth.externalUrl}`],
+          // Build connect-src dynamically so we can relax it for local development only
+          // NOTE: Keep localhost allowances out of non-local environments
+          connectSrc: (() => {
+            const sources = [
+              "'self'",
+              'js.monitor.azure.com',
+              '*.applicationinsights.azure.com',
+              config.probationFrontendComponents.connectSrc,
+              // This is required for the S3 bucket to upload checkin images
+              // (either have a custom domain for each environment or use the default wild card domain)
+              'https://*.s3.eu-west-2.amazonaws.com',
+            ]
+
+            // Allow localhost for local development only
+            if (config.env === 'local') {
+              sources.push('http://localhost:9091')
+              sources.push('http://localhost:3000')
+            }
+
+            return sources
+          })(),
+          workerSrc: ["'self'", 'blob:'],
+          styleSrc: ["'self'", (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`],
+          fontSrc: ["'self'", config.probationFrontendComponents.fontSrc],
+          formAction: ["'self'", hmppsAuthUrl, managePeopleOnProbationUrl],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },
       crossOriginEmbedderPolicy: true,
     }),
   )
+
   return router
 }

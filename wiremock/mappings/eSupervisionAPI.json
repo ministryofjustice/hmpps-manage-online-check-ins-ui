@@ -1,0 +1,369 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup/.+?/upload_location",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "locationInfo": {
+            "url": "http://localhost:9091/v2/fake-s3-upload",
+            "method": "PUT"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/fake-s3-upload",
+        "method": "PUT"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Expose-Headers": "*"
+        }
+      }
+    },
+
+    {
+      "request": {
+        "urlPathPattern": "/v2/fake-s3-upload",
+        "method": "OPTIONS"
+      },
+      "response": {
+        "status": 204,
+        "headers": {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "PUT, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+          "Access-Control-Max-Age": "600"
+        }
+      }
+    },
+
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup",
+        "method": "POST"
+      },
+      "response": {
+        "status": 201,
+        "jsonBody": {
+          "locationInfo": {
+            "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afz9",
+            "practitioner": "AUTH_USER",
+            "createdAt": "2025-01-13T15:28:37.920581Z"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup",
+        "method": "POST"
+      },
+      "response": {
+        "status": 201,
+        "jsonBody": {
+          "locationInfo": {
+            "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afz9",
+            "practitioner": "AUTH_USER",
+            "createdAt": "2025-01-13T15:28:37.920581Z"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup/.+?/complete",
+        "method": "POST"
+      },
+      "response": {
+        "status": 201,
+        "jsonBody": {
+          "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afz9",
+          "crn": "X000001",
+          "practitionerId": "AUTH_USER",
+          "status": "VERIFIED",
+          "createdAt": "2025-01-13T15:28:37.920581Z",
+          "createdBy": "AutomatedTestUser",
+          "offender": "3fa85f64-5717-4562-b3fc-2c963f66afp9",
+          "updatedAt": "2025-12-05T15:12:45.641890978Z",
+          "firstCheckin": "2025-12-06"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup422",
+        "method": "POST"
+      },
+      "response": {
+        "status": 422,
+        "jsonBody": {
+          "status": 422,
+          "errorCode": null,
+          "userMessage": "422 BAD_REQUEST contact information",
+          "developerMessage": "422 BAD_REQUEST contact information",
+          "message": "contact information",
+          "moreInfo": null
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offender_setup/.+?/complete500",
+        "method": "POST"
+      },
+      "response": {
+        "status": 500,
+        "jsonBody": {
+          "status": 500,
+          "errorCode": null,
+          "userMessage": "Unexpected error: No setup found for uuid=93e135af-4526-68ed-fd63-112437f63465",
+          "developerMessage": "No setup found for uuid=93e135af-4526-68ed-fd63-112437f63465",
+          "moreInfo": null
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X778160",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+          "crn": "X778160",
+          "status": "VERIFIED",
+          "firstCheckin": "2025-11-03",
+          "checkinInterval": "WEEKLY",
+          "contactPreference": "PHONE",
+          "photoUrl": "/assets/images/placeholder.png",
+          "details": {
+            "name": {
+              "forename": "Joe",
+              "surname": "Bloggs"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X000001",
+        "method": "GET"
+      },
+      "response": {
+        "status": 404,
+        "jsonBody": {
+          "status": 404,
+          "errorCode": "NOT_FOUND",
+          "userMessage": "404 NOT_FOUND, CRN X000001 not found",
+          "developerMessage": "404 NOT_FOUND , CRN X000001 not found",
+          "moreInfo": null
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/.+?/update_details",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "crn": "X000001",
+          "status": "INITIAL",
+          "firstCheckin": "{{jsonPath request.body '$.checkinSchedule.firstCheckin'}}",
+          "checkinInterval": "{{jsonPath request.body '$.checkinSchedule.checkinInterval'}}",
+          "contactPreference": "PHONE",
+          "photoUrl": "/assets/images/placeholder.png"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        },
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/.+?/deactivate",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "crn": "X000001",
+          "status": "INACTIVE",
+          "firstCheckin": "2025-11-03",
+          "checkinInterval": "WEEKLY",
+          "contactPreference": "PHONE",
+          "photoUrl": "/assets/images/placeholder.png"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        },
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/.+?/reactivate",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+          "crn": "X000001",
+          "status": "VERIFIED",
+          "firstCheckin": "2025-11-03",
+          "checkinInterval": "WEEKLY",
+          "contactPreference": "PHONE",
+          "photoUrl": "/assets/images/placeholder.png"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        },
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/questions/templates",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "templates": [
+            {
+              "id": 1,
+              "template": "How has {{thing}} been going recently?",
+              "example": "unpaid work, college course, work, apprenticeship, university course, sentence plan, training",
+              "responseFormat": "TEXT",
+              "responseSpec": {
+                "hint": "Hint for the question about the {{thing}}",
+                "placeholders": ["thing"]
+              },
+              "policy$hmpps_esupervision_api": "CUSTOMISABLE"
+            },
+            {
+              "id": 2,
+              "template": "How have things been feeling {{thing}} recently?",
+              "example": "home, work, relationships with family, appointments with other bodies, physical or mental health, recovery journey",
+              "responseFormat": "TEXT",
+              "responseSpec": {
+                "hint": "Hint for the question about the {{thing}}",
+                "placeholders": ["thing"]
+              },
+              "policy$hmpps_esupervision_api": "CUSTOMISABLE"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/questions/upcoming/.+?/offender-questions",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
+          "questions": [
+            {
+              "question": "How was your appointment??",
+              "format": "TEXT",
+              "spec": {
+                "hint": "Hint for the question about the {{thing}}"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/questions/upcoming/.+?/question-items",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "upcoming": {
+            "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
+            "items": []
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/questions/assignment",
+        "queryParameters": {
+          "crn": {
+            "matches": ".*"
+          }
+        },
+        "method": "PUT"
+      },
+      "response": {
+        "status": 200,
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
+          "listId": 3
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    }
+  ]
+}

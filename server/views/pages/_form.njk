@@ -1,0 +1,90 @@
+{% extends "../partials/layout.njk" %}
+{% block beforeContent %}
+  {# {% if breadcrumb and not change %}
+    {{ govukBreadcrumbs({
+      items: [
+        {
+          text: "Cases",
+          href: "/case"
+        },
+        {
+          text: headerPersonName.forename + ' ' + headerPersonName.surname,
+          href: "/case/" + crn,
+          attributes: { "data-ai-id": "breadcrumbPersonNameLink" }
+        },
+        {
+          text: "Appointments",
+          href: "/case/" + crn + "/appointments"
+        },
+        {
+          text: breadcrumb
+        }
+      ]
+    }) }}
+  {% elif backLink %}
+    {{ govukBackLink({
+      href: backLink
+    }) }}
+  {% endif %} #}
+{% endblock %}
+
+{% block content %}
+  {% if headerCRN %}
+    {% if not checkinPhotoPage %}
+      {% include "../partials/pop-header.njk" %}
+      <hr class="govuk-section-break--l">
+    {% endif %}
+  {% endif %}
+  {% if notStandardForm %}
+    {% block primary %}{% endblock %}
+  {% else %}
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds">
+
+        {% if errorMessages %}
+          {% set errorList = errorMessages | toErrorList %}
+          {% if errorList.length > 0 %}
+            {{ govukErrorSummary({
+                titleText: "There is a problem",
+                classes: 'govuk-!-margin-bottom-6',
+                errorList: errorList,
+                attributes: { "data-qa": "errorList"}
+            }) }}
+          {% endif %}
+        {% endif %}
+        {% block alertBanner %}{% endblock %}
+        {% block beforeHeading %}{% endblock %}
+
+        {% block heading %}
+          {% if title %}
+            <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
+              {{ title }}
+            </h2>
+          {% endif %}
+        {% endblock %}
+        {% block afterHeading %}{% endblock %}
+        <form method="post" autocomplete="off" action="{{ action if action else paths.current }}"{% if multipartForm %} enctype="multipart/form-data"{% endif %} {% if formId %} id="{{ formIdName }}"{% endif %}>
+          {% if not multipartForm %}<input type="hidden" name="_csrf" value="{{ csrfToken }}">{% endif %}
+          {% block form %}{% endblock %}
+          {% if not hideButton %}
+            <div class="govuk-button-group">
+              {{ govukButton({
+                html: buttonText if buttonText else 'Continue',
+                isStartButton: buttonText === 'Start now',
+                id: submitButtonId if submitButtonId else 'submit-btn',
+                name: 'submit-btn',
+                attributes: {
+                  'data-qa': 'submit-btn'
+                }
+              }) }}
+              {% if showAnchorLink === true %}
+                <a class="govuk-link" href="{{ formAnchorLink }}" data-qa="formAnchorLink">
+                  {{ formAnchorText }}</a>
+              {% endif %}
+            </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

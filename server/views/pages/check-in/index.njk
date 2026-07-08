@@ -1,0 +1,11 @@
+{% extends "../_content.njk" %}
+{% set title = "Online check ins"%}
+{% set text = "Stop online check ins for " + crn %}
+
+
+  {% block primary %}
+
+<a data-qa="stop-checkin-btn" class='govuk-button' href="/case/{{ crn }}/appointments/check-in/manage/{{ id }}/stop-checkin">
+  {{text}}
+</a>
+{% endblock %}

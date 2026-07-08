@@ -4,9 +4,11 @@
 {% set mainClasses = "govuk-body" %}
 
 {% block content %}
+  <h1 class="govuk-heading-l">{{ title | safe  }}</h1>
 
-  <h1>{{ message }}</h1>
-  <h2>{{ status }}</h2>
+  <p class="govuk-body">{{ message | safe  }}</p>
+
+  {% if stack %}
   <pre>{{ stack }}</pre>
-
+{% endif %}
 {% endblock %}
