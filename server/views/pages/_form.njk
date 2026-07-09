@@ -1,31 +1,10 @@
 {% extends "../partials/layout.njk" %}
 {% block beforeContent %}
-  {# {% if breadcrumb and not change %}
-    {{ govukBreadcrumbs({
-      items: [
-        {
-          text: "Cases",
-          href: "/case"
-        },
-        {
-          text: headerPersonName.forename + ' ' + headerPersonName.surname,
-          href: "/case/" + crn,
-          attributes: { "data-ai-id": "breadcrumbPersonNameLink" }
-        },
-        {
-          text: "Appointments",
-          href: "/case/" + crn + "/appointments"
-        },
-        {
-          text: breadcrumb
-        }
-      ]
-    }) }}
-  {% elif backLink %}
+  {% if backLink %}
     {{ govukBackLink({
       href: backLink
     }) }}
-  {% endif %} #}
+  {% endif %}
 {% endblock %}
 
 {% block content %}
