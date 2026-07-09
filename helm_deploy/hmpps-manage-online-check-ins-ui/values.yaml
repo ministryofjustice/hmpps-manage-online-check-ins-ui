@@ -33,6 +33,7 @@ generic-service:
     TOKEN_VERIFICATION_ENABLED: 'true'
     AUDIT_SQS_REGION: 'eu-west-2'
     AUDIT_SERVICE_NAME: 'DPS033' # Your audit service name
+    FEEDBACK_BANNER_LINK: 'https://www.smartsurvey.co.uk/t/AAGPPN?service=Online%20check%20ins'
 
   # Pre-existing kubernetes secrets to load as environment variables in the deployment.
   # namespace_secrets:
@@ -46,7 +47,7 @@ generic-service:
       CLIENT_CREDS_CLIENT_SECRET: 'CLIENT_CREDS_CLIENT_SECRET'
     hmpps-manage-online-check-ins-ui-auth-code:
       AUTH_CODE_CLIENT_ID: 'AUTH_CODE_CLIENT_ID'
-      AUTH_CODE_CLIENT_SECRET: 'AUTH_CODE_CLIENT_SECRET'    
+      AUTH_CODE_CLIENT_SECRET: 'AUTH_CODE_CLIENT_SECRET'
     hmpps-manage-online-check-ins-ui-session-secret:
       SESSION_SECRET: 'SESSION_SECRET'
     hmpps-manage-online-check-ins-ui-elasticache-redis:
