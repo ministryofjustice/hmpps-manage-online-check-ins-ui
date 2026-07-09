@@ -22,3 +22,8 @@
     display: inline;
   }
 }
+
+.govuk-phase-banner {
+  @include govuk-width-container;
+  border: none !important;
+}
