@@ -1,6 +1,6 @@
 {% extends "../../_form.njk" %}
 {% set hintText = case.name.forename + " will no longer receive reminders to use the check in service." %}
-{% set backLink =  '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{% set backLink =  managePeopleOnProbationUrl + '/case/' + crn + '/appointments/check-in/manage/' + id %}
 {% set buttonText = "Continue" %}
 {% set title = "Stop online check ins for " + case.name.forename %}
 {% set pageTitleText = "Stop online check ins for the person" %}
