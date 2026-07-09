@@ -6,6 +6,7 @@ generic-service:
     host: manage-online-check-ins.hmpps.service.justice.gov.uk
 
   env:
+    ENVIRONMENT: 'prod'
     INGRESS_URL: "https://manage-online-check-ins.hmpps.service.justice.gov.uk"
     HMPPS_AUTH_URL: "https://sign-in.hmpps.service.justice.gov.uk/auth"
     TOKEN_VERIFICATION_API_URL: "https://token-verification-api.prison.service.justice.gov.uk"

@@ -148,5 +148,4 @@ export default {
     { name: 'start', dateField: 'date' },
     { name: 'end', dateField: 'date' },
   ],
-  maxCharCount: get('CHAR_COUNT', 12000, requiredInProduction),
 }
