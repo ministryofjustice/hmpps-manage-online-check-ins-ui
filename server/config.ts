@@ -148,4 +148,7 @@ export default {
     { name: 'start', dateField: 'date' },
     { name: 'end', dateField: 'date' },
   ],
+  preservedWords: ['(NS)', '(Non', 'NS)'],
+  preservedSeparators: ['-'],
+  maxCharCount: get('CHAR_COUNT', 12000, requiredInProduction),
 }

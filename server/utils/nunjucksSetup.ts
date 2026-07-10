@@ -11,11 +11,17 @@ import config from '../config'
 import logger from '../../logger'
 
 import { initialiseName } from './utils'
-import { dateWithYear } from './dateWithYear'
+import { dateWithYear, dateWithYearTimeFirst } from './dateWithYear'
+
 import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
 import decorateFormAttributes from './decorateFormAttributes'
 import toErrorList from './toErrorList'
+
+import getUserFriendlyString from './eSupervisionFriendlyString'
+import { handleQuotes } from './handleQuotes'
+import { formatEnforcementActionNote } from './formatEnforcementActionNote'
+import { splitString } from './splitString'
 
 export default function nunjucksSetup(app: express.Express): void {
   app.set('view engine', 'njk')
@@ -66,10 +72,13 @@ export default function nunjucksSetup(app: express.Express): void {
 
   njkEnv.addFilter('initialiseName', initialiseName)
   njkEnv.addFilter('dateWithYear', dateWithYear)
+  njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
   njkEnv.addFilter('yearsSince', yearsSince)
-
+  njkEnv.addFilter('split', splitString)
+  njkEnv.addFilter('userFriendlyString', getUserFriendlyString)
+  njkEnv.addFilter('formatEnforcementActionNote', formatEnforcementActionNote)
+  njkEnv.addFilter('handleQuotes', handleQuotes)
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)
-
   njkEnv.addFilter('decorateFormAttributes', (obj: unknown, sections?: string[]) => {
     const ctx = requestContext.getStore()
 
@@ -81,8 +90,8 @@ export default function nunjucksSetup(app: express.Express): void {
     return decorateFormAttributes(ctx.req, ctx.res)(obj, sections)
   })
   njkEnv.addFilter('toErrorList', toErrorList)
-
   njkEnv.addGlobal('makePageTitle', makePageTitle)
+  njkEnv.addGlobal('maxCharCount', config.maxCharCount)
 
   arnsNunjucksSetup(njkEnv)
 }

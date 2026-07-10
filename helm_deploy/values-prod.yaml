@@ -15,6 +15,7 @@ generic-service:
     COMPONENT_API_URL: "https://probation-frontend-components.hmpps.service.justice.gov.uk"
     ENVIRONMENT_NAME: "PRODUCTION"
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation.hmpps.service.justice.gov.uk"
+    CHAR_COUNT: 12000
 
 generic-prometheus-alerts:
   alertSeverity: warning
