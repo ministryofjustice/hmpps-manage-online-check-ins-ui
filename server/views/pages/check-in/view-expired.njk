@@ -53,13 +53,11 @@
                 <dt class="govuk-summary-list__key">Why did {{ checkIn.personalDetails.name.forename }} not complete their check in?</dt>
                 <dd class="govuk-summary-list__value">{{ checkIn.missedCheckinComment }}</dd>
             </div>
-            {% if checkIn.notes.length > 0 %}
-                <div class="govuk-summary-list__row">
-                    <dt class="govuk-summary-list__key">Notes</dt>
-                    <dd class="govuk-summary-list__value">{{
-                        notes | safe
-                    }}</dd>
-                </div>
+            {% if notes %}
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Notes</dt>
+                <dd class="govuk-summary-list__value">{{ notes | safe }}</dd>
+            </div>
             {% endif %}
         </dl>
         <div class="govuk-grid-column-two-thirds govuk-!-padding-0">

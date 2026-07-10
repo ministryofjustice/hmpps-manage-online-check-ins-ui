@@ -83,13 +83,11 @@
                 {% endfor %}
                 <dd class="govuk-summary-list__value">{{ reviewActionNotes }}</dd>
             </div>
-            {% if checkIn.notes.length > 0 %}
-                <div class="govuk-summary-list__row">
-                    <dt class="govuk-summary-list__key">Notes</dt>
-                    <dd class="govuk-summary-list__value">{{
-                        notes | safe
-                    }}</dd>
-                </div>
+            {% if notes %}
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key">Notes</dt>
+                <dd class="govuk-summary-list__value">{{ notes | safe }}</dd>
+            </div>
             {% endif %}
         </dl>
 
