@@ -167,17 +167,6 @@ export const isValidRescheduledDateTime = (_args: any[], _now: DateTime, request
   return true
 }
 
-export const isValidCharCount = (args: any[]) => {
-  const value = args?.[0]
-  const { maxCharCount } = config
-  if (!value) {
-    return true
-  }
-  const lineBreaks = value.split('\r\n').length - 1
-  const textLength = value.split('\r\n').join('').length
-  return value.trim() !== '' && textLength + lineBreaks <= maxCharCount
-}
-
 export const isValidMobileNumber = (input: string) => {
   const value = typeof input === 'string' ? input : String(input ?? '')
   return /^(\+44\s?7\d{3}|\(?07\d{3}\)?)\s?\d{3}\s?\d{3}$/.test(value.trim())

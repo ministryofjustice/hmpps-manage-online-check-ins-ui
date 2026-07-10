@@ -31,9 +31,7 @@ context('check-ins overview and manage pages', () => {
 
     cy.wait('@stopCheckin').then(({ response }) => {
       expect(response?.statusCode).to.be.oneOf([302, 303])
-      expect(response?.headers.location).to.eq(
-        'https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk/case/X778160',
-      )
+      expect(response?.headers.location).to.eq('https://localhost:9091/manage-people-on-probation/case/X778160')
     })
   })
 })

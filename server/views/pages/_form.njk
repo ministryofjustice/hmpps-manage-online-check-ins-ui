@@ -1,5 +1,6 @@
 {% extends "../partials/layout.njk" %}
 {% block beforeContent %}
+
   {% if breadcrumb and not change %}
     {{ govukBreadcrumbs({
       items: [
@@ -26,7 +27,6 @@
       href: backLink
     }) }}
   {% endif %}
-
 {% endblock %}
 
 {% block content %}
