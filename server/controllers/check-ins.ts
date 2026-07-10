@@ -5,16 +5,15 @@ import {
   ESupervisionReview,
   OffenderByCRNResponse,
 } from '../data/model/esupervision'
-import isValidCrn from '../utils/isValidCrn'
-import isValidUUID from '../utils/isValidUUID'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { Controller } from '../@types'
 import config from '../config'
+import { handleQuotes } from '../utils/handleQuotes'
 
-function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
+export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   if (checkIn.livenessEnabled) {
     return checkIn.livenessResult === 'LIVE' && checkIn.autoIdCheck === 'MATCH'
   }
@@ -35,8 +34,6 @@ const routes = [
   'postViewCheckIn',
   'getViewExpiredCheckIn',
 ] as const
-
-const handleQuotes = (value?: string): string => value?.replace(/"/g, '\\"') ?? ''
 
 const checkInsController: Controller<typeof routes, void> = {
   getManageCheckinPage: hmppsAuthClient => {
@@ -61,9 +58,6 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const offenderDetails = res.locals.offenderByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
@@ -81,9 +75,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postManageStopCheckin: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
 
       const reasonData = getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'stopCheckinReason'])
 
@@ -102,7 +93,7 @@ const checkInsController: Controller<typeof routes, void> = {
 
       const body: DeactivateOffenderRequest = {
         requestedBy: res.locals.user.username,
-        reason: handleQuotes(reasonData),
+        reason: handleQuotes(reasonData ?? ''),
         sensitive: isSensitive,
       }
       res.locals.offenderByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
@@ -116,9 +107,6 @@ const checkInsController: Controller<typeof routes, void> = {
   getReviewIdentityCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status !== 'SUBMITTED') {
@@ -138,9 +126,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postReviewIdentityCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const url = encodeURIComponent(req.url)
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/review/notes?back=${url}`)
     }
@@ -150,9 +135,6 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { checkIn } = res.locals
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { data } = req.session
       const checkInSession = getDataValue(data, ['esupervision', crn, id, 'checkins'])
@@ -171,9 +153,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postReviewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const url = encodeURIComponent(req.url)
       const { data } = req.session
       const checkIn = getDataValue(data, ['esupervision', crn, id, 'checkins'])
@@ -202,9 +181,6 @@ const checkInsController: Controller<typeof routes, void> = {
   getReviewExpiredCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status === 'EXPIRED' && checkIn.reviewedAt) {
@@ -221,9 +197,6 @@ const checkInsController: Controller<typeof routes, void> = {
   getViewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
 
       const { checkIn } = res.locals
@@ -250,9 +223,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postViewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { url } = req
 
@@ -266,7 +236,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const eSupervisionClient = new ESupervisionClient(token)
       const notes: ESupervisionNote = {
         updatedBy: practitionerUsername,
-        notes: checkIn.note,
+        notes: checkIn?.note,
         sensitive: checkIn?.sensitiveContact === 'true',
       }
       await eSupervisionClient.postOffenderCheckInNote(id, notes)
@@ -281,9 +251,6 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_MISSED_AND_REVIEWED', crn, SubjectType.CRN)
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { checkIn } = res.locals
 
@@ -297,9 +264,6 @@ const checkInsController: Controller<typeof routes, void> = {
   getUpdateCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
       const { back } = req.query
       const { checkIn } = res.locals
       const statusMap: Record<string, string> = {

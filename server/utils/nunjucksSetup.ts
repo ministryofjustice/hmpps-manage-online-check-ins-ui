@@ -91,6 +91,7 @@ export default function nunjucksSetup(app: express.Express): void {
   })
   njkEnv.addFilter('toErrorList', toErrorList)
   njkEnv.addGlobal('makePageTitle', makePageTitle)
+  njkEnv.addGlobal('maxCharCount', config.maxCharCount)
 
   arnsNunjucksSetup(njkEnv)
 }

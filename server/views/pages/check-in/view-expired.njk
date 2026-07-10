@@ -9,7 +9,7 @@
 
 {% set notes = '' %}
 {% for note in checkIn.notes %}
-    {% set notes = notes.concat(appNote(note, '/case/' + crn + '/appointments/appointment/' + entry.id + '/manage/note/' + note.id + '?back=' + url)) %}
+    {% set notes = notes.concat(appNote(note, '/case/' + crn + '/appointments/appointment/' + id + '/manage/note/' + note.id + '?back=' + paths.current)) %}
 {% endfor  %}
 
 {% block content %}

@@ -17,4 +17,18 @@ describe('utils/formatEnforcementActionNote', () => {
     const expectedNote = `${mockNote()}<span class="govuk-!-font-weight-bold">Enforcement action:</span> first warning letter sent`
     expect(formatEnforcementActionNote(note)).toEqual(expectedNote)
   })
+  it('should preserve colons in the enforcement action value', () => {
+    const note = mockNote('Enforcement Action: Contact attempted at 15:30')
+    const expectedNote = `${mockNote()}<span class="govuk-!-font-weight-bold">Enforcement action:</span> contact attempted at 15:30`
+    expect(formatEnforcementActionNote(note)).toEqual(expectedNote)
+  })
+  it('should escape HTML in note content to prevent XSS', () => {
+    expect(formatEnforcementActionNote('<script>alert(1)</script>')).toEqual('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+  it('should escape HTML in an enforcement action value', () => {
+    const note = 'Enforcement Action: <img src=x onerror=alert(1)>'
+    const expectedNote =
+      '<span class="govuk-!-font-weight-bold">Enforcement action:</span> &lt;img src=x onerror=alert(1)&gt;'
+    expect(formatEnforcementActionNote(note)).toEqual(expectedNote)
+  })
 })

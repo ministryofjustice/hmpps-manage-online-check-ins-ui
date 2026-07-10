@@ -2,106 +2,43 @@ import { Route } from '../../@types'
 import { validateWithSpec } from '../../utils/validationUtils'
 import { LocalParams } from '../../models/Esupervision'
 import { checkInReviewValidation } from '../../properties/validation/checkInReviewValidation'
+import { systemIdCheckPass } from '../../controllers/check-ins'
+
+// Maps a check-in page's URL suffix to the validation `page` key it uses. The
+// render template is `pages/check-in/${suffix}`. Matching on the exact suffix
+// (endsWith) keeps `view` from also matching `view-expired`.
+const validationPages = [
+  { suffix: 'review/identity', page: 'identity' },
+  { suffix: 'review/expired', page: 'expired' },
+  { suffix: 'review/notes', page: 'notes' },
+  { suffix: 'view', page: 'view' },
+  { suffix: 'view-expired', page: 'view-expired' },
+]
 
 const checkInReview: Route<void> = (req, res, next) => {
-  const { url, params } = req
-  const { crn, id } = params as Record<string, string>
+  const { crn, id } = req.params as Record<string, string>
   const { checkIn } = res.locals
   const { back = '' } = req.query as Record<string, string>
 
-  const localParams: LocalParams = {
-    crn,
-    id,
-    back,
-  }
-
   const baseUrl = req.url.split('?')[0]
-  let render = `pages/${[
-    url
-      .split('?')[0]
-      .split('/')
-      .filter(item => item)
-      .filter((_item, i) => ![0, 1, 2, 3].includes(i))
-      .join('/'),
-  ]}`
-
-  const validateCheckInView = () => {
-    if (baseUrl.includes(`case/${crn}/appointments/${id}/check-in/view`)) {
-      render = `pages/check-in/view`
-      errorMessages = validateWithSpec(
-        req,
-        checkInReviewValidation({
-          crn,
-          id,
-          page: 'view',
-        }),
-      )
-    }
-  }
-  const validateCheckInViewExpired = () => {
-    if (baseUrl.includes(`case/${crn}/appointments/${id}/check-in/view-expired`)) {
-      render = `pages/check-in/view-expired`
-      errorMessages = validateWithSpec(
-        req,
-        checkInReviewValidation({
-          crn,
-          id,
-          page: 'view-expired',
-        }),
-      )
-    }
+  const match = validationPages.find(({ suffix }) => baseUrl.endsWith(`/check-in/${suffix}`))
+  if (!match) {
+    return next()
   }
 
-  const validateCheckInReviewIdentity = () => {
-    if (baseUrl.includes(`case/${crn}/appointments/${id}/check-in/review/identity`)) {
-      render = `pages/check-in/review/identity`
-      errorMessages = validateWithSpec(
-        req,
-        checkInReviewValidation({
-          crn,
-          id,
-          page: 'identity',
-        }),
-      )
-    }
+  const errorMessages = validateWithSpec(req, checkInReviewValidation({ crn, id, page: match.page }))
+  if (!Object.keys(errorMessages).length) {
+    return next()
   }
-  const validateCheckInReviewExpired = () => {
-    if (baseUrl.includes(`case/${crn}/appointments/${id}/check-in/review/expired`)) {
-      render = `pages/check-in/review/expired`
-      errorMessages = validateWithSpec(
-        req,
-        checkInReviewValidation({
-          crn,
-          id,
-          page: 'expired',
-        }),
-      )
-    }
-  }
-  const validateCheckInReviewNotes = () => {
-    if (baseUrl.includes(`case/${crn}/appointments/${id}/check-in/review/notes`)) {
-      render = `pages/check-in/review/notes`
-      errorMessages = validateWithSpec(
-        req,
-        checkInReviewValidation({
-          crn,
-          id,
-          page: 'notes',
-        }),
-      )
-    }
-  }
-  let errorMessages: Record<string, string> = {}
-  validateCheckInReviewIdentity()
-  validateCheckInReviewExpired()
-  validateCheckInReviewNotes()
-  validateCheckInView()
-  validateCheckInViewExpired()
-  if (Object.keys(errorMessages).length) {
-    res.locals.errorMessages = errorMessages
-    return res.render(render, { errorMessages, ...localParams, checkIn })
-  }
-  return next()
+
+  const localParams: LocalParams = { crn, id, back }
+  res.locals.errorMessages = errorMessages
+  return res.render(`pages/check-in/${match.suffix}`, {
+    errorMessages,
+    ...localParams,
+    checkIn,
+    systemIdCheckPass: checkIn ? systemIdCheckPass(checkIn) : false,
+  })
 }
 
 export default checkInReview

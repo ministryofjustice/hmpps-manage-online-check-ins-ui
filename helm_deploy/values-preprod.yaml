@@ -17,6 +17,7 @@ generic-service:
     AUDIT_ENABLED: "false"
     COMPONENT_API_URL: "https://probation-frontend-components-preprod.hmpps.service.justice.gov.uk"
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation-preprod.hmpps.service.justice.gov.uk"
+    CHAR_COUNT: 12000
 
 generic-prometheus-alerts:
   alertSeverity: warning

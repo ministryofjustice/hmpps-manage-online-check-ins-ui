@@ -149,45 +149,9 @@ describe('checkInsController', () => {
       expect(context.id).toBe(uuid)
       expect(context.case).toEqual(offenderByCRNResponse.details)
     })
-
-    it('returns 404 when CRN is invalid', async () => {
-      mockIsValidCrn.mockReturnValue(false)
-      mockIsValidUUID.mockReturnValue(true)
-
-      const req = baseReq()
-
-      await controllers.checkIns.getStopCheckinPage(hmppsAuthClient)(req, res)
-
-      expect(mockRenderError).toHaveBeenCalledWith(404)
-      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
-    })
-
-    it('returns 404 when id is not a valid UUID', async () => {
-      mockIsValidCrn.mockReturnValue(true)
-      mockIsValidUUID.mockReturnValue(false)
-
-      const req = baseReq()
-
-      await controllers.checkIns.getStopCheckinPage(hmppsAuthClient)(req, res)
-
-      expect(mockRenderError).toHaveBeenCalledWith(404)
-      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
-    })
   })
 
   describe('postManageStopCheckin', () => {
-    it('returns 404 when CRN or id invalid', async () => {
-      mockIsValidCrn.mockReturnValue(false)
-      mockIsValidUUID.mockReturnValue(true)
-
-      const req = baseReq()
-
-      await controllers.checkIns.postManageStopCheckin(hmppsAuthClient)(req, res)
-
-      expect(mockRenderError).toHaveBeenCalledWith(404)
-      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
-    })
-
     it('redirects to manage people on probation case page', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
