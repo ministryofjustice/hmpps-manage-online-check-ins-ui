@@ -22,7 +22,7 @@
     "security_audit": "npx audit-ci --config audit-ci.json",
     "int-test": "cypress run --spec='integration_tests/e2e/**/*.cy.ts' --config video=false",
     "int-test-ui": "cypress open --e2e --browser chrome",
-    "int-test-ci": "start-server-and-test start-feature http://localhost:3007 int-test",
+    "int-test-ci": "start-server-and-test start-node-feature http://localhost:3007 int-test",
     "clean": "rm -rf dist build node_modules stylesheets",
     "coverage-report": "rm -rf coverage && mkdir -p coverage && cpy cypress_coverage/coverage-final.json coverage --rename=int-{{basename}} --flat && cpy test_results/jest/coverage-final.json coverage --rename=unit-{{basename}} --flat && npx nyc report --reporter lcov -t coverage --report-dir coverage --exclude-after-remap false",
     "setup": "npm ci && hmpps-npm-script-run-allowlist"
