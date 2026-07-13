@@ -74,7 +74,8 @@ export default function setUpWebSecurity(): Router {
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },
-      crossOriginEmbedderPolicy: true,
+      // Disabled so cross-origin, check-in images served from S3 presigned URLs are not blocked.
+      crossOriginEmbedderPolicy: false,
     }),
   )
 
