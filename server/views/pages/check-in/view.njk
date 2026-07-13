@@ -166,7 +166,7 @@
                         src="{{ "/assets/images/placeholder.png" if checkIn.photoUrl == null else checkIn.photoUrl }}"
                         class="es-profile-image es-profile-image--small"
                         alt="Profile image of {{ checkIn.personalDetails.name.forename }} {{ checkIn.personalDetails.name.surname }}"
-                        crossorigin />
+                        />
                     </dd>
                 </div>
             {% endif %}
@@ -179,7 +179,7 @@
                             src="{{ checkIn.snapshotUrl }}"
                             class="es-profile-image es-profile-image--small"
                             alt="Image from identity check of {{ checkIn.personalDetails.name.forename }} {{ checkIn.personalDetails.name.surname }}"
-                            crossorigin />
+                            />
                         {% else %}
                           <span>No image available</span>
                         {% endif %}
