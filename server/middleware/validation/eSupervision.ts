@@ -1,6 +1,8 @@
 import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
+import getDataValue from '../../utils/getDataValue'
+import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
 import { validateWithSpec } from '../../utils/validationUtils'
 
 const eSuperVision: Route<void> = (req, res, next) => {
@@ -40,12 +42,40 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  const validateEditQuestion = () => {
+    const questionMatch = baseUrl.match(/\/questions\/([\w-]+)\/edit/)
+
+    if (questionMatch) {
+      const draftId = questionMatch[1]
+      const templateId = draftId.split('-')[0]
+      render = `pages/check-in/questions/edit-question`
+
+      localParams.questionId = draftId
+
+      const availableTemplates =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates']) || []
+      const questionData = parseQuestionTemplate(availableTemplates, templateId)
+      if (questionData) {
+        localParams.question = questionData
+      }
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({
+          crn,
+          id,
+          page: 'edit-question',
+        }),
+      )
+    }
+  }
+
   let errorMessages: Record<string, string> = {}
 
   validateStopCheckins()
+  validateEditQuestion()
 
   if (Object.keys(errorMessages).length) {
-    const offenderDetails = res.locals.offenderByCRNResponse
+    const offenderDetails = res.locals.offenderCheckinsByCRNResponse
     res.locals.errorMessages = errorMessages
     return res.render(render, {
       errorMessages,

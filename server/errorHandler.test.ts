@@ -24,6 +24,10 @@ const mockServices: Services = {
   searchService: mockSearchService as any,
 } as unknown as Services
 
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
+}))
+
 let app: Express
 
 const req = httpMocks.createRequest({

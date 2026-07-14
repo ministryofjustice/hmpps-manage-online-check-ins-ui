@@ -1,9 +1,10 @@
+import { v4 as uuidv4 } from 'uuid'
 import {
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
   ESupervisionNote,
   ESupervisionReview,
-  OffenderByCRNResponse,
+  OffenderCheckinsByCRNResponse,
 } from '../data/model/esupervision'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
@@ -12,6 +13,8 @@ import ESupervisionClient from '../data/eSupervisionClient'
 import { Controller } from '../@types'
 import config from '../config'
 import { handleQuotes } from '../utils/handleQuotes'
+import logger from '../../logger'
+import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   if (checkIn.livenessEnabled) {
@@ -33,6 +36,18 @@ const routes = [
   'getViewCheckIn',
   'postViewCheckIn',
   'getViewExpiredCheckIn',
+  'getStartQuestionsPage',
+  'postStartQuestionsPage',
+  'getAddQuestionsPage',
+  'postAddQuestionsPage',
+  'getPreviewFeelingPage',
+  'getPreviewSupportPage',
+  'getQuestionsListPage',
+  'postQuestionsListPage',
+  'getEditQuestionPage',
+  'postEditQuestionPage',
+  'getSelectQuestionPage',
+  'getDeleteQuestion',
 ] as const
 
 const checkInsController: Controller<typeof routes, void> = {
@@ -40,7 +55,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
 
-      const offenderDetails = res.locals.offenderByCRNResponse
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
 
       if (!offenderDetails) {
         return renderError(404)(req, res)
@@ -50,7 +65,7 @@ const checkInsController: Controller<typeof routes, void> = {
         crn,
         id: offenderDetails.uuid,
         case: offenderDetails.details,
-        offenderByCRNResponse: offenderDetails,
+        offenderCheckinsByCRNResponse: offenderDetails,
       })
     }
   },
@@ -58,7 +73,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
-      const offenderDetails = res.locals.offenderByCRNResponse
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
       if (offenderDetails.status !== 'VERIFIED') {
@@ -96,7 +111,7 @@ const checkInsController: Controller<typeof routes, void> = {
         reason: handleQuotes(reasonData ?? ''),
         sensitive: isSensitive,
       }
-      res.locals.offenderByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
+      res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
@@ -283,6 +298,367 @@ const checkInsController: Controller<typeof routes, void> = {
         )
       }
       return renderError(404)(req, res)
+    }
+  },
+
+  // manage check in questions
+
+  getStartQuestionsPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
+      return res.render('pages/check-in/questions/instructions.njk', {
+        crn,
+        back,
+        id,
+        data: req.session.data,
+        case: offenderDetails.details,
+      })
+    }
+  },
+
+  postStartQuestionsPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+    }
+  },
+
+  getAddQuestionsPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      const { data } = req.session
+
+      let availableTemplates =
+        getDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates']) || []
+      if (availableTemplates.length === 0) {
+        const eSupClient = new ESupervisionClient(token)
+        const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+        const customisableTemplates = templatesList.templates.filter(
+          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+        )
+        availableTemplates = customisableTemplates
+        setDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates'], availableTemplates)
+      }
+
+      let questionTemplateAndInputs = getDataValue(data, [
+        'esupervision',
+        crn,
+        id,
+        'manageQuestions',
+        'questionTemplateAndInputs',
+      ])
+      let expectedCheckinDate = getDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'expectedCheckinDate'])
+      // Fetch current check in questions if they have already been submitted
+      if (!questionTemplateAndInputs) {
+        questionTemplateAndInputs = {}
+        try {
+          const eSupClient = new ESupervisionClient(token)
+          const response = await eSupClient.getUpcomingCheckinQuestionItems(crn, 'en-GB')
+          expectedCheckinDate = response?.upcoming?.expectedCheckinDate
+          const items = response?.upcoming?.items || []
+
+          items.forEach((item: any) => {
+            const isCustomisable = availableTemplates.some((t: any) => String(t.id) === String(item.template.id))
+            if (isCustomisable) {
+              const draftId = `${item.template.id}-${uuidv4()}`
+              const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
+              questionTemplateAndInputs[draftId] = inputValue
+            }
+          })
+        } catch (error: any) {
+          if (error?.status === 404 || error?.response?.status === 404) {
+            logger.info(`No upcoming questions found for CRN ${crn}.`)
+          } else {
+            logger.error(`Failed to fetch upcoming questions for CRN ${crn}:`, error)
+            return renderError(error?.status || 500)(req, res)
+          }
+        }
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs'],
+          questionTemplateAndInputs,
+        )
+        setDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'expectedCheckinDate'], expectedCheckinDate)
+      }
+
+      const addedQuestions = Object.entries(questionTemplateAndInputs)
+        .map(([qId, inputValue]) => {
+          if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          const templateId = parseInt(qId.split('-')[0], 10)
+
+          const templateData = parseQuestionTemplate(availableTemplates, templateId)
+
+          if (!templateData) return null
+
+          return {
+            id: qId,
+            fullText: `${templateData.prefix} ${inputValue}${templateData.suffix}`.trim(),
+          }
+        })
+        .filter(q => q !== null)
+
+      return res.render('pages/check-in/questions/add-questions.njk', {
+        crn,
+        id,
+        back,
+        case: offenderDetails.details,
+        addedQuestions,
+        data,
+        expectedCheckinDate,
+      })
+    }
+  },
+
+  postAddQuestionsPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const manageQuestionsSession = getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions']) || {}
+      const questionTemplateAndInputs = manageQuestionsSession.questionTemplateAndInputs || {}
+      const availableTemplates = manageQuestionsSession.availableTemplates || []
+      const formattedQuestions = Object.entries(questionTemplateAndInputs).map(([draftId, inputValue]) => {
+        const templateId = parseInt(draftId.split('-')[0], 10)
+        const originalTemplate = availableTemplates.find((t: any) => String(t.id) === String(templateId))
+
+        return {
+          id: templateId,
+          params: {
+            placeholders: {
+              [originalTemplate?.responseSpec?.placeholders?.[0] || 'text']: inputValue as string,
+            },
+            responseFormat: originalTemplate?.responseFormat || 'TEXT',
+          },
+        }
+      })
+
+      try {
+        const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+        const eSupClient = new ESupervisionClient(token)
+
+        if (formattedQuestions.length === 0) {
+          await eSupClient.deleteAssignedQuestionsFromCheckIn(crn)
+          setDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'], false)
+        } else {
+          await eSupClient.putAssignQuestionsToCheckIn(crn, {
+            questions: formattedQuestions,
+            language: 'en-GB',
+            author: res.locals.user.username,
+          })
+          setDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'], true)
+        }
+
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions'], undefined)
+        const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+        const redirectUrl = `${mpopBaseUrl}/case/${crn}`
+        return res.redirect(303, redirectUrl)
+      } catch (error: any) {
+        logger.error(`Failed to assign/delete questions for CRN ${crn}:`, error)
+        return renderError(error?.status || 500)(req, res)
+      }
+    }
+  },
+
+  getPreviewFeelingPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      // await sendAuditMessage(res, 'VIEW_MAS_PREVIEW_FEELING_CHECK_IN_QUESTIONS', crn, SubjectType.CRN)
+      return res.render('pages/check-in/questions/preview/feeling.njk', {
+        crn,
+        back,
+        id,
+        data: req.session.data,
+      })
+    }
+  },
+  getPreviewSupportPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      // await sendAuditMessage(res, 'VIEW_MAS_PREVIEW_SUPPORT_CHECK_IN_QUESTIONS', crn, SubjectType.CRN)
+      return res.render('pages/check-in/questions/preview/support.njk', {
+        crn,
+        back,
+        id,
+        data: req.session.data,
+      })
+    }
+  },
+
+  getQuestionsListPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      // await sendAuditMessage(res, 'VIEW_MAS_LIST_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupClient = new ESupervisionClient(token)
+
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+      const customisableTemplates = templatesList.templates.filter(
+        (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+      )
+      const availableTemplates = customisableTemplates
+
+      setDataValue(
+        req.session.data,
+        ['esupervision', crn, id, 'manageQuestions', 'availableTemplates'],
+        availableTemplates,
+      )
+      // redirect if questions >= 3
+      const questionTemplateAndInputs =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs']) || {}
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      }
+      // replace curly braces placeholder with [insert text] for presentation
+      const displayTemplates = templatesList.templates.map((q: any) => {
+        const start = q.template.indexOf('{{')
+        const end = q.template.indexOf('}}', start)
+
+        let displayTemplate = q.template
+        if (start !== -1 && end !== -1) {
+          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
+        }
+
+        return {
+          ...q,
+          displayTemplate,
+        }
+      })
+      return res.render('pages/check-in/questions/list-questions.njk', {
+        crn,
+        id,
+        back,
+        case: offenderDetails.details,
+        templatesList: { templates: displayTemplates },
+        data: req.session.data,
+      })
+    }
+  },
+
+  postQuestionsListPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+    }
+  },
+
+  getEditQuestionPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      const { back } = req.query
+      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_EDIT', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      let availableTemplates =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates']) || []
+
+      if (availableTemplates.length === 0) {
+        const eSupClient = new ESupervisionClient(token)
+        const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+        const customisableTemplates = templatesList.templates.filter(
+          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+        )
+        availableTemplates = customisableTemplates
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'manageQuestions', 'availableTemplates'],
+          availableTemplates,
+        )
+      }
+
+      const templateId = questionId.split('-')[0]
+      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
+
+      if (!questionForView) return renderError(404)(req, res)
+
+      return res.render('pages/check-in/questions/edit-question.njk', {
+        crn,
+        id,
+        questionId,
+        back,
+        case: offenderDetails.details,
+        question: questionForView,
+        data: req.session.data,
+      })
+    }
+  },
+
+  postEditQuestionPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      const { data } = req.session
+
+      const inputValue = req.body?.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput
+
+      if (inputValue && inputValue.trim() !== '') {
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs', questionId],
+          inputValue.trim(),
+        )
+
+        if (data.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput !== undefined) {
+          delete data.esupervision[crn][id].manageQuestions.draftQuestionInput
+        }
+      }
+
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+    }
+  },
+
+  getSelectQuestionPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id, templateId } = req.params as Record<string, string>
+
+      const questionTemplateAndInputs =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs']) || {}
+
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      }
+
+      const draftId = `${templateId}-${uuidv4()}`
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/${draftId}/edit`)
+    }
+  },
+
+  getDeleteQuestion: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      const { data } = req.session
+      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+      if (data.esupervision?.[crn]?.[id]?.manageQuestions?.questionTemplateAndInputs?.[questionId]) {
+        delete data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[questionId]
+      }
+
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
     }
   },
 }
