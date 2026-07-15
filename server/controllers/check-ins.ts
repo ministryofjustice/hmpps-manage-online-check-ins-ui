@@ -342,6 +342,7 @@ const checkInsController: Controller<typeof routes, void> = {
         return renderError(404)(req, res)
       }
 
+      req.session.data = req.session.data ?? {}
       const { data } = req.session
 
       let availableTemplates =
@@ -613,6 +614,7 @@ const checkInsController: Controller<typeof routes, void> = {
   postEditQuestionPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
+      req.session.data = req.session.data ?? {}
       const { data } = req.session
 
       const inputValue = req.body?.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput
@@ -652,6 +654,7 @@ const checkInsController: Controller<typeof routes, void> = {
   getDeleteQuestion: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
+      req.session.data = req.session.data ?? {}
       const { data } = req.session
       // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
       if (data.esupervision?.[crn]?.[id]?.manageQuestions?.questionTemplateAndInputs?.[questionId]) {

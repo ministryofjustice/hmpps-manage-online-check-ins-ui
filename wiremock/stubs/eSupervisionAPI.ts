@@ -1,6 +1,6 @@
 import superagent, { SuperAgentRequest } from 'superagent'
 import { DateTime } from 'luxon'
-// import { esupervisionAdditionalQuestions } from '../../server/controllers/mocks/esupervisionAdditionalQuestions'
+import { esupervisionAdditionalQuestions } from '../../server/controllers/mocks/esupervisionAdditionalQuestions'
 
 const stubOffenderSetup500Response = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -67,23 +67,58 @@ const stubOffenderSetupComplete500Response = (): SuperAgentRequest =>
       },
     },
   })
-// export const stubGetQuestionsTemplates = () => {
-//   return superagent.post('http://localhost:9091/__admin/mappings').send({
-//     request: {
-//       method: 'GET',
-//       urlPattern: '/check-in/questions\\?locale=en-GB',
-//     },
-//     response: {
-//       status: 200,
-//       headers: {
-//         'Content-Type': 'application/json;charset=UTF-8',
-//       },
-//       jsonBody: {
-//         esupervisionAdditionalQuestions,
-//       },
-//     },
-//   })
-// }
+export const stubGetQuestionsTemplates = () => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPattern: '/check-in/questions\\?locale=en-GB',
+    },
+    response: {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+      },
+      jsonBody: {
+        esupervisionAdditionalQuestions,
+      },
+    },
+  })
+}
+
+export const stubGetOffenderByCRN = (crn: string) => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPath: `/v2/offenders/crn/${crn}`,
+      queryParameters: {
+        'include-personal-details': {
+          equalTo: 'true',
+        },
+      },
+    },
+    response: {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+      },
+      jsonBody: {
+        uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
+        crn: 'X000001',
+        status: 'VERIFIED',
+        firstCheckin: '2026-07-14',
+        checkinInterval: 'WEEKLY',
+        contactPreference: 'PHONE',
+        photoUrl: 'string',
+        details: {
+          name: {
+            forename: 'John',
+            surname: 'Smith',
+          },
+        },
+      },
+    },
+  })
+}
 
 const stubAssignQuestions = () => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -167,7 +202,8 @@ export default {
   stubOffenderSetup422Response,
   stubOffenderSetup500Response,
   stubOffenderSetupComplete500Response,
-  // stubGetQuestionsTemplates,
+  stubGetQuestionsTemplates,
+  stubGetOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubAssignQuestions,
