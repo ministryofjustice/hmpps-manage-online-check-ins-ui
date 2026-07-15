@@ -71,16 +71,14 @@ export const stubGetQuestionsTemplates = () => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
       method: 'GET',
-      urlPattern: '/check-in/questions\\?locale=en-GB',
+      urlPattern: 'v2/questionstemplates\\?locale=en-GB',
     },
     response: {
       status: 200,
       headers: {
         'Content-Type': 'application/json;charset=UTF-8',
       },
-      jsonBody: {
-        esupervisionAdditionalQuestions,
-      },
+      jsonBody: esupervisionAdditionalQuestions,
     },
   })
 }

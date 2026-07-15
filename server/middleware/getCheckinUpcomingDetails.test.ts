@@ -30,10 +30,12 @@ const hmppsAuthClient = new HmppsAuthClient(null) as jest.Mocked<HmppsAuthClient
 
 describe('getUpcomingCheckinDetails', () => {
   let res: ReturnType<typeof mockAppResponse>
+  let next: jest.Mock
 
   beforeEach(() => {
     jest.clearAllMocks()
     res = mockAppResponse()
+    next = jest.fn()
 
     res.locals = {
       ...res.locals,
@@ -58,7 +60,7 @@ describe('getUpcomingCheckinDetails', () => {
 
     const req = httpMocks.createRequest({ params: { crn } })
 
-    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res)
+    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res, next)
 
     expect(mockGetUpcomingCheckinQuestions).toHaveBeenCalledWith(crn, 'en-GB')
     expect(res.locals.upcomingCheckin).toEqual(mockApiResponse)
@@ -69,7 +71,7 @@ describe('getUpcomingCheckinDetails', () => {
 
     const req = httpMocks.createRequest({ params: { crn } })
 
-    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res)
+    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res, next)
 
     expect(mockGetUpcomingCheckinQuestions).toHaveBeenCalledWith(crn, 'en-GB')
     expect(res.locals.upcomingCheckin).toBeNull()
@@ -88,7 +90,7 @@ describe('getUpcomingCheckinDetails', () => {
 
     const req = httpMocks.createRequest({ params: { crn } })
 
-    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res)
+    await getUpcomingCheckinDetails(hmppsAuthClient)(req, res, next)
 
     expect(mockGetUpcomingCheckinQuestions).not.toHaveBeenCalled()
     expect(res.locals.upcomingCheckin).toBeNull()

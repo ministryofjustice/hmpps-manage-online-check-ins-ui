@@ -391,7 +391,7 @@ describe('checkInsController', () => {
                   availableTemplates: [
                     {
                       id: '1',
-                      template: 'How is{{thing}}?',
+                      template: 'How is {{thing}}?',
                       responseSpec: { placeholders: ['thing'] },
                       policy$hmpps_esupervision_api: 'CUSTOMISABLE',
                     },

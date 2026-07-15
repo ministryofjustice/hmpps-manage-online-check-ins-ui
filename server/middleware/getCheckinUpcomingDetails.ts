@@ -9,7 +9,7 @@ export const getUpcomingCheckinDetails = (hmppsAuthClient: HmppsAuthClient): Rou
     const checkinStatus = res.locals.offenderCheckinsByCRNResponse?.status
     if (checkinStatus !== 'VERIFIED') {
       res.locals.upcomingCheckin = null
-      return
+      return next()
     }
     try {
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -20,5 +20,6 @@ export const getUpcomingCheckinDetails = (hmppsAuthClient: HmppsAuthClient): Rou
       logger.info(`No upcoming check in found for CRN ${crn}`)
       res.locals.upcomingCheckin = null
     }
+    return next()
   }
 }

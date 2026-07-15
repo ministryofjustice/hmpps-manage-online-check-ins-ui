@@ -5,8 +5,9 @@ import ESupervisionClient from '../data/eSupervisionClient'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from './renderError'
+import type { HmppsAuthClient } from '../data'
 
-export const getCheckInQuestionsRedirect = (hmppsAuthClient: any): Route<Promise<void>> => {
+export const getCheckInQuestionsRedirect = (hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { crn, id } = req.params as Record<string, string>
 

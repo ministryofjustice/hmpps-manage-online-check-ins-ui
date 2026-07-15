@@ -409,7 +409,7 @@ const checkInsController: Controller<typeof routes, void> = {
 
           return {
             id: qId,
-            fullText: `${templateData.prefix} ${inputValue}${templateData.suffix}`.trim(),
+            fullText: `${templateData.prefix}${inputValue}${templateData.suffix}`.replace(/\s+/g, ' ').trim(),
           }
         })
         .filter(q => q !== null)

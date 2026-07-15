@@ -17,9 +17,7 @@ jest.mock('../data/eSupervisionClient')
 jest.mock('../data/tokenStore/redisTokenStore')
 
 const mockMiddlewareFn = jest.fn()
-jest.mock('./renderError', () => ({
-  renderError: jest.fn(() => mockMiddlewareFn),
-}))
+jest.mock('./renderError', () => jest.fn(() => mockMiddlewareFn))
 
 jest.mock('../utils/isValidCrn', () => jest.fn())
 jest.mock('../utils/isValidUUID', () => jest.fn())

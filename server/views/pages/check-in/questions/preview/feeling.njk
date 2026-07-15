@@ -106,8 +106,13 @@
 {% block bodyEnd %}
 {{ super() }}
 <script nonce="{{ cspNonce }}">
-    const allTextareas = document.querySelectorAll('.disabled-radios .govuk-textarea')
+         const allRadios = document.querySelectorAll('.disabled-radios .govuk-radios__input')
+     const allTextareas = document.querySelectorAll('.disabled-radios .govuk-textarea')
+     allRadios.forEach(radio => {
+         radio.disabled = true
+         radio.checked = false
+     })
     // Disable keyboard interaction with textareas (apart from tabbing)
-    allTextareas.forEach(textarea => textarea.onkeydown = (key) => { return key.key === 'Tab' })
+    allTextareas.forEach(textarea => (textarea.onkeydown = e => e.key === 'Tab'))
 </script>
 {% endblock %}
