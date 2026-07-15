@@ -77,11 +77,8 @@
 <script nonce="{{ cspNonce }}">
     const allCheckboxes = document.querySelectorAll('.disabled-checkboxes .govuk-checkboxes__input')
     const allTextareas = document.querySelectorAll('.disabled-checkboxes .govuk-textarea')
-    allCheckboxes.forEach(checkbox => {
-         checkbox.disabled = true
-         checkbox.checked = false
-     })
-     // Disable keyboard interaction with textareas (apart from tabbing)
-     allTextareas.forEach(textarea => (textarea.onkeydown = e => e.key === 'Tab'))
+    // Disable keyboard interaction with checkboxes and textareas (apart from tabbing)
+    allCheckboxes.forEach(checkbox => checkbox.onkeydown = (key) => { return key.key === 'Tab' })
+    allTextareas.forEach(textarea => textarea.onkeydown = (key) => { return key.key === 'Tab' })
 </script>
 {% endblock %}
