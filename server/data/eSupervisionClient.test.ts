@@ -2,12 +2,12 @@ import nock from 'nock'
 
 import config from '../config'
 import { DeactivateOffenderRequest, ESupervisionCheckIn, OffenderByCRNResponse } from './model/esupervision'
-import isValidHost from '../utils/isValidHost'
-import isValidPath from '../utils/isValidPath'
+import { isValidHost } from '../utils/isValidHost'
+import { isValidPath } from '../utils/isValidPath'
 import ESupervisionClient from './eSupervisionClient'
 
-jest.mock('../utils/isValidHost', () => jest.fn())
-jest.mock('../utils/isValidPath', () => jest.fn())
+jest.mock('../utils/isValidHost', () => ({ isValidHost: jest.fn() }))
+jest.mock('../utils/isValidPath', () => ({ isValidPath: jest.fn() }))
 
 const mockedIsValidHost = isValidHost as jest.MockedFunction<typeof isValidHost>
 const mockedIsValidPath = isValidPath as jest.MockedFunction<typeof isValidPath>

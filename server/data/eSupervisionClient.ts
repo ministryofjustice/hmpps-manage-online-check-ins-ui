@@ -1,12 +1,15 @@
 import config from '../config'
 
 import {
+  CheckinScheduleRequest,
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
   ESupervisionNote,
   ESupervisionReview,
+  EsupervisionUpcomingQuestionsResponse,
   OffenderByCRNResponse,
+  ReactivateOffenderRequest,
 } from './model/esupervision'
 import RestClient from './restClient'
 
@@ -53,6 +56,38 @@ export default class ESupervisionClient extends RestClient {
     return this.post({
       path: `/v2/offender_checkins/${uuid}/annotate`,
       data: notes,
+    })
+  }
+
+  // POST /v2/offenders/{uuid}/update_details — update check-in schedule (date/interval) or contact preference
+  async postUpdateOffenderDetails(
+    uuid: string,
+    checkinScheduleRequest: CheckinScheduleRequest,
+  ): Promise<CheckinScheduleResponse> {
+    return this.post({
+      path: `/v2/offenders/${uuid}/update_details`,
+      data: checkinScheduleRequest,
+    })
+  }
+
+  // POST /v2/offenders/{uuid}/reactivate — restart stopped check-ins
+  async postReactivateOffender(
+    uuid: string,
+    reactivateOffenderRequest: ReactivateOffenderRequest,
+  ): Promise<CheckinScheduleResponse> {
+    return this.post({
+      path: `/v2/offenders/${uuid}/reactivate`,
+      data: reactivateOffenderRequest,
+    })
+  }
+
+  // GET /v2/questions/upcoming/{crn}/offender-questions (use in the manage check in page)
+  async getUpcomingCheckinQuestions(
+    crn: string,
+    language: string = 'en-GB',
+  ): Promise<EsupervisionUpcomingQuestionsResponse> {
+    return this.get({
+      path: `/v2/questions/upcoming/${crn}/offender-questions?language=${language}`,
     })
   }
 }

@@ -42,6 +42,95 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postManageStopCheckin(hmppsAuthClient),
   )
 
+  router.get('/case/:crn/appointments/check-in/manage/:id/settings', [
+    validateCrnAndId,
+    controllers.checkIns.getManageCheckinDatePage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/settings',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postManageCheckinDatePage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/contact', [
+    validateCrnAndId,
+    controllers.checkIns.getManageContactPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/contact',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postManageContactPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/edit-contact', [
+    validateCrnAndId,
+    controllers.checkIns.getManageEditContactPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/edit-contact',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postManageEditContactPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-checkin', [
+    validateCrnAndId,
+    controllers.checkIns.getRestartCheckinPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/restart-checkin',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postRestartCheckinPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-contact', [
+    validateCrnAndId,
+    controllers.checkIns.getRestartContactPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/restart-contact',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postRestartContactPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-edit-contact', [
+    validateCrnAndId,
+    controllers.checkIns.getRestartEditContactPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/restart-edit-contact',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postRestartEditContactPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-summary', [
+    validateCrnAndId,
+    controllers.checkIns.getRestartSummaryPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/restart-summary',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postRestartSummaryPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-confirmation', [
+    validateCrnAndId,
+    controllers.checkIns.getRestartConfirmation(hmppsAuthClient),
+  ])
+
   router.get('/case/:crn/appointments/:id/check-in/review/identity', [
     validateCrnAndId,
     getCheckIn(hmppsAuthClient),

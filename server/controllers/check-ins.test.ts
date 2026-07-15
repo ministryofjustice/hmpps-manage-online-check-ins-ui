@@ -99,9 +99,10 @@ describe('checkInsController', () => {
   })
 
   describe('getManageCheckinPage', () => {
-    it('renders manage check in page', async () => {
+    it('renders the manage check in page', async () => {
       const req = httpMocks.createRequest({
-        params: { crn },
+        params: { crn, id: uuid },
+        session: { data: {} },
       })
 
       await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
@@ -109,24 +110,9 @@ describe('checkInsController', () => {
       expect(renderSpy).toHaveBeenCalled()
       const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
 
-      expect(template).toBe('pages/check-in/index.njk')
+      expect(template).toBe('pages/check-in/manage/manage-checkin.njk')
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
-      expect(context.case).toEqual(offenderByCRNResponse.details)
-      expect(context.offenderByCRNResponse).toEqual(offenderByCRNResponse)
-    })
-
-    it('returns 404 when offender details are missing', async () => {
-      const req = httpMocks.createRequest({
-        params: { crn },
-      })
-
-      res.locals.offenderByCRNResponse = undefined
-
-      await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
-
-      expect(mockRenderError).toHaveBeenCalledWith(404)
-      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 

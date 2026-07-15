@@ -120,6 +120,15 @@ export default {
       agent: new AgentConfig(Number(get('TOKEN_VERIFICATION_API_TIMEOUT_RESPONSE', 5000))),
       enabled: get('TOKEN_VERIFICATION_ENABLED', 'false') === 'true',
     },
+    masApi: {
+      url: get('MAS_API_URL', 'http://localhost:8100', requiredInProduction),
+      pageSize: 10,
+      timeout: {
+        response: Number(get('MAS_API_TIMEOUT_RESPONSE', 10000)),
+        deadline: Number(get('MAS_API_TIMEOUT_DEADLINE', 10000)),
+      },
+      agent: new AgentConfig(Number(get('MAS_API_TIMEOUT_RESPONSE', 10000))),
+    },
     probationApi: {
       url: get(
         'COMPONENT_API_URL',
