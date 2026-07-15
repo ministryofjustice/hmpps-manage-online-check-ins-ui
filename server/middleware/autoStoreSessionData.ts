@@ -18,8 +18,15 @@ const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<
 
         if (body) {
           Object.keys(body).forEach(valueKey => {
-            const newValue = body[valueKey]
+            let newValue = body[valueKey]
             const setPath = id ? [key, crn, id, valueKey] : [key, crn, valueKey]
+
+            // Each page of a wizard posts only its own fields within a shared group (e.g.
+            // `checkins`). Merge rather than assign, so answers from earlier pages survive.
+            if (newValue && typeof newValue === 'object' && !Array.isArray(newValue)) {
+              const existing = getDataValue<Record<string, unknown> | undefined>(newSessionData, setPath)
+              newValue = { ...(existing ?? {}), ...(newValue as Record<string, unknown>) }
+            }
 
             setDataValue(newSessionData, setPath, newValue)
           })

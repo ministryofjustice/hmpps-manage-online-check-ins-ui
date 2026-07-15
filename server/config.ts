@@ -83,6 +83,13 @@ export default {
       requiredInProduction,
     ),
   },
+  guidance: {
+    link: get(
+      'ESUPERVISION_GUIDANCE_LINK',
+      'https://probation-check-in-dev.hmpps.service.justice.gov.uk',
+      requiredInProduction,
+    ),
+  },
   probationFrontendComponents: {
     connectSrc: get(
       'COMPONENT_API_URL',

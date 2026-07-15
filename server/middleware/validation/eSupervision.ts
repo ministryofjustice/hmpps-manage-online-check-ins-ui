@@ -3,18 +3,30 @@ import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
 import { validateWithSpec } from '../../utils/validationUtils'
 import getDataValue from '../../utils/getDataValue'
+import config from '../../config'
 
 const eSuperVision: Route<void> = (req, res, next) => {
   const { url, params, body } = req
   const { crn, id } = params as Record<string, string>
 
   const { back = '', cya = '' } = req.query as Record<string, string>
+  // The setup pages carry these on hidden inputs so that re-rendering with errors preserves
+  // them; without them the contact details would blank out and post back empty. The manage
+  // validators below read their equivalents from session instead and overwrite these.
+  const {
+    checkInMinDate,
+    checkInMobile: bodyCheckInMobile,
+    checkInEmail: bodyCheckInEmail,
+  } = body as Record<string, string>
   const localParams: LocalParams = {
     crn,
     id,
     body,
     back,
     cya,
+    checkInMinDate,
+    checkInMobile: bodyCheckInMobile,
+    checkInEmail: bodyCheckInEmail,
   }
   const baseUrl = req.url.split('?')[0]
   let render = `pages/${[
@@ -29,8 +41,52 @@ const eSuperVision: Route<void> = (req, res, next) => {
   let errorMessages: Record<string, string> = {}
 
   const manage = (segment: string) => `case/${crn}/appointments/check-in/manage/${id}/${segment}`
+  const setup = (segment: string) => `/case/${crn}/appointments/${id}/check-in/${segment}`
   const sessionVal = (group: string, field: string): string =>
     getDataValue(req.session.data, ['esupervision', crn, id, group, field]) || ''
+
+  // Setup flow. The contact fields are posted as hidden inputs, so they are read from the
+  // body; the edit page's values were saved to session when contact-preference rendered.
+  const validateSetupPage = (segment: string, view: string, page: string) => {
+    if (!baseUrl.includes(setup(segment))) {
+      return
+    }
+    render = `pages/check-in/${view}`
+    errorMessages = validateWithSpec(
+      req,
+      eSuperVisionValidation({
+        crn,
+        id,
+        page,
+        checkInEmail: bodyCheckInEmail ?? '',
+        checkInMobile: bodyCheckInMobile ?? '',
+        editCheckInEmail: sessionVal('checkins', 'editCheckInEmail'),
+        editCheckInMobile: sessionVal('checkins', 'editCheckInMobile'),
+        change: body?.change as string,
+      }),
+    )
+  }
+
+  const validateSetupFlow = () => {
+    validateSetupPage('eligibility-check', 'eligibility-check', 'eligibility-check')
+    validateSetupPage('full-eligibility', 'eligibility-full', 'full-eligibility')
+    validateSetupPage('spo-approval', 'spo-approval', 'spo-approval')
+    validateSetupPage('rationale', 'rationale', 'rationale')
+    validateSetupPage('date-frequency', 'date-frequency', 'date-frequency')
+    validateSetupPage('photo-options', 'photo-options', 'photo-options')
+    validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
+
+    // The change buttons on contact-preference deliberately skip validation so the user can
+    // go and fix their details; only the main Continue submit is checked.
+    if (body?.change === 'main') {
+      validateSetupPage('contact-preference', 'contact-preference', 'contact-preference')
+    }
+
+    if (baseUrl.includes(setup('edit-contact-preference'))) {
+      validateSetupPage('edit-contact-preference', 'edit-contact-preference', 'edit-contact-preference')
+      localParams.change = body?.change as string
+    }
+  }
 
   const validateStopCheckins = () => {
     if (baseUrl.includes(manage('stop-checkin'))) {
@@ -114,6 +170,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  validateSetupFlow()
   validateStopCheckins()
   validateCheckinSettings()
   validateManageContact()
@@ -128,7 +185,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
     return res.render(render, {
       errorMessages,
       ...localParams,
-      case: offenderDetails?.details,
+      // Setup pages have no offender record yet and get their person from res.locals.case,
+      // which render options would otherwise shadow with undefined.
+      case: offenderDetails?.details ?? res.locals.case,
+      guidanceUrl: config.guidance.link,
+      data: req.session.data,
     })
   }
   return next()

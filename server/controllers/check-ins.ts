@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { DateTime } from 'luxon'
 import {
   CheckinScheduleRequest,
@@ -8,14 +9,21 @@ import {
   OffenderByCRNResponse,
   ReactivateOffenderRequest,
 } from '../data/model/esupervision'
+import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
+import isValidCrn from '../utils/isValidCrn'
+import isValidUUID from '../utils/isValidUUID'
 import ESupervisionClient from '../data/eSupervisionClient'
+import MasApiClient from '../data/masApiClient'
 import { Controller } from '../@types'
+import { CheckinUserDetails } from '../models/Esupervision'
 import config from '../config'
 import { handleQuotes } from '../utils/handleQuotes'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
+import postCheckInDetails from '../middleware/postCheckInDetails'
+import postCheckinInComplete from '../middleware/postCheckinComplete'
 import logger from '../../logger'
 import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
@@ -43,6 +51,36 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
 }
 
 const routes = [
+  'getStartSetup',
+  'getEligibilityPage',
+  'postEligibilityPage',
+  'getEligibilityDeniedPage',
+  'postEligibilityDeniedPage',
+  'getFullEligibilityPage',
+  'postFullEligibilityPage',
+  'getSupplementaryEligibilityPage',
+  'postSupplementaryEligibilityPage',
+  'getSPOApprovalPage',
+  'postSPOApprovalPage',
+  'getRationalePage',
+  'postRationalePage',
+  'getDateFrequencyPage',
+  'postDateFrequencyPage',
+  'getContactPreferencePage',
+  'postContactPreferencePage',
+  'getEditContactPrePage',
+  'postEditContactPrePage',
+  'getPhotoOptionsPage',
+  'postPhotoOptionsPage',
+  'getTakePhotoPage',
+  'postTakeAPhotoPage',
+  'getUploadPhotoPage',
+  'postUploadaPhotoPage',
+  'getPhotoRulesPage',
+  'postPhotoRulesPage',
+  'getCheckinSummaryPage',
+  'postCheckinSummaryPage',
+  'getConfirmationPage',
   'getManageCheckinPage',
   'postManageStopCheckin',
   'getStopCheckinPage',
@@ -73,6 +111,481 @@ const routes = [
 ] as const
 
 const checkInsController: Controller<typeof routes, void> = {
+  // The setup flow keys its session data on a uuid minted here, before the person exists in
+  // eSupervision. That uuid becomes the offender_setup uuid on completion.
+  getStartSetup: () => {
+    return async (req, res) => {
+      const { crn } = req.params as Record<string, string>
+      if (!isValidCrn(crn)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/eligibility-check`)
+    }
+  },
+
+  getEligibilityPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const practitioner = await masClient.getProbationPractitioner(crn)
+      if (practitioner?.unallocated) {
+        return res.redirect(`/case/${crn}/appointments`)
+      }
+      return res.render('pages/check-in/eligibility-check.njk', {
+        crn,
+        id,
+        back,
+        guidanceUrl: config.guidance.link,
+        data: req.session.data,
+      })
+    }
+  },
+
+  postEligibilityPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const eligibility = req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility
+      const selections = Array.isArray(eligibility) ? eligibility : [eligibility]
+
+      // The Intensive Supervision Court pilot rules the person out entirely.
+      if (selections.includes('eligibility-9')) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/denied-eligibility`)
+      }
+      if (selections.includes('eligibility-none')) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/full-eligibility`)
+      }
+      // Any other criterion means check-ins can only supplement face-to-face contact.
+      if (eligibility && eligibility.length > 0) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+  },
+
+  getEligibilityDeniedPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.render('pages/check-in/eligibility-denied.njk', { crn, id, back })
+    }
+  },
+
+  postEligibilityDeniedPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}`)
+    }
+  },
+
+  getFullEligibilityPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.render('pages/check-in/eligibility-full.njk', { crn, id, back, data: req.session.data })
+    }
+  },
+
+  postFullEligibilityPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
+      const eligibilityChoice = getDataValue(data, ['esupervision', crn, id, 'checkins', 'eligibilityChoice'])
+
+      // Replacing face-to-face contact needs SPO sign-off first; supplementing it does not.
+      if (eligibilityChoice === 'REPLACE_F2F') {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/spo-approval`)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+    }
+  },
+
+  getSupplementaryEligibilityPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.render('pages/check-in/eligibility-supplementary.njk', { crn, id, back })
+    }
+  },
+
+  postSupplementaryEligibilityPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'eligibilityChoice'], 'SUPPLEMENT_F2F')
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+    }
+  },
+
+  getSPOApprovalPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const answer = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibilitySPOApproval'])
+      const isApproved = answer === 'spo-approval' || (Array.isArray(answer) && answer.includes('spo-approval'))
+      return res.render('pages/check-in/spo-approval.njk', { crn, id, back, isApproved })
+    }
+  },
+
+  postSPOApprovalPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const approval = req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibilitySPOApproval
+      if (approval) {
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibilitySPOApproval'], approval)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+    }
+  },
+
+  getRationalePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      const eligibility = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibility']) || []
+      const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
+      const eligibilityChoice = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'checkins',
+        'eligibilityChoice',
+      ])
+
+      // Back needs to retrace whichever eligibility branch got the user here.
+      let backLink: string
+      if (cya) {
+        backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      } else if (eligibilityChoice === 'REPLACE_F2F') {
+        backLink = `/case/${crn}/appointments/${id}/check-in/spo-approval`
+      } else if (eligibilityArray.includes('eligibility-none')) {
+        backLink = `/case/${crn}/appointments/${id}/check-in/full-eligibility`
+      } else {
+        backLink = `/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`
+      }
+      return res.render('pages/check-in/rationale.njk', { crn, id, backLink })
+    }
+  },
+
+  postRationalePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+    }
+  },
+
+  getDateFrequencyPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      const backLink = cya
+        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+        : `/case/${crn}/appointments/${id}/check-in/rationale`
+      return res.render('pages/check-in/date-frequency.njk', {
+        crn,
+        id,
+        cya,
+        backLink,
+        checkInMinDate: getMinDate(),
+      })
+    }
+  },
+
+  postDateFrequencyPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/contact-preference`)
+    }
+  },
+
+  getContactPreferencePage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      if (req?.session?.errorMessages) {
+        res.locals.errorMessages = req.session.errorMessages
+        delete req.session.errorMessages
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      const { cya } = req.query
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const personalDetails = await masClient.getPersonalDetails(crn)
+      const checkInMobile = personalDetails?.mobileNumber
+      const checkInEmail = personalDetails?.email
+      // Seed the edit page from the record so it can render without another API call.
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
+
+      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
+      if (contactUpdated) {
+        res.locals.success = true
+        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
+      }
+      return res.render('pages/check-in/contact-preference.njk', { crn, id, checkInMobile, checkInEmail, cya })
+    }
+  },
+
+  postContactPreferencePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cyaQuery = req.query?.cya === 'true' ? '&cya=true' : ''
+      const { change } = req.body
+      const redirectUrl =
+        change === 'main'
+          ? `/case/${crn}/appointments/${id}/check-in/photo-options`
+          : `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cyaQuery}`
+      return res.redirect(redirectUrl)
+    }
+  },
+
+  getEditContactPrePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { change } = req.query
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.render('pages/check-in/edit-contact-preference.njk', { crn, id, change })
+    }
+  },
+
+  postEditContactPrePage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
+      const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
+      const body: PersonalDetailsUpdateRequest = {
+        emailAddress: editCheckInEmail,
+        mobileNumber: editCheckInMobile?.trim(),
+      }
+      const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
+      const personalDetails = await masClient.updatePersonalDetailsContact(crn, body)
+      // Drives the success banner back on the contact preference page.
+      if (personalDetails?.crn) {
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/contact-preference${cyaQuery}`)
+    }
+  },
+
+  getPhotoOptionsPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      return res.render('pages/check-in/photo-options.njk', { crn, id, cya })
+    }
+  },
+
+  postPhotoOptionsPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const photoUploadOption = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'checkins',
+        'photoUploadOption',
+      ])
+      const redirectTo = photoUploadOption === 'TAKE_A_PIC' ? 'take-a-photo' : 'upload-a-photo'
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${redirectTo}`)
+    }
+  },
+
+  getTakePhotoPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      return res.render('pages/check-in/take-a-photo.njk', { crn, id, cya })
+    }
+  },
+
+  postTakeAPhotoPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { userPhotoUpload } = req.body
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/photo-rules?photoUpload=${userPhotoUpload}`)
+    }
+  },
+
+  getUploadPhotoPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      return res.render('pages/check-in/upload-a-photo.njk', { crn, id, cya })
+    }
+  },
+
+  postUploadaPhotoPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/photo-rules`)
+    }
+  },
+
+  getPhotoRulesPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const { photoUpload } = req.query
+      return res.render('pages/check-in/photo-rules.njk', { crn, id, photoUpload })
+    }
+  },
+
+  postPhotoRulesPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+    }
+  },
+
+  getCheckinSummaryPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
+      const userDetails: CheckinUserDetails = {
+        ...savedUserDetails,
+        uuid: id,
+        interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
+        preferredComs: savedUserDetails?.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
+        photoUploadOption:
+          savedUserDetails?.photoUploadOption === 'TAKE_A_PIC' ? 'Take a photo using this device' : 'Upload a photo',
+      }
+      return res.render('pages/check-in/checkin-summary.njk', { crn, id, userDetails })
+    }
+  },
+
+  // Called by assets/js/photo.js, not a form post: registers the setup and hands back a
+  // presigned S3 location so the browser can PUT the photo before confirming.
+  postCheckinSummaryPage: hmppsAuthClient => {
+    return async (req, res) => {
+      try {
+        const { setup, uploadLocation } = await postCheckInDetails(hmppsAuthClient)(req, res)
+        res.json({ status: 'SUCCESS', message: 'Registration complete', setup, uploadLocation })
+        logger.info('Check-in registration successful')
+      } catch (e) {
+        const statusCode = e?.data?.status || 500
+        res.status(statusCode).json({ status: 'ERROR', message: e?.data?.userMessage || e?.message || 'Unknown error' })
+      }
+    }
+  },
+
+  getConfirmationPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
+      await postCheckinInComplete(hmppsAuthClient)(req, res)
+      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
+      // Completing setup creates the offender record, so the uuid to manage them by is
+      // only available once the check-in registration has gone through.
+      const activeId = res.locals?.offenderByCRNResponse?.uuid
+      const userDetails: CheckinUserDetails = {
+        ...savedUserDetails,
+        uuid: activeId,
+        interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
+        displayCommsOption:
+          savedUserDetails?.preferredComs === 'EMAIL'
+            ? savedUserDetails?.checkInEmail
+            : savedUserDetails?.checkInMobile,
+        displayDay: dayOfWeek(DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
+      }
+      const checkInDate = DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').startOf('day')
+      const isFutureCheckinDate = checkInDate > DateTime.now().startOf('day')
+
+      return res.render('pages/check-in/confirmation.njk', { crn, id, activeId, userDetails, isFutureCheckinDate })
+    }
+  },
+
   getManageCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>

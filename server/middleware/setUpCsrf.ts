@@ -11,10 +11,12 @@ export default function setUpCsrf(): Router {
     const {
       csrfSynchronisedProtection, // This is the default CSRF protection middleware.
     } = csrfSync({
-      // By default, csrf-sync uses x-csrf-token header, but we use the token in forms and send it in the request body, so change getTokenFromRequest so it grabs from there
+      // Forms post the token in the request body rather than the x-csrf-token header
+      // csrf-sync defaults to. The check-in photo upload posts JSON via fetch and has no
+      // form body to carry it, so fall back to the header for those.
       getTokenFromRequest: req => {
         // eslint-disable-next-line no-underscore-dangle
-        return req.body?._csrf
+        return req.body?._csrf ?? (req.headers['x-csrf-token'] as string)
       },
     })
 

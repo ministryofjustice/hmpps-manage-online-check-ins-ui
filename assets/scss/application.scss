@@ -8,6 +8,7 @@
 );
 
 @use './overrides/local';
+@use './components/link-button';
 @use './components/photo';
 @use './components/summary-card';
 
