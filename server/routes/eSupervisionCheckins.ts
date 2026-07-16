@@ -5,14 +5,13 @@ import autoStoreSessionData from '../middleware/autoStoreSessionData'
 import controllers from '../controllers'
 import getCheckIn from '../middleware/getCheckIn'
 import validateCrnAndId from '../middleware/validateCrnAndId'
-<<<<<<< HEAD
+
 import getPersonalDetails from '../middleware/getPersonalDetails'
 import restrictPageAccess from '../middleware/restrictPageAccess'
 import postRedirectWizard from '../middleware/checkinCyaRedirect'
-=======
+
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
->>>>>>> main
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient }: Services) {
   router.get('/', async (req, res) => {

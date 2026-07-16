@@ -63,5 +63,3 @@ export const postCheckInDetails = (
     }
   }
 }
-
-export default postCheckInDetails

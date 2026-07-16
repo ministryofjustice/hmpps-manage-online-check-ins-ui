@@ -12,5 +12,3 @@ export const postCheckinInComplete = (hmppsAuthClient: HmppsAuthClient): Route<P
     logger.info('Checkin Registration completed successfully.')
   }
 }
-
-export default postCheckinInComplete

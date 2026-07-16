@@ -10,7 +10,7 @@ import {
   ESupervisionNote,
   ESupervisionReview,
   ReactivateOffenderRequest,
-  OffenderByCRNResponse,
+  OffenderCheckinsByCRNResponse,
 } from '../data/model/esupervision'
 import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
@@ -25,8 +25,8 @@ import { CheckinUserDetails } from '../models/Esupervision'
 import config from '../config'
 import { handleQuotes } from '../utils/handleQuotes'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
-import postCheckInDetails from '../middleware/postCheckInDetails'
-import postCheckinInComplete from '../middleware/postCheckinComplete'
+import { postCheckInDetails } from '../middleware/postCheckInDetails'
+import { postCheckinInComplete } from '../middleware/postCheckinComplete'
 import logger from '../../logger'
 import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
@@ -584,7 +584,7 @@ const checkInsController: Controller<typeof routes, void> = {
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       // Completing setup creates the offender record, so the uuid to manage them by is
       // only available once the check-in registration has gone through.
-      const activeId = res.locals?.offenderByCRNResponse?.uuid
+      const activeId = res.locals?.offenderCheckinsByCRNResponse?.uuid
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: activeId,
@@ -612,7 +612,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { data } = req.session
 
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const checkinRes = res.locals?.offenderByCRNResponse
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const eSupClient = new ESupervisionClient(token)
       let upcomingCheckin = null
       try {
@@ -903,7 +903,7 @@ const checkInsController: Controller<typeof routes, void> = {
       req.session.data = req.session.data || {}
       const checkInMinDate = getMinDate()
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const checkinRes = res.locals?.offenderByCRNResponse
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const date = checkinRes?.firstCheckin
       const interval = checkinRes?.checkinInterval
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], { date, interval })
@@ -979,7 +979,7 @@ const checkInsController: Controller<typeof routes, void> = {
         delete req.session?.data?.esupervision?.[crn]?.[id]?.manageCheckin?.contactUpdated
       }
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const checkinRes = res.locals?.offenderByCRNResponse
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const isPrefComsSet = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'])
       if (isPrefComsSet === undefined) {
         setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], checkinRes?.contactPreference)
@@ -1043,7 +1043,7 @@ const checkInsController: Controller<typeof routes, void> = {
       return res.render('pages/check-in/manage/manage-edit-contact.njk', {
         crn,
         id,
-        case: res.locals?.offenderByCRNResponse?.details,
+        case: res.locals?.offenderCheckinsByCRNResponse?.details,
         change,
         checkInMobile,
         checkInEmail,
@@ -1077,7 +1077,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const cya = req.query.cya === 'true'
       const checkInMinDate = getMinDate()
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const offenderSettings = res.locals?.offenderByCRNResponse
+      const offenderSettings = res.locals?.offenderCheckinsByCRNResponse
       const defaultsLoaded = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'])
       if (!defaultsLoaded) {
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
@@ -1218,7 +1218,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { data } = req.session
       const { cya } = req.query
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const offender = res.locals?.offenderByCRNResponse
+      const offender = res.locals?.offenderCheckinsByCRNResponse
       const checkInMobile = offender?.mobile
       const checkInEmail = offender?.email
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
@@ -1270,7 +1270,7 @@ const checkInsController: Controller<typeof routes, void> = {
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
-        case: res.locals?.offenderByCRNResponse?.details,
+        case: res.locals?.offenderCheckinsByCRNResponse?.details,
         change,
         cya,
         checkInMobile,
@@ -1303,7 +1303,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin']) || {}
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const offender = res.locals?.offenderByCRNResponse
+      const offender = res.locals?.offenderCheckinsByCRNResponse
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
@@ -1412,7 +1412,7 @@ const checkInsController: Controller<typeof routes, void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const offender = res.locals?.offenderByCRNResponse
+      const offender = res.locals?.offenderCheckinsByCRNResponse
       const userDetails = {
         ...savedDetails,
         interval: checkinIntervals.find(option => option.id === savedDetails.interval)?.label,
