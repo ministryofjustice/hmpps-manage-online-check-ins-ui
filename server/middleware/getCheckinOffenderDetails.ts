@@ -7,7 +7,7 @@ const getCheckinOffenderDetails = (hmppsAuthClient: HmppsAuthClient): Route<Prom
     const { crn } = req.params as Record<string, string>
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const eSupervisionClient = new ESupervisionClient(token)
-    res.locals.offenderByCRNResponse = await eSupervisionClient.getOffenderByCRN(crn)
+    res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.getOffenderByCRN(crn)
     return next()
   }
 }

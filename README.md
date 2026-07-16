@@ -170,7 +170,10 @@ npm run start-feature:dev
 # Start the UI in test with integration test coverage instrumentation
 npm run start-feature
 
-# Run the tests in headless mode:
+# Start the wiremock instance:
+npm run wiremock
+
+# Then either run the tests in headless mode:
 npm run int-test
 
 # Or, run the tests with the Cypress UI:

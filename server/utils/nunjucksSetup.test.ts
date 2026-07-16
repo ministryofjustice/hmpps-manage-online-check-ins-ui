@@ -10,6 +10,10 @@ jest.mock('../../logger', () => ({
   error: jest.fn(),
 }))
 
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
+}))
+
 jest.mock('../config', () => ({
   ...jest.requireActual('../config'),
   __esModule: true,
