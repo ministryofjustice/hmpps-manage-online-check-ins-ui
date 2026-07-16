@@ -255,11 +255,46 @@ describe('/middleware/autoStoreSessionData', () => {
       autoStoreSessionData(hmppsAuthClient)(req, res, nextSpy)
     })
 
-    it('should replace the existing object value in session data', () => {
+    it('should merge into the existing object value in session data', () => {
       expect(req.session.data.esupervision[crn][id]).toEqual({
         manageCheckin: {
+          existingValue: 'keep me',
           stopCheckinReason: 'Reason for stopping',
         },
+      })
+    })
+  })
+
+  // The setup wizard spreads one group (`checkins`) across many pages, so replacing the
+  // group on each post would drop the answers restrictPageAccess relies on.
+  describe('when a wizard posts one page of a shared group', () => {
+    const setupId = 'dad89a83-3029-488a-ac24-ac2d0cf2e16c'
+    const req = httpMocks.createRequest({
+      params: { crn, id: setupId },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [setupId]: {
+                checkins: { id: setupId, eligibility: ['eligibility-none'], eligibilityChoice: 'REPLACE_F2F' },
+              },
+            },
+          },
+        },
+      },
+      body: { esupervision: { [crn]: { [setupId]: { checkins: { rationale: 'Stable and low risk' } } } } },
+    })
+
+    beforeEach(() => {
+      autoStoreSessionData(hmppsAuthClient)(req, res, nextSpy)
+    })
+
+    it('keeps answers from earlier pages alongside the new one', () => {
+      expect(req.session.data.esupervision[crn][setupId].checkins).toEqual({
+        id: setupId,
+        eligibility: ['eligibility-none'],
+        eligibilityChoice: 'REPLACE_F2F',
+        rationale: 'Stable and low risk',
       })
     })
   })

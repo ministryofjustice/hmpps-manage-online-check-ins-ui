@@ -7,8 +7,8 @@ import { ErrorSummaryItem } from './model/common'
 import 'multer'
 import escapeForLog from '../utils/escapeForLog'
 import isTimeoutError from '../utils/isTimeoutError'
-import isValidHost from '../utils/isValidHost'
-import isValidPath from '../utils/isValidPath'
+import { isValidHost } from '../utils/isValidHost'
+import { isValidPath } from '../utils/isValidPath'
 import { restClientMetricsMiddleware } from './restClientMetricsMiddleware'
 
 interface Request {

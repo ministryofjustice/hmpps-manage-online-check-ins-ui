@@ -153,6 +153,8 @@ export interface OffenderCheckinsByCRNResponse {
   checkinInterval: CheckInterval
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
+  mobile?: string
+  email?: string
   details?: {
     name?: {
       forename?: string

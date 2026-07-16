@@ -11,7 +11,7 @@ import config from '../config'
 import logger from '../../logger'
 
 import { initialiseName } from './utils'
-import { dateWithYear, dateWithYearTimeFirst } from './dateWithYear'
+import { dateWithYear, dateWithYearTimeFirst, dateToLongDate } from './dateWithYear'
 
 import yearsSince from './yearsSince'
 import makePageTitle from './makePageTitle'
@@ -73,6 +73,7 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addFilter('initialiseName', initialiseName)
   njkEnv.addFilter('dateWithYear', dateWithYear)
   njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
+  njkEnv.addFilter('dmyToLongDate', dateToLongDate)
   njkEnv.addFilter('yearsSince', yearsSince)
   njkEnv.addFilter('split', splitString)
   njkEnv.addFilter('userFriendlyString', getUserFriendlyString)

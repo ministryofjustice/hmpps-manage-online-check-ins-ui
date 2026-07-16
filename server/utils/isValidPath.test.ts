@@ -1,4 +1,4 @@
-import isValidPath from './isValidPath'
+import { isValidPath } from './isValidPath'
 
 describe('utils/isValidPath', () => {
   it('should return true if path is valid format', () => {

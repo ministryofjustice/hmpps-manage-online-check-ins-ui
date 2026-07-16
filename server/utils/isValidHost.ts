@@ -1,25 +1,13 @@
-const isValidHost = (host: string): boolean => {
+import config from '../config'
+
+export const isValidHost = (host: string): boolean => {
   const validHosts = [
-    process.env.HMPPS_AUTH_URL,
-    process.env.MANAGE_USERS_API_URL,
-    process.env.TOKEN_VERIFICATION_API_URL,
-    process.env.MAS_API_URL,
-    process.env.DELIUS_API_URL,
-    process.env.ARNS_API_URL,
-    process.env.TIER_API_URL,
-    process.env.FLIPT_URL,
-    process.env.INTERVENTIONS_API_URL,
-    process.env.ARNS_ASSESSMENT_PLATFORM_API_URL,
-    process.env.SUPERVISION_API_URL,
-    process.env.PROBATION_FRONTEND_COMPONENTS_API_URL,
-    process.env.E_SUPERVISION_API_URL,
-    process.env.EMDI_API_URL,
-    'http://localhost:8100',
-    'http://localhost:9091',
-    'http://localhost:8080/api',
-    'http://localhost:9090/auth',
-    'https://esupervision-api-dev.hmpps.service.justice.gov.uk',
+    config.apis.hmppsAuth.url,
+    config.apis.hmppsAuth.externalUrl,
+    config.apis.tokenVerification.url,
+    config.apis.masApi.url,
+    config.apis.probationApi.url,
+    config.apis.eSupervisionApi.url,
   ].filter(Boolean)
   return validHosts.includes(host)
 }
-export default isValidHost
