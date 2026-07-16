@@ -100,6 +100,8 @@ describe('checkInsController', () => {
 
   describe('getManageCheckinPage', () => {
     it('renders the manage check in page', async () => {
+      ;(ESupervisionClient.prototype.getOffenderByCRN as jest.Mock).mockResolvedValueOnce(offenderCheckinsByCRNResponse)
+
       const req = httpMocks.createRequest({
         params: { crn, id: uuid },
         session: { data: {} },

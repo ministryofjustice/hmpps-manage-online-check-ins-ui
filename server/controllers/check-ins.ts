@@ -608,11 +608,15 @@ const checkInsController: Controller<typeof routes, void> = {
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
 
+      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      if (!checkinRes) {
+        return renderError(404)(req, res)
+      }
+
       req.session.data = req.session.data || {}
       const { data } = req.session
 
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const eSupClient = new ESupervisionClient(token)
       let upcomingCheckin = null
       try {
