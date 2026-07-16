@@ -1,10 +1,20 @@
 import nock from 'nock'
-
 import config from '../config'
-import { DeactivateOffenderRequest, ESupervisionCheckIn, OffenderByCRNResponse } from './model/esupervision'
 import { isValidHost } from '../utils/isValidHost'
 import { isValidPath } from '../utils/isValidPath'
+
+import {
+  DeactivateOffenderRequest,
+  EsupervisionAssignQuestionsRequest,
+  EsupervisionAssignQuestionsResponse,
+  ESupervisionCheckIn,
+  EsupervisionUpcomingQuestionItemsResponse,
+  EsupervisionUpcomingQuestionsResponse,
+  OffenderCheckinsByCRNResponse,
+} from './model/esupervision'
+
 import ESupervisionClient from './eSupervisionClient'
+import { esupervisionAdditionalQuestions } from '../controllers/mocks/esupervisionAdditionalQuestions'
 
 jest.mock('../utils/isValidHost', () => ({ isValidHost: jest.fn() }))
 jest.mock('../utils/isValidPath', () => ({ isValidPath: jest.fn() }))
@@ -95,7 +105,7 @@ describe('ESupervisionClient', () => {
             surname: 'Bloggs',
           },
         },
-      } as OffenderByCRNResponse
+      } as OffenderCheckinsByCRNResponse
 
       fakeESupervisionApi
         .get(`/v2/offenders/crn/${crn}`)
@@ -145,6 +155,97 @@ describe('ESupervisionClient', () => {
         .reply(200, response)
 
       const output = await client.postDeactivateOffender(checkInUuid, body)
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('getQuestionsTemplates', () => {
+    it('should get questions templates', async () => {
+      const response = esupervisionAdditionalQuestions
+
+      fakeESupervisionApi
+        .get(`/v2/questions/templates?language=en-GB`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.getQuestionsTemplates()
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('getUpcomingCheckinQuestions', () => {
+    it('should get upcoming questions items', async () => {
+      const crn = 'X000001'
+      const response: EsupervisionUpcomingQuestionsResponse = {
+        expectedCheckinDate: '',
+        questions: [],
+      }
+
+      fakeESupervisionApi
+        .get(`/v2/questions/upcoming/${crn}/offender-questions?language=en-GB`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.getUpcomingCheckinQuestions(crn)
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('getUpcomingCheckinQuestionItems', () => {
+    it('should get upcoming question items', async () => {
+      const crn = 'X000001'
+      const response: EsupervisionUpcomingQuestionItemsResponse = {
+        upcoming: {
+          expectedCheckinDate: '',
+          items: [],
+        },
+      }
+
+      fakeESupervisionApi
+        .get(`/v2/questions/upcoming/${crn}/question-items?language=en-GB`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.getUpcomingCheckinQuestionItems(crn)
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('putAssignQuestionsToCheckIn', () => {
+    it('should assign questions to check in', async () => {
+      const crn = 'X000001'
+      const request: EsupervisionAssignQuestionsRequest = {
+        questions: [],
+        language: 'en-GB',
+        author: 'SYSTEM',
+      }
+
+      const response: EsupervisionAssignQuestionsResponse = {
+        expectedCheckinDate: '',
+        listId: 3,
+      }
+      fakeESupervisionApi
+        .put(`/v2/questions/assignment?crn=${crn}`, request as Record<string, any>)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.putAssignQuestionsToCheckIn(crn, request)
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('deleteAssignedQuestionsFromCheckIn', () => {
+    it('should delete assigned questions to check in', async () => {
+      const crn = 'X000001'
+
+      const response = { message: 'deleted' }
+
+      fakeESupervisionApi
+        .delete(`/v2/questions/assignment?crn=${crn}`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.deleteAssignedQuestionsFromCheckIn(crn)
       expect(output).toEqual(response)
     })
   })

@@ -15,4 +15,8 @@
 @use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
 @use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
 
+@use './overrides/local';
+@use './components/photo';
+@use './components/checkboxes';
+
 @import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';

@@ -253,5 +253,16 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: (page === 'restart-edit-contact' && !editCheckInEmail) || page !== 'restart-edit-contact',
       checks: [{ validator: isEmail, msg: 'Enter an email address in the correct format.' }],
     },
+
+    [`[esupervision][${crn}][${id}][manageQuestions][draftQuestionInput]`]: {
+      optional: page !== 'edit-question',
+      checks: [
+        {
+          validator: isNotEmpty,
+          msg: 'Enter what you want to ask',
+          log: 'Question text not entered',
+        },
+      ],
+    },
   }
 }

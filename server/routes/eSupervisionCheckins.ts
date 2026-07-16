@@ -3,14 +3,16 @@ import type { Services } from '../services'
 import validate from '../middleware/validation'
 import autoStoreSessionData from '../middleware/autoStoreSessionData'
 import controllers from '../controllers'
-import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import getCheckIn from '../middleware/getCheckIn'
-import config from '../config'
-import getOffenderDetails from '../middleware/getOffenderDetails'
 import validateCrnAndId from '../middleware/validateCrnAndId'
+<<<<<<< HEAD
 import getPersonalDetails from '../middleware/getPersonalDetails'
 import restrictPageAccess from '../middleware/restrictPageAccess'
 import postRedirectWizard from '../middleware/checkinCyaRedirect'
+=======
+import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
+import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
+>>>>>>> main
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient }: Services) {
   router.get('/', async (req, res) => {
@@ -214,7 +216,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/stop-checkin', [
     validateCrnAndId,
-    getOffenderDetails(hmppsAuthClient),
+    getCheckinOffenderDetails(hmppsAuthClient),
     controllers.checkIns.getStopCheckinPage(hmppsAuthClient),
   ])
 
@@ -222,7 +224,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     '/case/:crn/appointments/check-in/manage/:id/stop-checkin',
     validateCrnAndId,
     autoStoreSessionData(hmppsAuthClient),
-    getOffenderDetails(hmppsAuthClient),
+    getCheckinOffenderDetails(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postManageStopCheckin(hmppsAuthClient),
   )
@@ -390,5 +392,87 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     autoStoreSessionData(hmppsAuthClient),
     validate.checkInReview,
     controllers.checkIns.postViewCheckIn(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/start', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getStartQuestionsPage(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/questions/start', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postStartQuestionsPage(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/add', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getAddQuestionsPage(hmppsAuthClient),
+  ])
+
+  router.post('/case/:crn/appointments/check-in/manage/:id/questions/add', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postAddQuestionsPage(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/list', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getQuestionsListPage(hmppsAuthClient),
+  ])
+
+  router.post('/case/:crn/appointments/check-in/manage/:id/questions/list', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postQuestionsListPage(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/:questionId/edit', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getEditQuestionPage(hmppsAuthClient),
+  ])
+
+  router.post('/case/:crn/appointments/check-in/manage/:id/questions/:questionId/edit', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postEditQuestionPage(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/:templateId/select', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getSelectQuestionPage(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/:questionId/delete', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getDeleteQuestion(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/preview/feeling', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getPreviewFeelingPage(hmppsAuthClient),
+  ])
+  router.get('/case/:crn/appointments/check-in/manage/:id/questions/preview/support', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    controllers.checkIns.getPreviewSupportPage(hmppsAuthClient),
   ])
 }

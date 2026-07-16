@@ -10,6 +10,10 @@ const auditService = new AuditService({} as HmppsAuditClient) as jest.Mocked<Aud
 
 let app: Express
 
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
+}))
+
 beforeEach(() => {
   app = appWithAllRoutes({
     services: {
