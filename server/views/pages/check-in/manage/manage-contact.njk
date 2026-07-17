@@ -21,13 +21,9 @@
 {% set setEmailError =  'esupervision-'+  crn + '-' + id +'-manageCheckin-checkInEmail' %}
 
 {% block beforeContent %}
-    {{ govukBreadcrumbs({
-        items: [
-            {
-                text: "< Back",
-                href: backLink
-            }
-        ]
+    {{ govukBackLink({
+          text: "Back",
+          href: backLink
     }) }}
 
     {{ mojBanner({
