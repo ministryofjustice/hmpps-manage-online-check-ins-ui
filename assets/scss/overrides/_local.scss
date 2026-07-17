@@ -27,3 +27,8 @@
   @include govuk-width-container;
   border: none !important;
 }
+
+.govuk-tag {
+  white-space: nowrap;
+  min-width: auto;
+}
