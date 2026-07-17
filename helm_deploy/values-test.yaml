@@ -18,6 +18,7 @@ generic-service:
     AUDIT_ENABLED: 'false'
     AUTHORISED_USER_ROLES: 'ROLE_ESUPERVISION__PRACTITIONER__RW'
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk"
+    ESUPERVISION_GUIDANCE_LINK: 'https://probation-check-in-dev.hmpps.service.justice.gov.uk'
     CHAR_COUNT: 12000
 
 generic-prometheus-alerts:
