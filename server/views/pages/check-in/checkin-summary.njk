@@ -38,13 +38,9 @@
 {% endif %}
 
 {% block beforeContent %}
-    {{ govukBreadcrumbs({
-        items: [
-            {
-                text: "< Back",
-                href: backLink
-            }
-        ]
+    {{ govukBackLink({
+          text: "Back",
+          href: backLink
     }) }}
 
 {% endblock %}
@@ -67,7 +63,7 @@
     {% endif %}
 
     {% include "../../partials/pop-header.njk" %}
-    <hr class="govuk-section-break--l">
+    <hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
 
     <div
             id="registration-error"

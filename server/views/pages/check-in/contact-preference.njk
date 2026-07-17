@@ -22,13 +22,9 @@
 {% set emailValue = checkInEmail if checkInEmail else 'No email address' %}
 
 {% block beforeContent %}
-    {{ govukBreadcrumbs({
-        items: [
-            {
-                text: "< Back",
-                href: backLink
-            }
-        ]
+    {{ govukBackLink({
+          text: "Back",
+          href: backLink
     }) }}
 
     {{ mojBanner({
