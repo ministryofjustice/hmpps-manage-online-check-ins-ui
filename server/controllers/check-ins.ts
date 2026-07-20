@@ -674,11 +674,6 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
-      const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-      const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-      if (offenderDetails.status !== 'VERIFIED') {
-        return res.redirect(303, redirectUrl)
-      }
       return res.render('pages/check-in/manage/stop-checkin.njk', {
         crn: offenderDetails.crn,
         id: offenderDetails.uuid,
@@ -713,9 +708,10 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
-      const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-      const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-      return res.redirect(303, redirectUrl)
+      // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+      // const redirectUrl = `${mpopBaseUrl}/case/${crn}`
+      // return res.redirect(303, redirectUrl)
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
     }
   },
 
@@ -1396,9 +1392,10 @@ const checkInsController: Controller<typeof routes, void> = {
         }
 
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions'], undefined)
-        const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-        const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-        return res.redirect(303, redirectUrl)
+        // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+        // const redirectUrl = `${mpopBaseUrl}/case/${crn}`
+        // return res.redirect(303, redirectUrl)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       } catch (error: any) {
         logger.error(`Failed to assign/delete questions for CRN ${crn}:`, error)
         return renderError(error?.status || 500)(req, res)

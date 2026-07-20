@@ -28,17 +28,9 @@ context('check-ins overview and manage pages', () => {
 
     stopCheckIn.getElementData('sensitiveContact').find('input[type="radio"][value="false"]').click({ force: true })
 
-    cy.intercept(
-      'POST',
-      '/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/stop-checkin',
-    ).as('stopCheckin')
-
     stopCheckIn.getSubmitBtn().click()
 
-    cy.wait('@stopCheckin').then(({ response }) => {
-      expect(response?.statusCode).to.be.oneOf([302, 303])
-      expect(response?.headers.location).to.eq('https://localhost:9091/manage-people-on-probation/case/X778160')
-    })
+    manageCheckins.checkOnPage()
   })
 })
 context('check-ins add questions pages', () => {
