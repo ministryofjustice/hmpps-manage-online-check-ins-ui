@@ -1080,7 +1080,11 @@ const checkInsController: Controller<typeof routes, void> = {
       const { data } = req.session
       const cya = req.query.cya === 'true'
       const checkInMinDate = getMinDate()
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
+      const offender = res.locals?.offenderCheckinsByCRNResponse
+
+      if (!offender) {
+        return renderError(404)(req, res)
+      }
       const offenderSettings = res.locals?.offenderCheckinsByCRNResponse
       const defaultsLoaded = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'])
       if (!defaultsLoaded) {
@@ -1221,8 +1225,11 @@ const checkInsController: Controller<typeof routes, void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { cya } = req.query
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const offender = res.locals?.offenderCheckinsByCRNResponse
+
+      if (!offender) {
+        return renderError(404)(req, res)
+      }
       const checkInMobile = offender?.mobile
       const checkInEmail = offender?.email
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
@@ -1270,7 +1277,11 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'])
       const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'])
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
+      const offender = res.locals?.offenderCheckinsByCRNResponse
+
+      if (!offender) {
+        return renderError(404)(req, res)
+      }
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
@@ -1306,8 +1317,11 @@ const checkInsController: Controller<typeof routes, void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin']) || {}
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const offender = res.locals?.offenderCheckinsByCRNResponse
+
+      if (!offender) {
+        return renderError(404)(req, res)
+      }
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
@@ -1415,8 +1429,11 @@ const checkInsController: Controller<typeof routes, void> = {
       if (!savedDetails) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const offender = res.locals?.offenderCheckinsByCRNResponse
+
+      if (!offender) {
+        return renderError(404)(req, res)
+      }
       const userDetails = {
         ...savedDetails,
         interval: checkinIntervals.find(option => option.id === savedDetails.interval)?.label,
