@@ -708,9 +708,6 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
-      // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-      // const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-      // return res.redirect(303, redirectUrl)
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
     }
   },
@@ -1392,9 +1389,6 @@ const checkInsController: Controller<typeof routes, void> = {
         }
 
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions'], undefined)
-        // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-        // const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-        // return res.redirect(303, redirectUrl)
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       } catch (error: any) {
         logger.error(`Failed to assign/delete questions for CRN ${crn}:`, error)
