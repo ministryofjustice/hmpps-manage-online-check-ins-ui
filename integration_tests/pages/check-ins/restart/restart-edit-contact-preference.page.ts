@@ -2,7 +2,7 @@ import Page, { PageElement } from '../../page'
 
 export default class RestartEditContactPreferencePage extends Page {
   constructor() {
-    super('Edit contact details for Alton')
+    super('Edit contact details for')
   }
 
   getMobileInput = (): PageElement => this.getElementInput('mobileNumber')

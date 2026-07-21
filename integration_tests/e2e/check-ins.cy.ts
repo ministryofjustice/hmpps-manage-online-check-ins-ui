@@ -48,12 +48,7 @@ context('check-ins overview and manage pages', () => {
   })
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
-    cy.visit(`/case/X778160/appointments/check-in/manage`)
-
-    const manageCheckins = new ManageCheckins()
-    manageCheckins.checkOnPage()
-    manageCheckins.getElementData('restart-checkin-btn').click()
-
+    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-checkin`)
     const restartDatePage = new RestartDateFrequencyPage()
     restartDatePage.checkOnPage()
     const now = DateTime.now()
