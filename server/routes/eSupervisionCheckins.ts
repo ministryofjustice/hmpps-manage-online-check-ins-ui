@@ -272,6 +272,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-checkin',
     validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartCheckinPage(hmppsAuthClient),
@@ -285,6 +286,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-contact',
     validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartContactPage(hmppsAuthClient),
@@ -298,6 +300,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-edit-contact',
     validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartEditContactPage(hmppsAuthClient),
@@ -311,6 +314,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-summary',
     validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartSummaryPage(hmppsAuthClient),
