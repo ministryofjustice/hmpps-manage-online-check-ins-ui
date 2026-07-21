@@ -399,7 +399,6 @@ describe('checkInsController', () => {
       expect(renderSpy).toHaveBeenCalledWith('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id: uuid,
-        case: offenderCheckinsByCRNResponse.details,
         change: 'email',
         checkInMobile: '07123456789',
         checkInEmail: 'test@example.com',

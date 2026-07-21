@@ -12,7 +12,7 @@ import {
   ReactivateOffenderRequest,
   OffenderCheckinsByCRNResponse,
 } from '../data/model/esupervision'
-import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
+import { PersonalDetails, PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
@@ -1080,12 +1080,11 @@ const checkInsController: Controller<typeof routes, void> = {
       const { data } = req.session
       const cya = req.query.cya === 'true'
       const checkInMinDate = getMinDate()
-      const offenderSettings = res.locals?.offenderCheckinsByCRNResponse
-      if (!offenderSettings) {
-        return renderError(404)(req, res)
-      }
+
       const defaultsLoaded = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'])
       if (!defaultsLoaded) {
+        const offenderSettings = res.locals.offenderCheckinsByCRNResponse
+
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval'], offenderSettings.checkinInterval)
         setDataValue(
@@ -1093,24 +1092,27 @@ const checkInsController: Controller<typeof routes, void> = {
           ['esupervision', crn, id, 'restartCheckin', 'preferredComs'],
           offenderSettings.contactPreference,
         )
-        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInMobile'], offenderSettings.mobile)
-        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInEmail'], offenderSettings.email)
       }
+
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const personalDetails = await masClient.getPersonalDetails(crn)
       return res.render('pages/check-in/manage/restart-date-frequency.njk', {
         crn,
         id,
         checkInMinDate,
-        case: offenderSettings.details,
+        case: personalDetails,
         cya,
       })
     }
   },
 
-  postRestartCheckinPage: () => {
+  postRestartCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
       if (req.query?.cya === 'true') {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-summary?cya=true`)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-summary${cyaQuery}`)
       }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-contact`)
     }
@@ -1119,53 +1121,43 @@ const checkInsController: Controller<typeof routes, void> = {
   getRestartContactPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-
+      if (req?.session?.errorMessages) {
+        res.locals.errorMessages = req.session.errorMessages
+        delete req?.session?.errorMessages
+      }
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { cya } = req.query
-
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
-      const offender = res.locals?.offenderCheckinsByCRNResponse
-
-      if (!offender) {
-        return renderError(404)(req, res)
-      }
-
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const masClient = new MasApiClient(token)
       const personalDetails = await masClient.getPersonalDetails(crn)
-
-      const savedMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInMobile'])
-      const savedEmail = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInEmail'])
-
-      const checkInMobile = savedMobile ?? personalDetails?.mobileNumber
-      const checkInEmail = savedEmail ?? personalDetails?.email
+      const checkInMobile = personalDetails.mobileNumber
+      const checkInEmail = personalDetails.email
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
-
+      // if page not submitted, required to save in session for change link /edit page to avoid API call.
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'], checkInEmail)
 
+      // To show success message on edit contact preference page
       const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'contactUpdated'])
-
       if (contactUpdated) {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.restartCheckin?.contactUpdated
       }
-
       return res.render('pages/check-in/manage/restart-contact-preference.njk', {
         crn,
         id,
         checkInMobile,
         checkInEmail,
         preferredComs,
-        case: offender?.details,
+        case: personalDetails,
         cya,
       })
     }
   },
 
-  postRestartContactPage: () => {
+  postRestartContactPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { change } = req.body
@@ -1183,21 +1175,35 @@ const checkInsController: Controller<typeof routes, void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { change } = req.query
-      const offender = res.locals?.offenderCheckinsByCRNResponse
-      if (!offender) {
-        return renderError(404)(req, res)
-      }
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'contactUpdated'])
+      // To show success message on edit contact preference page
+      const contactUpdated = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'restartCheckin',
+        'contactUpdated',
+      ])
       if (contactUpdated) {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.restartCheckin?.contactUpdated
       }
-      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'])
-      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'])
+      const checkInMobile = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'restartCheckin',
+        'editCheckInMobile',
+      ])
+      const checkInEmail = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'restartCheckin',
+        'editCheckInEmail',
+      ])
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
-        case: offender?.details,
         change,
         checkInMobile,
         checkInEmail,
@@ -1208,14 +1214,12 @@ const checkInsController: Controller<typeof routes, void> = {
   postRestartEditContactPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { previousMobile, previousEmail } = req.body
 
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'])
-
       if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
         const masClient = new MasApiClient(token)
@@ -1224,17 +1228,26 @@ const checkInsController: Controller<typeof routes, void> = {
           emailAddress: editCheckInEmail,
           mobileNumber: editCheckInMobile?.trim(),
         }
-
-        const personalDetails = await masClient.updatePersonalDetailsContact(crn, body)
-
+        const personalDetails: PersonalDetails = await masClient.updatePersonalDetailsContact(crn, body)
+        // If personal details overview exists in session cache, update it with latest values
+        if (req.session.data?.personalDetails?.[crn]?.overview) {
+          req.session.data.personalDetails[crn].overview = personalDetails
+        }
+        // Save to show success message on contact preferences page
         if (personalDetails?.crn) {
           setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'contactUpdated'], true)
+          setDataValue(
+            req.session.data,
+            ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'],
+            editCheckInMobile?.trim(),
+          )
+          setDataValue(
+            req.session.data,
+            ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'],
+            editCheckInEmail,
+          )
         }
-
-        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInMobile'], editCheckInMobile?.trim())
-        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'checkInEmail'], editCheckInEmail)
       }
-
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-contact`)
     }
   },
@@ -1242,25 +1255,24 @@ const checkInsController: Controller<typeof routes, void> = {
   getRestartSummaryPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      req.session.data = req.session.data || {}
       const { data } = req.session
-      const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin']) || {}
-      const offender = res.locals?.offenderCheckinsByCRNResponse
-      if (!offender) {
-        return renderError(404)(req, res)
-      }
+      const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const caseData = await masClient.getPersonalDetails(crn)
+
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
-        checkInMobile: restartDetails.checkInMobile || offender.mobile || 'No mobile number',
-        checkInEmail: restartDetails.checkInEmail || offender.email || 'No email address',
+        checkInMobile: restartDetails.checkInMobile || caseData.mobileNumber || 'No mobile number',
+        checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
       }
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {
         crn,
         id,
         userDetails,
-        case: offender?.details,
+        case: caseData,
       })
     }
   },
@@ -1270,18 +1282,20 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
       const { data } = req.session
+
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
-      if (!restartDetails) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
-      }
+      if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
+
       try {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
         const eSupervisionClient = new ESupervisionClient(token)
+
         const parsedDate = DateTime.fromFormat(restartDetails.date ?? '', 'd/M/yyyy')
         const formattedDate = parsedDate.isValid ? parsedDate.toISODate() : restartDetails.date
+
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
-          reason: restartDetails.reason || 'Reactivated via UI',
+          reason: restartDetails.reason || 'Reactivated via MPOP UI',
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             firstCheckin: formattedDate,
@@ -1292,7 +1306,9 @@ const checkInsController: Controller<typeof routes, void> = {
             contactPreference: restartDetails.preferredComs,
           },
         }
+
         await eSupervisionClient.postReactivateOffender(id, body)
+
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-confirmation`)
       } catch (e) {
         logger.error(`Reactivate failed: ${e.message}`)
@@ -1314,26 +1330,22 @@ const checkInsController: Controller<typeof routes, void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
 
-      const offender = res.locals?.offenderCheckinsByCRNResponse
-
-      if (!offender) {
-        return renderError(404)(req, res)
-      }
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const caseData = await masClient.getPersonalDetails(crn)
 
       const userDetails = {
         ...savedDetails,
         interval: checkinIntervals.find(option => option.id === savedDetails.interval)?.label,
         displayCommsOption:
           savedDetails.preferredComs === 'EMAIL' ? savedDetails.checkInEmail : savedDetails.checkInMobile,
-        displayDay: dayOfWeek(DateTime.fromFormat(savedDetails.date ?? '', 'd/M/yyyy').toFormat('yyyy-MM-dd')),
+        displayDay: dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
       }
-
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin'], undefined)
-
       return res.render('pages/check-in/manage/restart-confirmation.njk', {
         crn,
         id,
-        case: offender?.details,
+        case: caseData,
         userDetails,
       })
     }
