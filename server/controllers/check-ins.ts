@@ -1097,6 +1097,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const masClient = new MasApiClient(token)
       const personalDetails = await masClient.getPersonalDetails(crn)
+      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_WHEN_TO_COMPLETE_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-date-frequency.njk', {
         crn,
         id,
@@ -1145,6 +1146,7 @@ const checkInsController: Controller<typeof routes, void> = {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.restartCheckin?.contactUpdated
       }
+      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-contact-preference.njk', {
         crn,
         id,
@@ -1201,6 +1203,7 @@ const checkInsController: Controller<typeof routes, void> = {
         'restartCheckin',
         'editCheckInEmail',
       ])
+      // await sendAuditMessage(res, 'EDIT_MAS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
@@ -1268,6 +1271,7 @@ const checkInsController: Controller<typeof routes, void> = {
         checkInMobile: restartDetails.checkInMobile || caseData.mobileNumber || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
       }
+      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN_SUMMARY', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {
         crn,
         id,
@@ -1342,6 +1346,7 @@ const checkInsController: Controller<typeof routes, void> = {
         displayDay: dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
       }
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin'], undefined)
+      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN_CONFIRMATION', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-confirmation.njk', {
         crn,
         id,
