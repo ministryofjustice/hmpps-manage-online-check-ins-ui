@@ -22,10 +22,10 @@
 {% from "_components/summary-card/macro.njk" import appSummaryCard %}
 
 {% block head %}
-  <link href="{{ '/assets/css/app.css' | assetMap }}" rel="stylesheet"/>
   {% for css in feComponents.cssIncludes %}
     <link href="{{ css }}" nonce="{{ cspNonce }}" rel="stylesheet" />
   {% endfor %}
+  <link href="{{ '/assets/css/app.css' | assetMap }}" rel="stylesheet"/>
 {% endblock %}
 
 {% block pageTitle %}
