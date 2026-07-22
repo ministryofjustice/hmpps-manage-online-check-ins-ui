@@ -16,6 +16,10 @@ const livenessNoMatchId = 'afa85f64-5717-4562-b3fc-2c963f66afa6'
 const reviewedLivenessId = 'bfa85f64-5717-4562-b3fc-2c963f66afa6'
 
 context('check in reviews', () => {
+  beforeEach(() => {
+    cy.task('resetMocks')
+  })
+
   it('Check in page for reviewed check in', () => {
     cy.visit(`/case/${crn}/appointments/${reviewedId}/check-in/update`)
     const page = Page.verifyOnPage(ViewCheckInPage)
