@@ -166,5 +166,5 @@ export default {
   ],
   preservedWords: ['(NS)', '(Non', 'NS)'],
   preservedSeparators: ['-'],
-  maxCharCount: get('CHAR_COUNT', 0, requiredInProduction),
+  maxCharCount: get('CHAR_COUNT', 12000, requiredInProduction),
 }
