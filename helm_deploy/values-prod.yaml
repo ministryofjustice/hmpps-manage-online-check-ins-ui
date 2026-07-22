@@ -17,7 +17,7 @@ generic-service:
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation.hmpps.service.justice.gov.uk"
     ESUPERVISION_GUIDANCE_LINK: 'https://probation-check-in.hmpps.service.justice.gov.uk'
     MAS_API_URL: 'https://manage-supervision-and-delius.hmpps.service.justice.gov.uk'
-    CHAR_COUNT: 0
+    CHAR_COUNT: 12000
 
 generic-prometheus-alerts:
   alertSeverity: warning
