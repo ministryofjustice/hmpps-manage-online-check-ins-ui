@@ -41,7 +41,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -50,7 +53,9 @@
           "snapshotUrl": "string",
           "autoIdCheck": "MATCH",
           "manualIdCheck": "MATCH",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": [
@@ -84,12 +89,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 10
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/5fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/5fa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -128,7 +134,9 @@
           "surveyResponse": {},
           "createdBy": "string",
           "createdAt": "2025-11-27T15:40:42.399Z",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -137,12 +145,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/7fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/7fa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -181,7 +190,9 @@
           "surveyResponse": {},
           "createdBy": "string",
           "createdAt": "2025-11-27T15:40:42.399Z",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "missedCheckinComment": "comment",
           "reviewedAt": "2025-11-27T15:40:42.399Z",
           "checkinLogs": {
@@ -201,12 +212,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/6fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/6fa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -244,7 +256,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -253,7 +268,9 @@
           "videoUrl": "string",
           "snapshotUrl": "string",
           "autoIdCheck": "MATCH",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -262,12 +279,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/8fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/8fa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -305,7 +323,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -316,7 +337,9 @@
           "autoIdCheck": "MATCH",
           "livenessEnabled": true,
           "livenessResult": "LIVE",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -325,12 +348,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/9fa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/9fa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -368,7 +392,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -378,7 +405,9 @@
           "snapshotUrl": "string",
           "autoIdCheck": "MATCH",
           "livenessEnabled": true,
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -387,12 +416,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/afa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/afa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -430,7 +460,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -441,7 +474,9 @@
           "autoIdCheck": "NO_MATCH",
           "livenessEnabled": true,
           "livenessResult": "LIVE",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -450,12 +485,13 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offender_checkins/bfa85f64-5717-4562-b3fc-2c963f66afa6",
-        "method": "GET"
+        "method": "GET",
+        "urlPath": "/v2/offender_checkins/bfa85f64-5717-4562-b3fc-2c963f66afa6"
       },
       "response": {
         "status": 200,
@@ -493,7 +529,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -504,7 +543,9 @@
           "livenessEnabled": true,
           "livenessResult": "LIVE",
           "manualIdCheck": "MATCH",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -513,7 +554,8 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 1
     },
     {
       "request": {
@@ -556,7 +598,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -565,7 +610,9 @@
           "snapshotUrl": "string",
           "autoIdCheck": "MATCH",
           "manualIdCheck": "MATCH",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -574,7 +621,8 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 5
     },
     {
       "request": {
@@ -617,7 +665,10 @@
           },
           "surveyResponse": {
             "mentalHealth": "well",
-            "assistance": ["thing1", "thing2"],
+            "assistance": [
+              "thing1",
+              "thing2"
+            ],
             "callback": "no"
           },
           "createdBy": "string",
@@ -626,7 +677,9 @@
           "snapshotUrl": "string",
           "autoIdCheck": "MATCH",
           "manualIdCheck": "MATCH",
-          "flaggedResponses": ["string"],
+          "flaggedResponses": [
+            "string"
+          ],
           "checkinLogs": {
             "hint": "ALL",
             "logs": []
@@ -635,7 +688,8 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 5
     },
     {
       "request": {
@@ -648,7 +702,8 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         }
-      }
+      },
+      "priority": 5
     }
   ]
 }

@@ -1,0 +1,855 @@
+{
+  "mappings": [
+    {
+      "request": {
+        "urlPathPattern": "/mas/overview/X000001",
+        "queryParameters": {
+          "sentenceNumber": {
+            "equalTo": ""
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "appointmentsWithoutOutcome": 5,
+          "absencesWithoutEvidence": 1,
+          "personalDetails": {
+            "name": {
+              "forename": "Caroline",
+              "middleName": "Linda",
+              "surname": "Wolff"
+            },
+            "telephoneNumber": "0191278654",
+            "mobileNumber": "07989654824",
+            "preferredName": "Caz",
+            "preferredGender": "Female",
+            "dateOfBirth": "2002-01-09",
+            "disabilities": [
+              {
+                "description": "Dyslexia"
+              },
+              {
+                "description": "Arthritis"
+              }
+            ],
+            "provisions": [
+              {
+                "description": "Hand Rails"
+              },
+              {
+                "description": "Special Furniture"
+              }
+            ],
+            "personalCircumstances": [
+              {
+                "subType": "Life imprisonment (Adult)",
+                "type": "Committed/ Transferred to Crown"
+              }
+            ]
+          },
+          "previousOrders": {
+            "breaches": 0,
+            "count": 1
+          },
+          "schedule": {
+            "nextAppointment": {
+              "date": "2024-03-09T14:59:05.382936Z[Europe/London]",
+              "description": "Initial Appointment - In office (NS)"
+            }
+          },
+          "sentences": [
+            {
+              "additionalOffences": [],
+              "eventNumber": "3",
+              "mainOffence": {
+                "code": "18502",
+                "description": "Breach of Restraining Order (Protection from Harassment Act 1997) - 00831"
+              },
+              "order": {
+                "description": "12 month Community order",
+                "endDate": "2024-12-01",
+                "startDate": "2023-12-01"
+              },
+              "rarDescription": "16 of 20 RAR days completed"
+            },
+            {
+              "additionalOffences": [
+                {
+                  "code": "9087",
+                  "description": "Burglary - 9087"
+                },
+                {
+                  "code": "9876",
+                  "description": "Arson - 9876"
+                }
+              ],
+              "eventNumber": "2",
+              "mainOffence": {
+                "code": "18502",
+                "description": "(Having possession a picklock or other implement with intent to break into any premises - 18502)"
+              },
+              "order": {
+                "description": "ORA Community Order",
+                "endDate": "2024-09-01",
+                "startDate": "2020-03-02"
+              },
+              "rarDescription": "10 of 10 RAR days completed"
+            }
+          ],
+          "activity": {
+            "acceptableAbsenceCount": 1,
+            "unacceptableAbsenceCount": 2,
+            "attendedButDidNotComplyCount": 2,
+            "outcomeNotRecordedCount": 2,
+            "waitingForEvidenceCount": 2,
+            "rescheduledCount": 2,
+            "absentCount": 2,
+            "rescheduledByStaffCount": 2,
+            "rescheduledByPersonOnProbationCount": 2,
+            "lettersCount": 2,
+            "nationalStandardAppointmentsCount": 2,
+            "compliedAppointmentsCount": 3
+          },
+          "compliance": {
+            "currentBreaches": 2,
+            "breachStarted": true,
+            "breachesOnCurrentOrderCount": 1,
+            "priorBreachesOnCurrentOrderCount": 1,
+            "failureToComplyCount": 3
+          },
+          "registrations": ["Restraining Order", "Domestic Abuse Perpetrator", "Risk to Known Adult"],
+          "mappa": {
+            "level": 3,
+            "levelDescription": "M3 Desc",
+            "category": 2,
+            "categoryDescription": "X2 Desc",
+            "startDate": "2024-12-12",
+            "reviewDate": "2024-12-13",
+            "lastUpdated": "2024-10-08"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/mas/overview/X000001",
+        "queryParameters": {
+          "sentenceNumber": {
+            "equalTo": "1"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "appointmentsWithoutOutcome": 5,
+          "absencesWithoutEvidence": 1,
+          "personalDetails": {
+            "name": {
+              "forename": "Caroline",
+              "middleName": "Linda",
+              "surname": "Wolff"
+            },
+            "telephoneNumber": "0191278654",
+            "mobileNumber": "07989654824",
+            "preferredName": "Caz",
+            "preferredGender": "Female",
+            "dateOfBirth": "2002-01-09",
+            "disabilities": [
+              {
+                "description": "Dyslexia"
+              },
+              {
+                "description": "Arthritis"
+              }
+            ],
+            "provisions": [
+              {
+                "description": "Hand Rails"
+              },
+              {
+                "description": "Special Furniture"
+              }
+            ],
+            "personalCircumstances": [
+              {
+                "subType": "Life imprisonment (Adult)",
+                "type": "Committed/ Transferred to Crown"
+              }
+            ]
+          },
+          "previousOrders": {
+            "breaches": 0,
+            "count": 1
+          },
+          "schedule": {
+            "nextAppointment": {
+              "date": "2024-03-09T14:59:05.382936Z[Europe/London]",
+              "description": "Initial Appointment - In office (NS)"
+            }
+          },
+          "sentences": [
+            {
+              "additionalOffences": [],
+              "eventNumber": "3",
+              "mainOffence": {
+                "code": "18502",
+                "description": "Breach of Restraining Order (Protection from Harassment Act 1997) - 00831"
+              },
+              "order": {
+                "description": "12 month Community order",
+                "endDate": "2024-12-01",
+                "startDate": "2023-12-01"
+              },
+              "rarDescription": "16 of 20 RAR days completed"
+            },
+            {
+              "additionalOffences": [
+                {
+                  "code": "9087",
+                  "description": "Burglary - 9087"
+                },
+                {
+                  "code": "9876",
+                  "description": "Arson - 9876"
+                }
+              ],
+              "eventNumber": "2",
+              "mainOffence": {
+                "code": "18502",
+                "description": "(Having possession a picklock or other implement with intent to break into any premises - 18502)"
+              },
+              "order": {
+                "description": "ORA Community Order",
+                "endDate": "2024-09-01",
+                "startDate": "2020-03-02"
+              },
+              "rarDescription": "10 of 10 RAR days completed"
+            }
+          ],
+          "activity": {
+            "acceptableAbsenceCount": 1,
+            "unacceptableAbsenceCount": 2,
+            "attendedButDidNotComplyCount": 2,
+            "outcomeNotRecordedCount": 2,
+            "waitingForEvidenceCount": 2,
+            "rescheduledCount": 2,
+            "absentCount": 2,
+            "rescheduledByStaffCount": 2,
+            "rescheduledByPersonOnProbationCount": 2,
+            "lettersCount": 2,
+            "nationalStandardAppointmentsCount": 2,
+            "compliedAppointmentsCount": 3
+          },
+          "compliance": {
+            "currentBreaches": 2,
+            "breachStarted": true,
+            "breachesOnCurrentOrderCount": 1,
+            "priorBreachesOnCurrentOrderCount": 1,
+            "failureToComplyCount": 3
+          },
+          "registrations": ["Restraining Order", "Domestic Abuse Perpetrator", "Risk to Known Adult"],
+          "mappa": {
+            "level": 3,
+            "levelDescription": "M3 Desc",
+            "category": 2,
+            "categoryDescription": "X2 Desc",
+            "startDate": "2024-12-12",
+            "reviewDate": "2024-12-13",
+            "lastUpdated": "2024-10-08"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/arns/risks/crn/X000001",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "riskToSelf": {
+            "suicide": {
+              "risk": "YES",
+              "previous": "DK",
+              "current": "YES",
+              "currentConcernsText": "Meaningful content for AssSumm Testing - R8.1.1"
+            },
+            "selfHarm": {
+              "risk": "YES",
+              "previous": "YES",
+              "previousConcernsText": "Meaningful content for AssSumm Testing - r814 ",
+              "current": "YES",
+              "currentConcernsText": "Meaningful content for AssSumm Testing - R8.1.1"
+            },
+            "custody": {
+              "risk": "YES",
+              "previous": "DK",
+              "current": "YES",
+              "currentConcernsText": "Meaningful content for AssSumm Testing -  r821"
+            },
+            "hostelSetting": {
+              "risk": "YES",
+              "previous": "YES",
+              "previousConcernsText": "Meaningful content for AssSumm Testing -  R822",
+              "current": "NO"
+            },
+            "vulnerability": {
+              "risk": "YES",
+              "previous": "NO",
+              "current": "YES",
+              "currentConcernsText": "Meaningful content for AssSumm Testing -  r831"
+            }
+          },
+          "otherRisks": {
+            "escapeOrAbscond": "YES",
+            "controlIssuesDisruptiveBehaviour": "YES",
+            "breachOfTrust": "YES",
+            "riskToOtherPrisoners": "YES"
+          },
+          "summary": {
+            "whoIsAtRisk": "NOD-849Meaningful content for AssSumm Testing -  r10.1",
+            "natureOfRisk": "NOD-849 Meaningful content for AssSumm Testing -  r10.2",
+            "riskImminence": "NOD-849 R10.3Meaningful content for AssSumm Testing - ",
+            "riskIncreaseFactors": "NOD-849Meaningful content for AssSumm Testing -  R10.4",
+            "riskMitigationFactors": "NOD-849 Meaningful content for AssSumm Testing -  r10.5",
+            "riskInCommunity": {
+              "LOW": ["Children", "Staff"],
+              "MEDIUM": ["Known Adult"],
+              "HIGH": ["Public"],
+              "VERY_HIGH": ["Staff"]
+            },
+            "riskInCustody": {
+              "LOW": ["Children", "Public", "Known Adult", "Staff", "Prisoners"],
+              "VERY_HIGH": ["Public"]
+            },
+            "overallRiskLevel": "VERY_HIGH"
+          },
+          "assessedOn": "2024-01-24T08:07:15"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/document/83fdbf8a-a2f2-43b4-93ef-67e71c04fc58",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "bodyFileName": "document.pdf",
+        "headers": {
+          "content-type": "application/msword;charset=UTF-8",
+          "content-length": "14812",
+          "content-disposition": "attachment; filename=\"doc1\"; filename*=UTF-8''doc1",
+          "accept-ranges": "bytes",
+          "content-range": "bytes 0-14811/14812",
+          "cache-control": "max-age=0,  must-revalidate",
+          "etag": "1699630109776",
+          "last-modified": "Fri, 10 Nov 2023 15:28:29 GMT",
+          "Custom-Alfresco-Header": "should be ignored"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/addresses",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Caroline",
+              "surname": "Wolff"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "mainAddress": {
+            "buildingNumber": "32",
+            "streetName": "SCOTLAND STREET",
+            "town": "Sheffield",
+            "county": "South Yorkshire",
+            "postcode": "S3 7BS",
+            "telephoneNumber": "0191765438",
+            "from": "2023-03-14",
+            "verified": true,
+            "lastUpdated": "2023-03-20",
+            "type": "Householder (Owner - freehold or leasehold)",
+            "notes": "Some Notes",
+            "status": "Main",
+            "lastUpdatedBy": {
+              "forename": "Paul",
+              "surname": "Smith"
+            }
+          },
+          "otherAddresses": [
+            {
+              "id": 3,
+              "buildingNumber": "32",
+              "streetName": "Other Street",
+              "town": "Sheffield",
+              "county": "South Yorkshire",
+              "postcode": "S3 7BS",
+              "from": "2023-03-14",
+              "verified": false,
+              "lastUpdated": "2023-03-20",
+              "type": "Householder (Owner - freehold or leasehold)",
+              "status": "Postal",
+              "addressNotes": [
+                {
+                  "id": 0,
+                  "note": "Other Address created\nautomatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer. Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer.Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as desi",
+                  "hasNoteBeenTruncated": true
+                },
+                {
+                  "id": 1,
+                  "createdBy": "Harry Kane",
+                  "createdByDate": "2024-10-29",
+                  "note": "Left this property",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 2,
+                  "createdByDate": "2022-01-07",
+                  "note": "Arrived at property",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "lastUpdatedBy": {
+                "forename": "Joe",
+                "surname": "Bloggs"
+              }
+            }
+          ],
+          "previousAddresses": [
+            {
+              "id": 7,
+              "buildingNumber": "32",
+              "streetName": "Previous Street",
+              "town": "Newcastle",
+              "county": "Tyne and Wear",
+              "postcode": "S3 7BS",
+              "from": "2022-03-14",
+              "to": "2023-01-17",
+              "verified": true,
+              "lastUpdated": "2023-03-20",
+              "type": "Householder (Owner - freehold or leasehold)",
+              "status": "Previous",
+              "addressNotes": [
+                {
+                  "id": 0,
+                  "createdBy": "Tom Brady",
+                  "createdByDate": "2024-10-29",
+                  "note": "Previous Address created\nautomatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Previous Address(s) unless otherwise authorised by your supervising officer. Previous Address created automatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Previous Address(s) unless otherwise authorised by your supervising officer.Previous Address created automatically from the Create and Vary a licence system of\nAllow person(s) as desi",
+                  "hasNoteBeenTruncated": true
+                },
+                {
+                  "id": 1,
+                  "createdBy": "Harry Kane",
+                  "createdByDate": "2024-10-29",
+                  "note": "Left this property",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 2,
+                  "createdByDate": "2022-01-07",
+                  "note": "Arrived at property",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "lastUpdatedBy": {
+                "forename": "Jim",
+                "surname": "Smith"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/addresses/3/note/0",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Caroline",
+              "surname": "Wolff"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "address": {
+            "id": 3,
+            "buildingNumber": "32",
+            "streetName": "Other Street",
+            "town": "Sheffield",
+            "county": "South Yorkshire",
+            "postcode": "S3 7BS",
+            "from": "2023-03-14",
+            "verified": false,
+            "lastUpdated": "2023-03-20",
+            "type": "Householder (Owner - freehold or leasehold)",
+            "status": "Postal",
+            "addressNote": {
+              "id": 0,
+              "note": "Other Address created\nautomatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer. Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer.Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as desi"
+            },
+            "lastUpdatedBy": {
+              "forename": "Joe",
+              "surname": "Bloggs"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/addresses/7/note/0",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Caroline",
+              "surname": "Wolff"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "address": {
+            "id": 7,
+            "buildingNumber": "32",
+            "streetName": "Other Street",
+            "town": "Sheffield",
+            "county": "South Yorkshire",
+            "postcode": "S3 7BS",
+            "from": "2023-03-14",
+            "verified": false,
+            "lastUpdated": "2023-03-20",
+            "type": "Householder (Owner - freehold or leasehold)",
+            "status": "Previous Address",
+            "addressNote": {
+              "id": 0,
+              "createdBy": "Tom Brady",
+              "createdByDate": "2024-10-29",
+              "note": "Previous Address created\nautomatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer. Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as designated by your supervising officer to install an electronic monitoring tag on you and access to install any associated equipment in your property, and for the purpose of ensuring that equipment is functioning correctly. You must not damage or tamper with these devices and ensure that the tag is charged, and report to your supervising officer and the EM provider immediately if the tag or the associated equipment are not working correctly. This will be for the purpose of monitoring your alcohol abstinence Other Address(s) unless otherwise authorised by your supervising officer.Other Address created automatically from the Create and Vary a licence system of\nAllow person(s) as desi"
+            },
+            "lastUpdatedBy": {
+              "forename": "Joe",
+              "surname": "Bloggs"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/summary",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "name": {
+            "forename": "Eula",
+            "surname": "Schmeler"
+          },
+          "crn": "X000001",
+          "dateOfBirth": "1979-08-18",
+          "pnc": "PNC/12345"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/provisions",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Eula",
+              "surname": "Schmeler"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "provisions": [
+            {
+              "id": 0,
+              "description": "Hand Rails",
+              "provisionNotes": [
+                {
+                  "id": 0,
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras vel ligula non eros porttitor tincidunt non vel ipsum. Quisque turpis erat, eleifend vitae tempus eget, posuere sit amet nunc. Maecenas vestibulum diam nibh, non porttitor magna suscipit sed. Aliquam mollis urna turpis, egestas congue elit vehicula nec. Nulla mattis tortor vel elit faucibus, vel vehicula nunc venenatis. Vivamus tortor dolor, convallis eu pulvinar id, venenatis at lorem. Duis dolor tortor, pretium ac interdum non, egestas vitae ipsum. Morbi vitae mi nec orci laoreet finibus. Vivamus ac bibendum diam. Donec eget vestibulum odio. Morbi rhoncus, turpis sed faucibus dapibus, justo enim feugiat velit, vel faucibus libero purus vel nulla. Maecenas eget purus arcu. Mauris consequat tempus pulvinar. Nulla volutpat vel arcu a tincidunt",
+                  "hasNoteBeenTruncated": true
+                },
+                {
+                  "id": 1,
+                  "createdBy": "Harry Kane",
+                  "createdByDate": "2024-10-29",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 2,
+                  "createdByDate": "2022-01-07",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "startDate": "2021-04-03",
+              "lastUpdated": "2023-03-20",
+              "lastUpdatedBy": {
+                "forename": "Paul",
+                "surname": "Smith"
+              }
+            },
+            {
+              "id": 1,
+              "description": "Special Furniture",
+              "provisionNotes": [
+                {
+                  "id": 0,
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 1,
+                  "createdBy": "Harry Kane",
+                  "createdByDate": "2024-10-29",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 2,
+                  "createdByDate": "2022-01-07",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "startDate": "2021-04-03",
+              "lastUpdated": "2023-03-20",
+              "lastUpdatedBy": {
+                "forename": "Paul",
+                "surname": "Smith"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/provisions/0/note/0",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Eula",
+              "surname": "Schmeler"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "provision": {
+            "description": "Hand Rails",
+            "provisionNote": {
+              "id": 0,
+              "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\nCras vel ligula non eros porttitor tincidunt non vel ipsum. Quisque turpis erat, eleifend vitae tempus eget, posuere sit amet nunc.\nMaecenas vestibulum diam nibh, non porttitor magna suscipit sed. Aliquam mollis urna turpis, egestas congue elit vehicula nec.\nNulla mattis tortor vel elit faucibus, vel vehicula nunc venenatis. Vivamus tortor dolor, convallis eu pulvinar id, venenatis at lorem. Duis dolor tortor, pretium ac interdum non, egestas vitae ipsum. Morbi vitae mi nec orci laoreet finibus. Vivamus ac bibendum diam. Donec eget vestibulum odio. Morbi rhoncus, turpis sed faucibus dapibus, justo enim feugiat velit, vel faucibus libero purus vel nulla. Maecenas eget purus arcu. Mauris consequat tempus pulvinar. Nulla volutpat vel arcu a tincidunt",
+              "createdBy": "Harry Kane",
+              "createdByDate": "2024-10-29"
+            },
+            "startDate": "2021-04-03",
+            "endDate": "2025-04-03",
+            "lastUpdated": "2023-03-20",
+            "lastUpdatedBy": {
+              "forename": "Paul",
+              "surname": "Smith"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/circumstances",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Eula",
+              "surname": "Schmeler"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "circumstances": [
+            {
+              "id": 0,
+              "subType": "Life imprisonment (Adult)",
+              "type": "Committed/ Transferred to Crown",
+              "verified": true,
+              "startDate": "2021-04-03",
+              "circumstanceNotes": [
+                {
+                  "id": 0,
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras vel ligula non eros porttitor tincidunt non vel ipsum. Quisque turpis erat, eleifend vitae tempus eget, posuere sit amet nunc. Maecenas vestibulum diam nibh, non porttitor magna suscipit sed. Aliquam mollis urna turpis, egestas congue elit vehicula nec. Nulla mattis tortor vel elit faucibus, vel vehicula nunc venenatis. Vivamus tortor dolor, convallis eu pulvinar id, venenatis at lorem. Duis dolor tortor, pretium ac interdum non, egestas vitae ipsum. Morbi vitae mi nec orci laoreet finibus. Vivamus ac bibendum diam. Donec eget vestibulum odio. Morbi rhoncus, turpis sed faucibus dapibus, justo enim feugiat velit, vel faucibus libero purus vel nulla. Maecenas eget purus arcu. Mauris consequat tempus pulvinar. Nulla volutpat vel arcu a tincidunt",
+                  "hasNoteBeenTruncated": true
+                },
+                {
+                  "id": 1,
+                  "createdBy": "Harry Kane",
+                  "createdByDate": "2024-10-29",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                },
+                {
+                  "id": 2,
+                  "createdByDate": "2022-01-07",
+                  "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "lastUpdated": "2023-03-20",
+              "lastUpdatedBy": {
+                "forename": "Paul",
+                "surname": "Smith"
+              }
+            }
+          ],
+          "previousCircumstances": [
+            {
+              "id": 1,
+              "subType": "Pregnancy/Maternity",
+              "type": "Pregnancy",
+              "verified": true,
+              "startDate": "2020-01-02",
+              "endDate": "2020-09-02",
+              "circumstanceNotes": [
+                {
+                  "id": 0,
+                  "note": "A note",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "lastUpdated": "2023-03-20",
+              "lastUpdatedBy": {
+                "forename": "Paul",
+                "surname": "Smith"
+              }
+            },
+            {
+              "id": 2,
+              "subType": "Full Time Employed",
+              "type": "Employment",
+              "verified": true,
+              "startDate": "2021-02-02",
+              "endDate": "2021-12-17",
+              "circumstanceNotes": [
+                {
+                  "id": 0,
+                  "note": "A note",
+                  "hasNoteBeenTruncated": false
+                }
+              ],
+              "lastUpdated": "2023-03-20",
+              "lastUpdatedBy": {
+                "forename": "Paul",
+                "surname": "Smith"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/mas/personal-details/X000001/circumstances/0/note/0",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "personSummary": {
+            "name": {
+              "forename": "Eula",
+              "surname": "Schmeler"
+            },
+            "crn": "X000001",
+            "dateOfBirth": "1979-08-18"
+          },
+          "circumstance": {
+            "id": 0,
+            "subType": "Life imprisonment (Adult)",
+            "type": "Committed/ Transferred to Crown",
+            "verified": true,
+            "startDate": "2021-04-03",
+            "circumstanceNote": {
+              "id": 0,
+              "note": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\nCras vel ligula non eros porttitor tincidunt non vel ipsum. Quisque turpis erat, eleifend vitae tempus eget, posuere sit amet nunc.\nMaecenas vestibulum diam nibh, non porttitor magna suscipit sed. Aliquam mollis urna turpis, egestas congue elit vehicula nec.\nNulla mattis tortor vel elit faucibus, vel vehicula nunc venenatis. Vivamus tortor dolor, convallis eu pulvinar id, venenatis at lorem. Duis dolor tortor, pretium ac interdum non, egestas vitae ipsum. Morbi vitae mi nec orci laoreet finibus. Vivamus ac bibendum diam. Donec eget vestibulum odio. Morbi rhoncus, turpis sed faucibus dapibus, justo enim feugiat velit, vel faucibus libero purus vel nulla. Maecenas eget purus arcu. Mauris consequat tempus pulvinar. Nulla volutpat vel arcu a tincidunt",
+              "createdBy": "Harry Kane",
+              "createdByDate": "2024-10-29"
+            },
+            "lastUpdated": "2023-03-20",
+            "lastUpdatedBy": {
+              "forename": "Paul",
+              "surname": "Smith"
+            }
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    }
+  ]
+}
