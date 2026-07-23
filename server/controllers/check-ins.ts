@@ -31,6 +31,7 @@ import logger from '../../logger'
 import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
+import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 
 const checkinIntervals: { id: string; label: string }[] = [
   { id: 'WEEKLY', label: 'Every week' },
@@ -605,7 +606,7 @@ const checkInsController: Controller<typeof routes, void> = {
   getManageCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
 
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
@@ -672,7 +673,7 @@ const checkInsController: Controller<typeof routes, void> = {
   getStopCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
@@ -727,7 +728,12 @@ const checkInsController: Controller<typeof routes, void> = {
       if (checkIn.status !== 'SUBMITTED') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_REVIEW_CHECK_IN_AND_CONFIRM_IDENTITY', crn, SubjectType.CRN)
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_REVIEW_CHECK_IN_AND_CONFIRM_IDENTITY',
+        crn,
+        SubjectType.CRN,
+      )
       return res.render('pages/check-in/review/identity.njk', {
         crn,
         id,
@@ -760,7 +766,7 @@ const checkInsController: Controller<typeof routes, void> = {
       if (checkIn.status !== 'SUBMITTED') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_ONLINE_CHECK_IN_REVIEW_SUBMITTED', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_REVIEW_SUBMITTED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/notes.njk', { crn, id, back, checkIn })
     }
   },
@@ -806,7 +812,7 @@ const checkInsController: Controller<typeof routes, void> = {
       if (checkIn.status !== 'EXPIRED') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_ONLINE_CHECK_IN_MISSED', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_MISSED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/expired.njk', { crn, id, back, checkIn })
     }
   },
@@ -867,7 +873,7 @@ const checkInsController: Controller<typeof routes, void> = {
   getViewExpiredCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_MISSED_AND_REVIEWED', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_MISSED_AND_REVIEWED', crn, SubjectType.CRN)
       const { back } = req.query
       const { checkIn } = res.locals
 
@@ -936,7 +942,7 @@ const checkInsController: Controller<typeof routes, void> = {
       if (!offenderDetails) {
         return renderError(404)(req, res)
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
       return res.render('pages/check-in/questions/instructions.njk', {
         crn,
         back,
@@ -1118,7 +1124,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
 
@@ -1443,7 +1449,12 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      // await sendAuditMessage(res, 'VIEW_MAS_PREVIEW_FEELING_CHECK_IN_QUESTIONS', crn, SubjectType.CRN)
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_PREVIEW_FEELING_CHECK_IN_QUESTIONS',
+        crn,
+        SubjectType.CRN,
+      )
       return res.render('pages/check-in/questions/preview/feeling.njk', {
         crn,
         back,
@@ -1456,7 +1467,12 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      // await sendAuditMessage(res, 'VIEW_MAS_PREVIEW_SUPPORT_CHECK_IN_QUESTIONS', crn, SubjectType.CRN)
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_PREVIEW_SUPPORT_CHECK_IN_QUESTIONS',
+        crn,
+        SubjectType.CRN,
+      )
       return res.render('pages/check-in/questions/preview/support.njk', {
         crn,
         back,
@@ -1470,7 +1486,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      // await sendAuditMessage(res, 'VIEW_MAS_LIST_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_LIST_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupClient = new ESupervisionClient(token)
 
@@ -1534,7 +1550,7 @@ const checkInsController: Controller<typeof routes, void> = {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
       const { back } = req.query
-      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_EDIT', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_EDIT', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
 
@@ -1621,7 +1637,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id, questionId } = req.params as Record<string, string>
       req.session.data = req.session.data ?? {}
       const { data } = req.session
-      // await sendAuditMessage(res, 'VIEW_MAS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
       if (data.esupervision?.[crn]?.[id]?.manageQuestions?.questionTemplateAndInputs?.[questionId]) {
         delete data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[questionId]
       }
