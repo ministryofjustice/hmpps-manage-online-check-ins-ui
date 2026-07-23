@@ -780,6 +780,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const reviewNotes = checkIn?.notes
       const review: ESupervisionReview = {
         reviewedBy: practitionerUsername,
+        reviewStartedAt: checkIn?.reviewStartedAt,
         manualIdCheck: checkIn?.manualIdCheck,
         missedCheckinComment: checkIn?.missedCheckinComment,
         notes: reviewNotes,
@@ -789,6 +790,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const eSupervisionClient = new ESupervisionClient(token)
       await eSupervisionClient.postOffenderCheckInReview(id, review)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'sensitiveContact'], null)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'reviewStartedAt'], null)
       return res.redirect(`${config.managePeopleOnProbation.link}/case/${crn}/activity-log`)
     }
   },
@@ -889,6 +891,9 @@ const checkInsController: Controller<typeof routes, void> = {
       if (checkIn.status === 'SUBMITTED' || checkIn.status === 'EXPIRED') {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
         const practitionerId = res.locals.user.username
+        req.session.data = req.session.data || {}
+        const reviewStartedAt = new Date().toISOString()
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'reviewStartedAt'], reviewStartedAt)
         const eSupervisionClient = new ESupervisionClient(token)
         await eSupervisionClient.postOffenderCheckInStarted(id, practitionerId)
       }

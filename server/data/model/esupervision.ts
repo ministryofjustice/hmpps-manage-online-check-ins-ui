@@ -52,6 +52,7 @@ export interface ESupervisionCheckInLogs {
 
 export interface ESupervisionReview {
   reviewedBy: string
+  reviewStartedAt?: string
   manualIdCheck?: Match
   notes?: string
   missedCheckinComment?: string

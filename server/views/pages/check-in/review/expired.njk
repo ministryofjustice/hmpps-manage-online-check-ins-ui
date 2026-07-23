@@ -43,7 +43,7 @@
             {% endblock %}
 
             <form method="post" autocomplete="off" action="{{ paths.current  }}">
-                {{ govukCharacterCount({
+                {{ govukTextarea({
                     label: {
                         text: "Why did " + checkIn.personalDetails.name.forename + " not complete their check in?",
                         classes: "govuk-label--m"

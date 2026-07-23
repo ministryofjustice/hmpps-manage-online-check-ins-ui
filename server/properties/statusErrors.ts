@@ -1,3 +1,5 @@
+import config from '../config'
+
 export type StatusErrorCode = 403 | 404 | 409 | 500
 
 type StatusError = { title: string; message: string }
@@ -13,7 +15,7 @@ export const statusErrors: StatusErrorsType = {
   404: {
     title: 'Page not found',
     message: `<p>Check you used the right web address. For example, if you copied and pasted it from an email or used a bookmark.</p>
-        <p><a href="/">Go to the Manage people on probation homepage</a>.</p>`,
+        <p><a href="${config.managePeopleOnProbation.link}">Go to the Manage people on probation homepage</a>.</p>`,
   },
   500: {
     title: 'Sorry, there is a problem with the service',
@@ -22,6 +24,6 @@ export const statusErrors: StatusErrorsType = {
   },
   409: {
     title: 'You’ve already arranged this appointment',
-    message: `<p><a href="/" data-qa="homepageLink">Go to the Manage people on probation homepage</a> to see your upcoming appointments.</p>`,
+    message: `<p><a href="${config.managePeopleOnProbation.link}" data-qa="homepageLink">Go to the Manage people on probation homepage</a> to see your upcoming appointments.</p>`,
   },
 }
