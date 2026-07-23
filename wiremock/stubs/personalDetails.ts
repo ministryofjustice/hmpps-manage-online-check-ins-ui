@@ -4,6 +4,7 @@ const stubPersonalDetailsNoMobileNumber = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
       urlPattern: '/mas/personal-details/X000001',
+      method: 'GET',
     },
     response: {
       status: 200,
@@ -817,7 +818,7 @@ const stubPersonalDetailsDateOfDeathManage = (): SuperAgentRequest =>
     response: {
       status: 200,
       jsonBody: {
-        crn: 'X000001',
+        crn: 'X778160',
         name: {
           forename: 'Alton',
           surname: 'Berge',

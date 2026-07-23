@@ -270,15 +270,13 @@ describe('checkInsController', () => {
     it('sets session values and renders restart date page', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      const mockResponse = {
-        crn,
-        uuid,
+      res.locals.offenderCheckinsByCRNResponse = {
+        ...offenderCheckinsByCRNResponse,
         status: 'INACTIVE',
         firstCheckin: '01/01/2026',
         checkinInterval: 'WEEKLY',
         contactPreference: 'EMAIL',
       }
-      getOffenderCheckinsByCRNSpy.mockResolvedValueOnce(mockResponse as any)
       const req = baseReq({})
 
       await controllers.checkIns.getRestartCheckinPage(hmppsAuthClient)(req, res)
@@ -296,7 +294,7 @@ describe('checkInsController', () => {
       expect(mockSetDataValue).toHaveBeenCalledWith(
         req.session.data,
         ['esupervision', crn, uuid, 'restartCheckin', 'preferredComs'],
-        'PHONE',
+        'EMAIL',
       )
       expect(renderSpy).toHaveBeenCalledWith(
         'pages/check-in/manage/restart-date-frequency.njk',
@@ -393,13 +391,20 @@ describe('checkInsController', () => {
         },
       }
       const req = baseReq(data)
-      req.query = { change: 'email' }
+      req.query = { change: 'email', cya: 'false' }
 
       await controllers.checkIns.getRestartEditContactPage(hmppsAuthClient)(req, res)
       expect(renderSpy).toHaveBeenCalledWith('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id: uuid,
+        case: {
+          name: {
+            forename: 'Joe',
+            surname: 'Bloggs',
+          },
+        },
         change: 'email',
+        cya: 'false',
         checkInMobile: '07123456789',
         checkInEmail: 'test@example.com',
       })

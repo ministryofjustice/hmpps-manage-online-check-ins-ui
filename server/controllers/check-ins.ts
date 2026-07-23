@@ -1181,7 +1181,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
       const { data } = req.session
-      const { change } = req.query
+      const { change, cya } = req.query
       // To show success message on edit contact preference page
       const contactUpdated = getDataValue(req.session.data, [
         'esupervision',
@@ -1212,7 +1212,9 @@ const checkInsController: Controller<typeof routes, void> = {
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
+        case: res.locals?.offenderCheckinsByCRNResponse?.details,
         change,
+        cya,
         checkInMobile,
         checkInEmail,
       })
@@ -1265,6 +1267,7 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id } = req.params as Record<string, string>
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
+      if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const masClient = new MasApiClient(token)
       const caseData = await masClient.getPersonalDetails(crn)
@@ -1304,7 +1307,7 @@ const checkInsController: Controller<typeof routes, void> = {
 
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
-          reason: restartDetails.reason || 'Reactivated via MPOP UI',
+          reason: restartDetails.reason || 'Reactivated via UI',
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             firstCheckin: formattedDate,

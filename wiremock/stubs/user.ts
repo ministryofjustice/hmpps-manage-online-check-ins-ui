@@ -144,7 +144,7 @@ const stubProbationPractitioner = ({ username = 'DeborahFern' } = {}): SuperAgen
         },
         unallocated: false,
         username,
-        email: null,
+        email: 'deborah.fern@testemail.com',
       },
       headers: {
         'Content-Type': 'application/json',
