@@ -28,8 +28,17 @@ export default [
       parser: tsParser,
     },
     rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
       // TODO remove these overrides and fix the issues:
-      '@typescript-eslint/no-unused-vars': 0,
       '@typescript-eslint/no-explicit-any': 0,
       'import/prefer-default-export': 0,
     },

@@ -10,7 +10,6 @@ import {
   ESupervisionNote,
   ESupervisionReview,
   ReactivateOffenderRequest,
-  OffenderCheckinsByCRNResponse,
 } from '../data/model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
@@ -54,6 +53,7 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   return checkIn.autoIdCheck === 'MATCH'
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- referenced only via `typeof routes` for the Controller type below
 const routes = [
   'getStartSetup',
   'getEligibilityPage',
@@ -621,7 +621,7 @@ const checkInsController: Controller<typeof routes, void> = {
       try {
         const response = await eSupClient.getUpcomingCheckinQuestions(crn)
         upcomingCheckin = response || null
-      } catch (error) {
+      } catch {
         logger.info(`No upcoming check in questions found for CRN ${crn}`)
       }
       // questions can be edited until 23:59 the day before a check in is sent out
@@ -668,9 +668,9 @@ const checkInsController: Controller<typeof routes, void> = {
       })
     }
   },
-  getStopCheckinPage: hmppsAuthClient => {
+  getStopCheckinPage: () => {
     return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
+      const { crn } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
@@ -745,7 +745,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getReviewNotesCheckIn: hmppsAuthClient => {
+  getReviewNotesCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { checkIn } = res.locals
@@ -767,7 +767,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postReviewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      const url = encodeURIComponent(req.url)
       const { data } = req.session
       const checkIn = getDataValue(data, ['esupervision', crn, id, 'checkins'])
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -794,7 +793,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getReviewExpiredCheckIn: hmppsAuthClient => {
+  getReviewExpiredCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -810,7 +809,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getViewCheckIn: hmppsAuthClient => {
+  getViewCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -839,7 +838,6 @@ const checkInsController: Controller<typeof routes, void> = {
   postViewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      const { back } = req.query
       const { url } = req
 
       const { data } = req.session
@@ -863,7 +861,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getViewExpiredCheckIn: hmppsAuthClient => {
+  getViewExpiredCheckIn: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       // await sendAuditMessage(res, 'VIEW_MAS_CHECK_IN_MISSED_AND_REVIEWED', crn, SubjectType.CRN)
@@ -905,7 +903,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getManageCheckinDatePage: hmppsAuthClient => {
+  getManageCheckinDatePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
@@ -925,7 +923,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getStartQuestionsPage: hmppsAuthClient => {
+  getStartQuestionsPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -973,7 +971,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getManageContactPage: hmppsAuthClient => {
+  getManageContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
@@ -1032,7 +1030,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getManageEditContactPage: hmppsAuthClient => {
+  getManageEditContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
@@ -1109,7 +1107,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  postRestartCheckinPage: hmppsAuthClient => {
+  postRestartCheckinPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
@@ -1160,7 +1158,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  postRestartContactPage: hmppsAuthClient => {
+  postRestartContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { change } = req.body
@@ -1172,11 +1170,10 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getRestartEditContactPage: hmppsAuthClient => {
+  getRestartEditContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
-      const { data } = req.session
       const { change, cya } = req.query
       // To show success message on edit contact preference page
       const contactUpdated = getDataValue(req.session.data, [
@@ -1360,7 +1357,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  postStartQuestionsPage: hmppsAuthClient => {
+  postStartQuestionsPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
@@ -1511,7 +1508,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getPreviewFeelingPage: hmppsAuthClient => {
+  getPreviewFeelingPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -1524,7 +1521,7 @@ const checkInsController: Controller<typeof routes, void> = {
       })
     }
   },
-  getPreviewSupportPage: hmppsAuthClient => {
+  getPreviewSupportPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -1595,7 +1592,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  postQuestionsListPage: hmppsAuthClient => {
+  postQuestionsListPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
@@ -1648,7 +1645,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  postEditQuestionPage: hmppsAuthClient => {
+  postEditQuestionPage: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
       req.session.data = req.session.data ?? {}
@@ -1672,7 +1669,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getSelectQuestionPage: hmppsAuthClient => {
+  getSelectQuestionPage: () => {
     return async (req, res) => {
       const { crn, id, templateId } = req.params as Record<string, string>
 
@@ -1688,7 +1685,7 @@ const checkInsController: Controller<typeof routes, void> = {
     }
   },
 
-  getDeleteQuestion: hmppsAuthClient => {
+  getDeleteQuestion: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
       req.session.data = req.session.data ?? {}

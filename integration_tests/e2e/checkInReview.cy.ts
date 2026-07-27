@@ -33,7 +33,7 @@ context('check in reviews', () => {
 
   it('Review page for expired check in', () => {
     cy.visit(`/case/${crn}/appointments/${expiredId}/check-in/update`)
-    const page = Page.verifyOnPage(CheckInReviewExpiredPage)
+    Page.verifyOnPage(CheckInReviewExpiredPage)
   })
 
   it('Completes an expired check in review and marks it as sensitive', () => {
@@ -47,7 +47,7 @@ context('check in reviews', () => {
 
   it('View page for expired check in that has been reviewed', () => {
     cy.visit(`/case/${crn}/appointments/${expiredSubmittedId}/check-in/update`)
-    const page = Page.verifyOnPage(ViewExpiredCheckInPage)
+    Page.verifyOnPage(ViewExpiredCheckInPage)
   })
 
   it('Review pages for submitted check in', () => {

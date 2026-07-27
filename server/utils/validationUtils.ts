@@ -2,7 +2,6 @@ import { Request } from 'express'
 import { DateTime } from 'luxon'
 import logger from '../../logger'
 
-import config from '../config'
 import dateTime from './dateTime'
 import { ErrorCheck, ValidationSpec } from '../models/Errors'
 

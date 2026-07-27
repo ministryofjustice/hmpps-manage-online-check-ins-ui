@@ -49,9 +49,7 @@ jest.mock('../config', () => {
 })
 
 const mockPersonalDetails = {} as PersonalDetails
-const getPersonalDetailsSpy = jest
-  .spyOn(MasApiClient.prototype, 'getPersonalDetails')
-  .mockImplementation(() => Promise.resolve(mockPersonalDetails))
+jest.spyOn(MasApiClient.prototype, 'getPersonalDetails').mockImplementation(() => Promise.resolve(mockPersonalDetails))
 
 const updatePersonalDetailsSpy = jest
   .spyOn(MasApiClient.prototype, 'updatePersonalDetailsContact')
@@ -65,13 +63,11 @@ const postReactivateOffenderSpy = jest
   .spyOn(ESupervisionClient.prototype, 'postReactivateOffender')
   .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
 
-const postUpdateOffenderDetailsSpy = jest
+jest
   .spyOn(ESupervisionClient.prototype, 'postUpdateOffenderDetails')
   .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
 
-const getOffenderCheckinsByCRNSpy = jest
-  .spyOn(ESupervisionClient.prototype, 'getOffenderByCRN')
-  .mockImplementation(async () => null)
+jest.spyOn(ESupervisionClient.prototype, 'getOffenderByCRN').mockImplementation(async () => null)
 
 const mockIsValidCrn = isValidCrn as jest.MockedFunction<typeof isValidCrn>
 const mockIsValidUUID = isValidUUID as jest.MockedFunction<typeof isValidUUID>
@@ -833,7 +829,6 @@ describe('checkInsController', () => {
             },
           },
         })
-        const { id } = req.params as Record<string, string>
 
         await controllers.checkIns.postAddQuestionsPage(hmppsAuthClient)(req, res)
 
@@ -861,7 +856,6 @@ describe('checkInsController', () => {
         mockIsValidUUID.mockReturnValue(true)
 
         const req = baseReq({})
-        const { id } = req.params as Record<string, string>
 
         await controllers.checkIns.postAddQuestionsPage(hmppsAuthClient)(req, res)
 
