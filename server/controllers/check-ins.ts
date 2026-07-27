@@ -608,7 +608,6 @@ const checkInsController: Controller<typeof routes, void> = {
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
 
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       if (!checkinRes) {
         return renderError(404)(req, res)
@@ -911,7 +910,6 @@ const checkInsController: Controller<typeof routes, void> = {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
       const checkInMinDate = getMinDate()
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const date = checkinRes?.firstCheckin
       const interval = checkinRes?.checkinInterval
@@ -987,7 +985,6 @@ const checkInsController: Controller<typeof routes, void> = {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.manageCheckin?.contactUpdated
       }
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const isPrefComsSet = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'])
       if (isPrefComsSet === undefined) {
@@ -1048,7 +1045,6 @@ const checkInsController: Controller<typeof routes, void> = {
       }
       const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'])
       const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'])
-      await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       return res.render('pages/check-in/manage/manage-edit-contact.njk', {
         crn,
         id,
