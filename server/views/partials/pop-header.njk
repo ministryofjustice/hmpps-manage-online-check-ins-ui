@@ -21,7 +21,7 @@
 <div class="moj-page-header-actions govuk-!-static-margin-bottom-4">
     <div class="moj-page-header-actions__title">
         <h1 class="govuk-heading-xl govuk-!-margin-bottom-4">
-            <span data-qa="name">{{ case.name .forename }}{{" "}}{{ case.name .surname }}</span>
+            <span data-qa="name">{{ case.name.forename }} {{ case.name.surname }}</span>
         </h1>
         {% set overallRisk = risksWidget.overallRisk %}
         {% if overallRisk == "VERY_HIGH" %}
