@@ -185,7 +185,7 @@ describe('checkInsController', () => {
   })
 
   describe('postManageStopCheckin', () => {
-    it('redirects to manage people on probation case page', async () => {
+    it('redirects to manage overview page', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
 
@@ -204,7 +204,9 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postManageStopCheckin(hmppsAuthClient)(req, res)
 
-      expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/X000001/appointments/check-in/manage/f1654ea3-0abb-46eb-860b-654a96edbe20`,
+      )
     })
 
     it('stops check in, clears session data and redirects', async () => {
@@ -242,7 +244,9 @@ describe('checkInsController', () => {
         null,
       )
 
-      expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/X000001/appointments/check-in/manage/f1654ea3-0abb-46eb-860b-654a96edbe20`,
+      )
     })
 
     it('escapes double quotes in the reason', async () => {
@@ -861,7 +865,9 @@ describe('checkInsController', () => {
           language: 'en-GB',
           author: 'user-1',
         })
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(
+          `/case/X000001/appointments/check-in/manage/f1654ea3-0abb-46eb-860b-654a96edbe20`,
+        )
       })
 
       it('handles completely empty session data by redirecting to manage page', async () => {
@@ -873,7 +879,9 @@ describe('checkInsController', () => {
 
         await controllers.checkIns.postAddQuestionsPage(hmppsAuthClient)(req, res)
 
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(
+          `/case/X000001/appointments/check-in/manage/f1654ea3-0abb-46eb-860b-654a96edbe20`,
+        )
       })
 
       it('calls DELETE endpoint when there are no custom questions to save', async () => {
@@ -904,7 +912,9 @@ describe('checkInsController', () => {
           ['esupervision', crn, id, 'questionsAdded'],
           false,
         )
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(
+          `/case/X000001/appointments/check-in/manage/f1654ea3-0abb-46eb-860b-654a96edbe20`,
+        )
       })
 
       it('renders 500 error page if saving questions to the API fails', async () => {

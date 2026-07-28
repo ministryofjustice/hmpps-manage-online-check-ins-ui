@@ -4,10 +4,10 @@
   pageHeading: [title]
 }) %}
 {% set showAnchorLink = true %}
-{% set formAnchorLink =  managePeopleOnProbationUrl + '/case/' + crn %}
+{% set formAnchorLink =  '/case/' + crn + '/appointments/check-in/manage/' + id %}
 
 {% set formAnchorText = "Cancel and go to " + case.name.forename + "'s overview" %}
-{% set backLink = back if back else managePeopleOnProbationUrl + '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{% set backLink = back if back else '/case/' + crn + '/appointments/check-in/manage/' + id %}
 {% set buttonText = "Add questions to online check ins" %}
 
 {% block form %}
