@@ -9,26 +9,8 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
 }))
 
-const checkInUrl = `/case/${crn}/appointments/${id}/check-in`
-
-const rationaleUrl = `${checkInUrl}/rationale`
-const dateFrequencyUrl = `${checkInUrl}/date-frequency`
-const contactPreferenceUrl = `${checkInUrl}/contact-preference`
-const editContactPreferenceUrl = `${checkInUrl}/edit-contact-preference`
-const photoOptionsUrl = `${checkInUrl}/photo-options`
-const uploadPhotoUrl = `${checkInUrl}/upload-a-photo`
-
 const manageBase = `/case/${crn}/appointments/check-in/manage/${id}`
-const manageSettingsUrl = `${manageBase}/settings`
-const manageEditContactUrl = `${manageBase}/edit-contact`
 const manageStopCheckinsUrl = `${manageBase}/stop-checkin`
-const manageContactUrl = `${manageBase}/contact`
-const restartCheckinUrl = `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`
-const restartContactUrl = `/case/${crn}/appointments/check-in/manage/${id}/restart-contact`
-const restartEditContactUrl = `/case/${crn}/appointments/check-in/manage/${id}/restart-edit-contact`
-const eligibilityCheckUrl = `${checkInUrl}/eligibility-check`
-const fullEligibilityUrl = `${checkInUrl}/full-eligibility`
-const spoApprovalUrl = `${checkInUrl}/spo-approval`
 const reqBase = {
   method: 'POST',
   params: { crn, id },

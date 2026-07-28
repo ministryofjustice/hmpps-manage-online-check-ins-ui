@@ -5,7 +5,6 @@ import { getCheckInQuestionsRedirect } from './getCheckInQuestionsRedirect'
 import mockAppResponse from '../controllers/mocks/appResponse'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
-import renderError from './renderError'
 
 jest.mock('../../logger', () => ({
   info: jest.fn(),
@@ -40,7 +39,6 @@ const mockGetUpcomingCheckinQuestions = jest
 
 const mockIsValidCrn = isValidCrn as jest.MockedFunction<typeof isValidCrn>
 const mockIsValidUUID = isValidUUID as jest.MockedFunction<typeof isValidUUID>
-const mockRenderError = renderError as jest.MockedFunction<typeof renderError>
 
 const crn = 'X000001'
 const uuid = 'f1654ea3-0abb-46eb-860b-654a96edbe20'
