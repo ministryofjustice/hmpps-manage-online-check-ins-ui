@@ -54,7 +54,6 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   return checkIn.autoIdCheck === 'MATCH'
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- referenced only via `typeof routes` for the Controller type below
 const routes = [
   'getStartSetup',
   'getEligibilityPage',
