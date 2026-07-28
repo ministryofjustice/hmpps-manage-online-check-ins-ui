@@ -3,7 +3,7 @@ generic-service:
   productId: 'HMPPS557' # productId for the product that this belongs too, i.e. DPS001, see README.md for details
 
   # the IRSA service account name for accessing AWS resources
-  # serviceAccountName: "hmpps-manage-online-check-ins-ui"
+  serviceAccountName: "hmpps-manage-online-check-ins-ui"
 
   replicaCount: 4
 
@@ -32,7 +32,7 @@ generic-service:
     REDIS_TLS_ENABLED: 'true'
     TOKEN_VERIFICATION_ENABLED: 'true'
     AUDIT_SQS_REGION: 'eu-west-2'
-    AUDIT_SERVICE_NAME: 'DPS033' # Your audit service name
+    AUDIT_SERVICE_NAME: hmpps-manage-online-check-ins-ui"
     FEEDBACK_BANNER_LINK: 'https://www.smartsurvey.co.uk/t/AAGPPN?service=Online%20check%20ins'
 
   # Pre-existing kubernetes secrets to load as environment variables in the deployment.
@@ -55,10 +55,9 @@ generic-service:
       REDIS_AUTH_TOKEN: 'auth_token'
     hmpps-manage-online-check-ins-ui-application-insights:
       APPLICATIONINSIGHTS_CONNECTION_STRING: "APPLICATIONINSIGHTS_CONNECTION_STRING"
-    # This secret will need to be created in your namespace (note it isn't in hmpps-templates-dev)
-    # IRSA configuration in your namespace will also be required, and then uncomment serviceAccountName above.
-    # sqs-hmpps-audit-secret:
-    #   AUDIT_SQS_QUEUE_URL: 'sqs_queue_url'
+    sqs-hmpps-audit-secret:
+      AUDIT_SQS_QUEUE_URL: "sqs_queue_url"
+      AUDIT_SQS_QUEUE_NAME: "sqs_queue_name"
 
   allowlist:
     groups:
