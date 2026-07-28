@@ -11,6 +11,8 @@ import isValidUUID from '../utils/isValidUUID'
 import setDataValue from '../utils/setDataValue'
 import MasApiClient from '../data/masApiClient'
 import { PersonalDetails } from '../data/model/personalDetails'
+import { SubjectType } from '../middleware/sendAuditMessage'
+import { checkSendAuditMessage } from './testutils'
 
 jest.mock('../../logger', () => ({
   info: jest.fn(),
@@ -25,6 +27,7 @@ jest.mock('../utils/isValidCrn', () => jest.fn())
 jest.mock('../utils/isValidUUID', () => jest.fn())
 jest.mock('../utils/setDataValue', () => jest.fn())
 jest.mock('../data/eSupervisionClient')
+jest.mock('@ministryofjustice/hmpps-audit-client')
 
 jest.mock('../data/hmppsAuthClient', () => {
   return jest.fn().mockImplementation(() => ({
@@ -140,7 +143,9 @@ describe('checkInsController', () => {
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
       expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+
       expect(context.offenderCheckinsByCRNResponse).toEqual(offenderCheckinsByCRNResponse)
+      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
     })
 
     it('returns 404 when offender details are missing', async () => {
@@ -175,6 +180,7 @@ describe('checkInsController', () => {
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
       expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
     })
   })
 
@@ -638,6 +644,7 @@ describe('checkInsController', () => {
           data: req.session.data,
         })
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
       })
     })
 
@@ -712,6 +719,7 @@ describe('checkInsController', () => {
           }),
         )
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
       })
 
       it('safely extracts text from nested placeholders object from the API', async () => {
@@ -942,6 +950,12 @@ describe('checkInsController', () => {
           data: req.session.data,
         })
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(
+          res,
+          'VIEW_MANAGE_ONLINE_CHECK_INS_PREVIEW_FEELING_CHECK_IN_QUESTIONS',
+          crn,
+          SubjectType.CRN,
+        )
       })
     })
 
@@ -962,6 +976,12 @@ describe('checkInsController', () => {
           data: req.session.data,
         })
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(
+          res,
+          'VIEW_MANAGE_ONLINE_CHECK_INS_PREVIEW_SUPPORT_CHECK_IN_QUESTIONS',
+          crn,
+          SubjectType.CRN,
+        )
       })
     })
 
@@ -1014,6 +1034,7 @@ describe('checkInsController', () => {
           }),
         )
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_LIST_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
       })
 
       it('redirects to add questions page if 3 or more questions are already saved', async () => {
@@ -1106,6 +1127,7 @@ describe('checkInsController', () => {
           }),
         )
         expect(mockRenderError).not.toHaveBeenCalled()
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_EDIT', crn, SubjectType.CRN)
       })
 
       it('fetches templates from API and saves to session if none are in session data', async () => {
@@ -1321,6 +1343,7 @@ describe('checkInsController', () => {
           ],
         ).toBeDefined()
         expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
       })
     })
   })
