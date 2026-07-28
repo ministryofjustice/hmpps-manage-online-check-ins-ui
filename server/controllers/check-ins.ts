@@ -54,79 +54,78 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   return checkIn.autoIdCheck === 'MATCH'
 }
 
-const routes = [
-  'getStartSetup',
-  'getEligibilityPage',
-  'postEligibilityPage',
-  'getEligibilityDeniedPage',
-  'postEligibilityDeniedPage',
-  'getFullEligibilityPage',
-  'postFullEligibilityPage',
-  'getSupplementaryEligibilityPage',
-  'postSupplementaryEligibilityPage',
-  'getSPOApprovalPage',
-  'postSPOApprovalPage',
-  'getRationalePage',
-  'postRationalePage',
-  'getDateFrequencyPage',
-  'postDateFrequencyPage',
-  'getContactPreferencePage',
-  'postContactPreferencePage',
-  'getEditContactPrePage',
-  'postEditContactPrePage',
-  'getPhotoOptionsPage',
-  'postPhotoOptionsPage',
-  'getTakePhotoPage',
-  'postTakeAPhotoPage',
-  'getUploadPhotoPage',
-  'postUploadaPhotoPage',
-  'getPhotoRulesPage',
-  'postPhotoRulesPage',
-  'getCheckinSummaryPage',
-  'postCheckinSummaryPage',
-  'getConfirmationPage',
-  'getManageCheckinPage',
-  'postManageStopCheckin',
-  'getStopCheckinPage',
-  'getReviewIdentityCheckIn',
-  'postReviewIdentityCheckIn',
-  'getReviewNotesCheckIn',
-  'postReviewCheckIn',
-  'getReviewExpiredCheckIn',
-  'getUpdateCheckIn',
-  'getViewCheckIn',
-  'postViewCheckIn',
-  'getViewExpiredCheckIn',
-  'getManageCheckinDatePage',
-  'postManageCheckinDatePage',
-  'getManageContactPage',
-  'postManageContactPage',
-  'getManageEditContactPage',
-  'postManageEditContactPage',
-  'getRestartCheckinPage',
-  'postRestartCheckinPage',
-  'getRestartContactPage',
-  'postRestartContactPage',
-  'getRestartEditContactPage',
-  'postRestartEditContactPage',
-  'getRestartSummaryPage',
-  'postRestartSummaryPage',
-  'getRestartConfirmation',
-  'getStartQuestionsPage',
-  'postStartQuestionsPage',
-  'getAddQuestionsPage',
-  'postAddQuestionsPage',
-  'getPreviewFeelingPage',
-  'getPreviewSupportPage',
-  'getQuestionsListPage',
-  'postQuestionsListPage',
-  'getEditQuestionPage',
-  'postEditQuestionPage',
-  'getSelectQuestionPage',
-  'getDeleteQuestion',
-] as const
+type CheckInRouteName =
+  | 'getStartSetup'
+  | 'getEligibilityPage'
+  | 'postEligibilityPage'
+  | 'getEligibilityDeniedPage'
+  | 'postEligibilityDeniedPage'
+  | 'getFullEligibilityPage'
+  | 'postFullEligibilityPage'
+  | 'getSupplementaryEligibilityPage'
+  | 'postSupplementaryEligibilityPage'
+  | 'getSPOApprovalPage'
+  | 'postSPOApprovalPage'
+  | 'getRationalePage'
+  | 'postRationalePage'
+  | 'getDateFrequencyPage'
+  | 'postDateFrequencyPage'
+  | 'getContactPreferencePage'
+  | 'postContactPreferencePage'
+  | 'getEditContactPrePage'
+  | 'postEditContactPrePage'
+  | 'getPhotoOptionsPage'
+  | 'postPhotoOptionsPage'
+  | 'getTakePhotoPage'
+  | 'postTakeAPhotoPage'
+  | 'getUploadPhotoPage'
+  | 'postUploadaPhotoPage'
+  | 'getPhotoRulesPage'
+  | 'postPhotoRulesPage'
+  | 'getCheckinSummaryPage'
+  | 'postCheckinSummaryPage'
+  | 'getConfirmationPage'
+  | 'getManageCheckinPage'
+  | 'postManageStopCheckin'
+  | 'getStopCheckinPage'
+  | 'getReviewIdentityCheckIn'
+  | 'postReviewIdentityCheckIn'
+  | 'getReviewNotesCheckIn'
+  | 'postReviewCheckIn'
+  | 'getReviewExpiredCheckIn'
+  | 'getUpdateCheckIn'
+  | 'getViewCheckIn'
+  | 'postViewCheckIn'
+  | 'getViewExpiredCheckIn'
+  | 'getManageCheckinDatePage'
+  | 'postManageCheckinDatePage'
+  | 'getManageContactPage'
+  | 'postManageContactPage'
+  | 'getManageEditContactPage'
+  | 'postManageEditContactPage'
+  | 'getRestartCheckinPage'
+  | 'postRestartCheckinPage'
+  | 'getRestartContactPage'
+  | 'postRestartContactPage'
+  | 'getRestartEditContactPage'
+  | 'postRestartEditContactPage'
+  | 'getRestartSummaryPage'
+  | 'postRestartSummaryPage'
+  | 'getRestartConfirmation'
+  | 'getStartQuestionsPage'
+  | 'postStartQuestionsPage'
+  | 'getAddQuestionsPage'
+  | 'postAddQuestionsPage'
+  | 'getPreviewFeelingPage'
+  | 'getPreviewSupportPage'
+  | 'getQuestionsListPage'
+  | 'postQuestionsListPage'
+  | 'getEditQuestionPage'
+  | 'postEditQuestionPage'
+  | 'getSelectQuestionPage'
+  | 'getDeleteQuestion'
 
-const checkInsController: Controller<typeof routes, void> = {
+const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // The setup flow keys its session data on a uuid minted here, before the person exists in
   // eSupervision. That uuid becomes the offender_setup uuid on completion.
   getStartSetup: () => {
