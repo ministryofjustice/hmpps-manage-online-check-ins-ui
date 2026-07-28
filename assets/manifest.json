@@ -1,0 +1,9 @@
+{
+  "app.js": "/assets/js/app.js",
+  "app.css": "/assets/css/app.css",
+  "images/favicon.ico": "/assets/images/favicon.ico",
+  "images/crest.png": "/assets/images/crest.png",
+  "images/frame.svg": "/assets/images/frame.svg",
+  "images/logo.svg": "/assets/images/logo.svg",
+  "images/placeholder.png": "/assets/images/placeholder.png"
+}

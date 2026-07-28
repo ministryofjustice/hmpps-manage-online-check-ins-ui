@@ -8,11 +8,11 @@
 {% set pageTitle = makePageTitle({
   pageHeading: [title]
 }) %}
-{% set cases = "/case/" %}
+{% set cases = managePeopleOnProbationUrl + "/case/" %}
 {% set hideButton = true %}
-{% set overViewLink = "/case/" + crn %}
-{% set anotherAppointment = "/case/"+ crn + "/appointments/appointment/" + responseContactId + "/next-appointment"%}
-{% set overViewPage = "/case/" + crn %}
+{% set overViewLink = managePeopleOnProbationUrl + "/case/" + crn %}
+{% set anotherAppointment = managePeopleOnProbationUrl + "/case/"+ crn + "/appointments/appointment/" + responseContactId + "/next-appointment" %}
+{% set overViewPage = managePeopleOnProbationUrl + "/case/" + crn %}
 {% set questionsStartPage = "/case/" + crn + "/appointments/check-in/manage/" + activeId + "/questions/start" %}
 {% set panelHtml %}
 <div class="govuk-!-font-size-36">
@@ -57,8 +57,8 @@
   <div class="govuk-button-group">
     <a href="{{ overViewPage }}" class="govuk-button" data-qa="submit-btn">{{ buttonText }}</a>
     <a class="govuk-link" href="{{ cases }}" data-qa="returnToAllCases">
-            Go to all cases
-        </a>
+        Go to all cases
+    </a>
   </div>
 
 {% endblock %}
