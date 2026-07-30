@@ -188,7 +188,7 @@ export default class ESupervisionClient extends RestClient {
     if (config.stubPersonalDetails) {
       return stubbedPersonalDetails(crn)
     }
-    return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: false })
+    return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: true })
   }
 
   // GET /v2/offenders/crn/{crn}/probation-practitioner — supplies the practitioner id and the
@@ -203,7 +203,12 @@ export default class ESupervisionClient extends RestClient {
   // POST /v2/offenders/crn/{crn}/contact — writes an edited email/mobile back to the PoP case record.
   async updatePersonalDetailsContact(crn: string, body: PersonalDetailsUpdateRequest): Promise<PersonalDetails | null> {
     if (config.stubPersonalDetails) {
-      return { ...stubbedPersonalDetails(crn), email: body.emailAddress, mobileNumber: body.mobileNumber }
+      const stub = stubbedPersonalDetails(crn)
+      return {
+        ...stub,
+        email: body.emailAddress ?? stub.email,
+        mobileNumber: body.mobileNumber ?? stub.mobileNumber,
+      }
     }
     return this.post({
       data: body,
