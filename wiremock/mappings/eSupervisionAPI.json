@@ -70,17 +70,26 @@
     },
     {
       "request": {
-        "urlPattern": "/v2/offenders/crn/.*/contact",
+        "urlPathPattern": "/v2/offenders/crn/[^/]+/contact",
         "method": "POST"
       },
       "response": {
         "status": 200,
         "jsonBody": {
-          "crn": "X000001"
+          "crn": "{{request.pathSegments.[3]}}",
+          "name": {
+            "forename": "Caroline",
+            "surname": "Wolff"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "{{#if (jsonPath request.body '$.mobileNumber')}}{{jsonPath request.body '$.mobileNumber'}}{{else}}07783889300{{/if}}",
+          "telephoneNumber": "0123456999",
+          "email": "{{#if (jsonPath request.body '$.emailAddress')}}{{jsonPath request.body '$.emailAddress'}}{{else}}address1@gmail.com{{/if}}"
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
-        }
+        },
+        "transformers": ["response-template"]
       }
     },
     {
