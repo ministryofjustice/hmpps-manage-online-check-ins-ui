@@ -2,6 +2,89 @@
   "mappings": [
     {
       "request": {
+        "urlPattern": "/v2/offenders/crn/X000001/personal-details",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000001",
+          "name": {
+            "forename": "Caroline",
+            "surname": "Wolff"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "07783889300",
+          "telephoneNumber": "0123456999",
+          "email": "address1@gmail.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X778160/personal-details",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X778160",
+          "name": {
+            "forename": "Alton",
+            "surname": "Berge"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "071838893",
+          "telephoneNumber": "0123456999",
+          "email": "address1@gmail.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/.*/probation-practitioner",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "code": "N07B795",
+          "name": {
+            "forename": "Deborah",
+            "surname": "Fern"
+          },
+          "unallocated": false,
+          "username": "DeborahFern",
+          "email": "deborah.fern@justice.gov.uk"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/.*/contact",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000001"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
         "urlPathPattern": "/v2/offender_setup/.+?/upload_location",
         "method": "POST"
       },

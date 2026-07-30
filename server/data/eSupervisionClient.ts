@@ -19,7 +19,26 @@ import {
   EsupervisionUpcomingQuestionItemsResponse,
   OffenderCheckinsByCRNResponse,
 } from './model/esupervision'
+import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
+
+// Temporary responses when config.stubPersonalDetails is true while PI API changes are in progress
+const stubbedPersonalDetails = (crn: string): PersonalDetails => ({
+  crn,
+  name: { forename: 'Dave', surname: 'Tiger' },
+  dateOfBirth: '1979-08-18',
+  mobileNumber: '07700900000',
+  telephoneNumber: '0123456999',
+  email: 'address1@example.com',
+})
+
+const stubbedProbationPractitioner = (): ProbationPractitioner => ({
+  code: 'N07B795',
+  name: { forename: 'Deborah', surname: 'Fern' },
+  unallocated: false,
+  username: 'DeborahFern',
+  email: 'deborah.fern@justice.gov.uk',
+})
 
 export default class ESupervisionClient extends RestClient {
   constructor(token: string) {
@@ -96,7 +115,7 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  // POST /v2/offenders/{uuid}/update_details — update check-in schedule (date/interval) or contact preference
+  // POST /v2/offenders/{uuid}/update_details — update check-in date or contact preference
   async postUpdateOffenderDetails(
     uuid: string,
     checkinScheduleRequest: CheckinScheduleRequest,
@@ -160,6 +179,37 @@ export default class ESupervisionClient extends RestClient {
   async deleteAssignedQuestionsFromCheckIn(crn: string): Promise<{ message: string }> {
     return this.delete({
       path: `/v2/questions/assignment?crn=${crn}`,
+    })
+  }
+
+  // GET /v2/offenders/crn/{crn}/personal-details — name and contact details for a PoP.
+  // Used by the setup flow before an offender record exists, so it cannot come from getOffenderByCRN.
+  async getPersonalDetails(crn: string): Promise<PersonalDetails | null> {
+    if (config.stubPersonalDetails) {
+      return stubbedPersonalDetails(crn)
+    }
+    return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: false })
+  }
+
+  // GET /v2/offenders/crn/{crn}/probation-practitioner — supplies the practitioner id and the
+  // unallocated flag that allows/denies entry to the setup flow.
+  async getProbationPractitioner(crn: string): Promise<ProbationPractitioner> {
+    if (config.stubPersonalDetails) {
+      return stubbedProbationPractitioner()
+    }
+    return this.get({ path: `/v2/offenders/crn/${crn}/probation-practitioner` })
+  }
+
+  // POST /v2/offenders/crn/{crn}/contact — writes an edited email/mobile back to the PoP case record.
+  async updatePersonalDetailsContact(crn: string, body: PersonalDetailsUpdateRequest): Promise<PersonalDetails | null> {
+    if (config.stubPersonalDetails) {
+      return { ...stubbedPersonalDetails(crn), email: body.emailAddress, mobileNumber: body.mobileNumber }
+    }
+    return this.post({
+      data: body,
+      path: `/v2/offenders/crn/${crn}/contact`,
+      handle404: false,
+      handle500: false,
     })
   }
 }

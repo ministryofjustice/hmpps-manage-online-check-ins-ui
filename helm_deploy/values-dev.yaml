@@ -19,6 +19,9 @@ generic-service:
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk"
     ESUPERVISION_GUIDANCE_LINK: 'https://probation-check-in-dev.hmpps.service.justice.gov.uk'
     CHAR_COUNT: 12000
+    # Temporarily stubs personal details, probation practitioner and contact write-back until
+    # those eSupervision endpoints exist. Will remove once the PI API changes are done
+    ESUPERVISION_STUB_PERSONAL_DETAILS: "true"
 
 generic-prometheus-alerts:
   alertSeverity: warning
