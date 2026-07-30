@@ -203,7 +203,12 @@ export default class ESupervisionClient extends RestClient {
   // POST /v2/offenders/crn/{crn}/contact — writes an edited email/mobile back to the PoP case record.
   async updatePersonalDetailsContact(crn: string, body: PersonalDetailsUpdateRequest): Promise<PersonalDetails | null> {
     if (config.stubPersonalDetails) {
-      return { ...stubbedPersonalDetails(crn), email: body.emailAddress, mobileNumber: body.mobileNumber }
+      const stub = stubbedPersonalDetails(crn)
+      return {
+        ...stub,
+        email: body.emailAddress ?? stub.email,
+        mobileNumber: body.mobileNumber ?? stub.mobileNumber,
+      }
     }
     return this.post({
       data: body,
