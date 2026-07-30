@@ -91,7 +91,7 @@ const stubNoAllocatedProbationPractitionerProviderAccess = (): SuperAgentRequest
 const stubProbationPractitionerNoEmail = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
-      urlPattern: '/mas/case/.*/probation-practitioner',
+      urlPattern: '/v2/offenders/crn/.*/probation-practitioner',
       method: 'GET',
     },
     response: {
@@ -123,7 +123,7 @@ const stubProbationPractitionerNoEmail = (): SuperAgentRequest =>
 const stubProbationPractitioner = ({ username = 'DeborahFern' } = {}): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
-      urlPattern: '/mas/case/.*/probation-practitioner',
+      urlPattern: '/v2/offenders/crn/.*/probation-practitioner',
       method: 'GET',
     },
     response: {

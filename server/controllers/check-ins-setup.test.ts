@@ -2,14 +2,14 @@ import httpMocks from 'node-mocks-http'
 import controllers from '.'
 import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
-import MasApiClient from '../data/masApiClient'
+import ESupervisionClient from '../data/eSupervisionClient'
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
 }))
 
 jest.mock('../../logger', () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }))
-jest.mock('../data/masApiClient')
+jest.mock('../data/eSupervisionClient')
 jest.mock('../data/hmppsAuthClient', () => {
   return jest.fn().mockImplementation(() => ({
     getSystemClientToken: jest.fn().mockResolvedValue('token-1'),
@@ -151,7 +151,7 @@ describe('check-in setup flow', () => {
 
   describe('unallocated cases', () => {
     it('are redirected away from the setup flow', async () => {
-      ;(MasApiClient as jest.Mock).mockImplementation(() => ({
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
         getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: true }),
       }))
       const req = requestFor()

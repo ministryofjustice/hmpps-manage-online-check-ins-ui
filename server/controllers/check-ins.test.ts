@@ -9,7 +9,6 @@ import renderError from '../middleware/renderError'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import setDataValue from '../utils/setDataValue'
-import MasApiClient from '../data/masApiClient'
 import { PersonalDetails } from '../data/model/personalDetails'
 import { SubjectType } from '../middleware/sendAuditMessage'
 import { checkSendAuditMessage } from './testutils'
@@ -52,10 +51,12 @@ jest.mock('../config', () => {
 })
 
 const mockPersonalDetails = {} as PersonalDetails
-jest.spyOn(MasApiClient.prototype, 'getPersonalDetails').mockImplementation(() => Promise.resolve(mockPersonalDetails))
+jest
+  .spyOn(ESupervisionClient.prototype, 'getPersonalDetails')
+  .mockImplementation(() => Promise.resolve(mockPersonalDetails))
 
 const updatePersonalDetailsSpy = jest
-  .spyOn(MasApiClient.prototype, 'updatePersonalDetailsContact')
+  .spyOn(ESupervisionClient.prototype, 'updatePersonalDetailsContact')
   .mockImplementation(() => Promise.resolve({ crn } as PersonalDetails))
 
 const postDeactivateOffender = jest
