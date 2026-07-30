@@ -188,7 +188,7 @@ export default class ESupervisionClient extends RestClient {
     if (config.stubPersonalDetails) {
       return stubbedPersonalDetails(crn)
     }
-    return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: false })
+    return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: true })
   }
 
   // GET /v2/offenders/crn/{crn}/probation-practitioner — supplies the practitioner id and the
