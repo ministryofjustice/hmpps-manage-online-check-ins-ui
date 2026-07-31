@@ -17,7 +17,8 @@ import {
   ReactivateOffenderRequest,
   UploadLocationResponse,
   EsupervisionUpcomingQuestionItemsResponse,
-  OffenderCheckinsByCRNResponse,
+  OffenderByCRNResponse,
+  OffenderHeaderDetails
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
@@ -80,8 +81,12 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  async getOffenderByCRN(crn: string): Promise<OffenderCheckinsByCRNResponse | null> {
+  async getOffenderByCRN(crn: string): Promise<OffenderByCRNResponse | null> {
     return this.get({ path: `/v2/offenders/crn/${crn}?include-personal-details=true`, handle404: true })
+  }
+
+  async getOffenderHeaderByCRN(crn: string): Promise<OffenderHeaderDetails | null> {
+    return this.get({ path: `/v2/offenders/header/${crn}`, handle404: true })
   }
 
   async postDeactivateOffender(

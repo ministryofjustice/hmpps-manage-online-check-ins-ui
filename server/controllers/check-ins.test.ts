@@ -1,7 +1,7 @@
 import httpMocks from 'node-mocks-http'
 import controllers from '.'
 
-import { CheckinScheduleResponse, OffenderCheckinsByCRNResponse } from '../data/model/esupervision'
+import { CheckinScheduleResponse, OffenderByCRNResponse } from '../data/model/esupervision'
 import ESupervisionClient from '../data/eSupervisionClient'
 import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
@@ -97,7 +97,7 @@ const offenderCheckinsByCRNResponse = {
       surname: 'Bloggs',
     },
   },
-} as OffenderCheckinsByCRNResponse
+} as OffenderByCRNResponse
 
 const baseReq = (data?: any) =>
   httpMocks.createRequest({

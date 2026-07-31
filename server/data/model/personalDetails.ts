@@ -26,3 +26,11 @@ export interface ProbationPractitioner {
   username: string
   email?: string
 }
+
+// export interface HeaderDetails {
+//   crn: string
+//   dateOfBirth: string
+//   tierScore: string
+//   tierDetailsLink: string
+//   overallRisk: string
+// }

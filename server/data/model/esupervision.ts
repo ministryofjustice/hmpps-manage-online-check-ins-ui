@@ -146,7 +146,7 @@ interface Name {
   surname: string
 }
 // This was OffenderCheckinsByCRNResponse but I've renamed it because it doesn't actually fetch any check ins
-export interface OffenderCheckinsByCRNResponse {
+export interface OffenderByCRNResponse {
   uuid: string
   crn: string
   status: OffenderStatus
@@ -304,4 +304,12 @@ export type TemporaryOffenderResponse = {
   riskData?: unknown
   headerTierLink?: string
   [key: string]: unknown
+}
+
+export interface OffenderHeaderDetails {
+  crn: string
+  dateOfBirth: string
+  tierScore: string
+  tierDetailsLink: string
+  overallRisk: string
 }
