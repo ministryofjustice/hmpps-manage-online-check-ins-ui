@@ -409,7 +409,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'])
       const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'])
 
-      const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
+      const cya = req.query?.cya === 'true'
 
       const selectedContactValue = preferredComs === 'PHONE' ? checkInMobile : checkInEmail
 
@@ -417,11 +417,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         const change = preferredComs === 'PHONE' ? 'mobile' : 'email'
 
         return res.redirect(
-          `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cyaQuery}`,
+          `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cya ? '&cya=true' : ''}`,
         )
       }
 
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/confirm-contact-preference${cyaQuery}`)
+      return res.redirect(
+        `/case/${crn}/appointments/${id}/check-in/confirm-contact-preference${cya ? '?cya=true' : ''}`,
+      )
     }
   },
 

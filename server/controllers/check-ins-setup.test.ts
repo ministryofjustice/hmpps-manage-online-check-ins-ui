@@ -149,6 +149,36 @@ describe('check-in setup flow', () => {
         `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=mobile`,
       )
     })
+
+    it('preserves cya as a well-formed query string when diverting to the edit page', async () => {
+      const req = requestFor(
+        { change: 'main' },
+        { data: { esupervision: { [crn]: { [id]: { checkins: { preferredComs: 'PHONE' } } } } } },
+      )
+      req.query = { cya: 'true' }
+      const res = mockAppResponse()
+      await controllers.checkIns.postContactPreferencePage()(req, res)
+      expect((res.redirect as jest.Mock).mock.calls[0][0]).toBe(
+        `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=mobile&cya=true`,
+      )
+    })
+
+    it('preserves cya as a well-formed query string when continuing to the confirm page', async () => {
+      const req = requestFor(
+        { change: 'main' },
+        {
+          data: {
+            esupervision: { [crn]: { [id]: { checkins: { preferredComs: 'PHONE', checkInMobile: '07700900000' } } } },
+          },
+        },
+      )
+      req.query = { cya: 'true' }
+      const res = mockAppResponse()
+      await controllers.checkIns.postContactPreferencePage()(req, res)
+      expect((res.redirect as jest.Mock).mock.calls[0][0]).toBe(
+        `/case/${crn}/appointments/${id}/check-in/confirm-contact-preference?cya=true`,
+      )
+    })
   })
 
   describe('unallocated cases', () => {

@@ -60,10 +60,9 @@
                 <span class="govuk-visually-hidden">Error:</span>{{errorMessages[setEmailError]}}
             </p>
         {% endif %}
+        </div>
 
-
-
-        <div class="govuk-!-width-two-thirds">
+    <div class="govuk-!-width-two-thirds">
 
         <table class="govuk-table">
             <caption class="govuk-table__caption govuk-table__caption--l">
@@ -120,7 +119,6 @@
             <input type="hidden" name="{{ setMobile }}" value="{{ checkInMobile }}">
             <input type="hidden" name="{{ setEmail }}" value="{{ checkInEmail }}">
         </form>
-    </div>
 
 
 {% endblock %}
