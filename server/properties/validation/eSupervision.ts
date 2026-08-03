@@ -20,6 +20,7 @@ export interface ESupervisionValidationArgs {
   checkInEmail?: string
   editCheckInEmail?: string
   editCheckInMobile?: string
+  preferredComs?: string
   change?: string
   stopCheckIn?: string
 }
@@ -33,6 +34,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     checkInMobile = '',
     editCheckInEmail = '',
     editCheckInMobile = '',
+    preferredComs = '',
     change = '',
   } = args
   return {
@@ -76,41 +78,54 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     // contact-preference — only validated when submitting the main form, not the change buttons
     [`[esupervision][${crn}][${id}][checkins][preferredComs]`]: {
       optional: page !== 'contact-preference' || change !== 'main',
-      checks: [{ validator: isNotEmpty, msg: 'Select how the person wants us to send a link to the service' }],
-    },
-    [`[esupervision][${crn}][${id}][checkins][checkInEmail]`]: {
-      optional: (page === 'contact-preference' && checkInEmail.trim() !== '') || page !== 'contact-preference',
       checks: [
         {
-          validator: contactPrefEmailCheck,
-          msg: 'Enter an email address',
-          crossField: `[esupervision][${crn}][${id}][checkins][preferredComs]`,
-        },
-      ],
-    },
-    [`[esupervision][${crn}][${id}][checkins][checkInMobile]`]: {
-      optional: (page === 'contact-preference' && checkInMobile.trim() !== '') || page !== 'contact-preference',
-      checks: [
-        {
-          validator: contactPrefMobileCheck,
-          msg: 'Enter a mobile number',
-          crossField: `[esupervision][${crn}][${id}][checkins][preferredComs]`,
+          validator: isNotEmpty,
+          msg: 'Select how the person wants us to send a link to the service',
         },
       ],
     },
 
-    // edit-contact-preference — both optional; format-checked only when a value is present
-    [`[esupervision][${crn}][${id}][checkins][editCheckInMobile]`]: {
-      optional: (page === 'edit-contact-preference' && !editCheckInMobile) || page !== 'edit-contact-preference',
+    // confirm-contact-preference — message depends on which contact method is being confirmed
+    [`[esupervision][${crn}][${id}][checkins][confirmPreferredComs]`]: {
+      optional: page !== 'confirm-contact-preference' || change !== 'main',
       checks: [
+        {
+          validator: isNotEmpty,
+          msg:
+            preferredComs === 'PHONE'
+              ? 'Select yes if this is the right mobile number'
+              : 'Select yes if this is the right email address',
+        },
+      ],
+    },
+
+    [`[esupervision][${crn}][${id}][checkins][checkInEmail]`]: {
+      optional: true,
+      checks: [],
+    },
+
+    [`[esupervision][${crn}][${id}][checkins][checkInMobile]`]: {
+      optional: true,
+      checks: [],
+    },
+
+    // edit-contact-preference — only the field matching preferredComs is ever rendered/posted,
+    // so it's the only one that's required; the other one must stay optional regardless of
+    // what's already in session.
+    [`[esupervision][${crn}][${id}][checkins][editCheckInMobile]`]: {
+      optional: page !== 'edit-contact-preference' || preferredComs !== 'PHONE',
+      checks: [
+        { validator: isNotEmpty, msg: 'Enter a mobile number' },
         { validator: isValidMobileNumber, msg: 'Enter a mobile number in the correct format.' },
         { validator: charsOrLess, length: 35, msg: 'Mobile number must be 35 characters or less.' },
       ],
     },
     [`[esupervision][${crn}][${id}][checkins][editCheckInEmail]`]: {
-      optional: (page === 'edit-contact-preference' && !editCheckInEmail) || page !== 'edit-contact-preference',
+      optional: page !== 'edit-contact-preference' || preferredComs !== 'EMAIL',
       checks: [
-        { validator: isEmail, msg: 'Enter an email address in the correct format.' },
+        { validator: isNotEmpty, msg: 'Enter an email address' },
+        { validator: isEmail, msg: 'Enter an email address in the correct format, like name@example.com' },
         { validator: charsOrLess, length: 254, msg: 'Email address must be 254 characters or less.' },
       ],
     },

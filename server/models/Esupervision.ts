@@ -48,6 +48,10 @@ export interface LocalParams {
   contactSaved?: string
   editCheckInMobile?: string
   editCheckInEmail?: string
+  preferredComs?: string
+  contactPreference?: string
+  contactValue?: string
+  hasContactDetails?: boolean
   questionId?: string
   question?: {
     prefix: string

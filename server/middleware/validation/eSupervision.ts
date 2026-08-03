@@ -63,6 +63,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
         checkInMobile: bodyCheckInMobile ?? '',
         editCheckInEmail: sessionVal('checkins', 'editCheckInEmail'),
         editCheckInMobile: sessionVal('checkins', 'editCheckInMobile'),
+        preferredComs: sessionVal('checkins', 'preferredComs'),
         change: body?.change as string,
       }),
     )
@@ -83,9 +84,22 @@ const eSuperVision: Route<void> = (req, res, next) => {
       validateSetupPage('contact-preference', 'contact-preference', 'contact-preference')
     }
 
+    if (baseUrl.includes(setup('confirm-contact-preference'))) {
+      validateSetupPage('confirm-contact-preference', 'confirm-contact-preference', 'confirm-contact-preference')
+      const preferredComs = sessionVal('checkins', 'preferredComs')
+      localParams.preferredComs = preferredComs
+      localParams.contactPreference = preferredComs === 'PHONE' ? 'mobile number' : 'email address'
+      localParams.contactValue = preferredComs === 'PHONE' ? bodyCheckInMobile : bodyCheckInEmail
+    }
+
     if (baseUrl.includes(setup('edit-contact-preference'))) {
       validateSetupPage('edit-contact-preference', 'edit-contact-preference', 'edit-contact-preference')
       localParams.change = body?.change as string
+      const preferredComs = sessionVal('checkins', 'preferredComs')
+      localParams.preferredComs = preferredComs
+      localParams.contactPreference = preferredComs === 'PHONE' ? 'mobile number' : 'email address'
+      const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
+      localParams.hasContactDetails = Boolean(sessionVal('checkins', editField)?.trim())
     }
   }
 

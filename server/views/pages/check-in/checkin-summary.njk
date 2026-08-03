@@ -27,6 +27,8 @@
 {% set changeRationaleUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/rationale?cya=true' %}
 {% set changeDateUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/date-frequency?cya=true' %}
 {% set contactPreUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/contact-preference?cya=true' %}
+{% set editMobileUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/edit-contact-preference?change=mobile&cya=true' %}
+{% set editEmailUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/edit-contact-preference?change=email&cya=true' %}
 {% set photoPrefUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/photo-options?cya=true' %}
 {% set uploadPhotoUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/upload-a-photo?cya=true' %}
 {% set takeAPhotoUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/take-a-photo?cya=true' %}
@@ -35,6 +37,33 @@
     {% set photoUrl = uploadPhotoUrl %}
 {% else %}
     {% set photoUrl = takeAPhotoUrl %}
+{% endif %}
+{% if userDetails.preferredComs == "Email" %}
+    {% set contactRow = {
+        key: { html: "Email address" },
+        value: { html: emailValue },
+        actions: {
+            items: [{
+                href: editEmailUrl,
+                text: "Change",
+                visuallyHiddenText: "what is the person's email address",
+                attributes: { 'data-qa': 'checkInEmailAction' }
+            }]
+        }
+    } %}
+{% else %}
+    {% set contactRow = {
+        key: { html: "Mobile number" },
+        value: { html: mobileValue },
+        actions: {
+            items: [{
+                href: editMobileUrl,
+                text: "Change",
+                visuallyHiddenText: "what is the person's mobile number",
+                attributes: { 'data-qa': 'checkInMobileAction' }
+            }]
+        }
+    } %}
 {% endif %}
 
 {% block beforeContent %}
@@ -160,42 +189,7 @@
         }]
         }
     },
-    {
-        key: {
-        html: "Mobile number"
-        },
-        value: {
-        html: mobileValue
-        },
-        actions: {
-        items: [{
-            href: contactPreUrl,
-            text: "Change",
-            visuallyHiddenText: "what is the person's mobile number",
-            attributes: {
-            'data-qa': 'checkInMobileAction'
-            }
-        }]
-        }
-    },
-    {
-        key: {
-        html: "Email address"
-        },
-        value: {
-        html: emailValue
-        },
-        actions: {
-        items: [{
-            href: contactPreUrl,
-            text: "Change",
-            visuallyHiddenText: "what is the person's email address",
-            attributes: {
-            'data-qa': 'checkInEmailAction'
-            }
-        }]
-        }
-    },
+    contactRow,
     {
         key: {
         html: photoOptopionLabel

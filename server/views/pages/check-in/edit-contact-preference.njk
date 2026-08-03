@@ -1,7 +1,6 @@
 {% extends "../_form.njk" %}
-{% from "moj/components/alert/macro.njk" import mojAlert %}
 
-{% set title = "Edit contact details for " + case.name.forename %}
+{% set textAreaTitle = "What is " + case.name.forename + "'s " + contactPreference + "?" %}
 {% set pageTitleText = "Edit contact details for the person" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
@@ -12,30 +11,14 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/contact-preference' %}
+{% set cyaLink = "?cya=true" if cya else "" %}
+{% set backLink = ('/case/' + crn + '/appointments/' + id + '/check-in/confirm-contact-preference' + cyaLink) if hasContactDetails else ('/case/' + crn + '/appointments/' + id + '/check-in/contact-preference' + cyaLink) %}
 {% set notStandardForm = true %}
+{% set isPhone = preferredComs === 'PHONE' %}
+{% set editField = 'editCheckInMobile' if isPhone else 'editCheckInEmail' %}
+{% set editHint = 'For example, 07771 900 900. The mobile number must belong to ' + case.name.forename + '.' if isPhone else 'For example, name@example.com. The email address must belong to ' + case.name.forename + '.' %}
 
 {% block primary %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
-                {{ title }}
-            </h2>
-        </div>
-    </div>
-
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-      {{ mojAlert({
-            variant: "warning",
-            title: "",
-            showTitleAsHeading: false,
-            dismissible: false,
-            attributes: { "data-qa": "updateBanner" },
-            html: 'If you change contact details here, this will update the record in NDelius. The contact details must belong to the person.'
-      }) }}
-    </div>
-  </div>
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
@@ -58,42 +41,30 @@
 
             {{ govukInput({
                 label: {
-                    text: "Mobile number (optional)",
-                    classes: "govuk-label--s govuk-!-font-weight-bold"
+                    text: textAreaTitle,
+                    classes: "govuk-label--l govuk-!-font-weight-bold"
                 },
                 hint: {
-                    text: "For example, 07771 900 900"
+                    text: editHint
                 },
                 formGroup: {
-                    attributes: { 'data-qa': 'mobileNumber' }
+                    attributes: { 'data-qa': 'editContactValue' }
                 },
-                classes: "govuk-input"
-            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'editCheckInMobile'])) }}
+                classes: "govuk-input govuk-!-width-one-half"
+            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', editField])) }}
 
-
-            {{ govukInput({
-                label: {
-                    text: "Email address (optional)",
-                    classes: "govuk-label--s govuk-!-font-weight-bold"
-                },
-                hint: {
-                    text: "For example, name@example.com"
-                },
-                formGroup: {
-                    attributes: { 'data-qa': 'editEmail' }
-                },
-                classes: "govuk-input"
-            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'editCheckInEmail'])) }}
+            {{ govukWarningText({
+                text: "If you change contact details here, this will update the record in NDelius." if hasContactDetails else "If you add contact details here, this will update the record in NDelius.",
+                iconFallbackText: "Warning",
+                attributes: { "data-qa": "updateBanner" }
+            }) }}
 
             <div class="govuk-button-group">
                 {{ govukButton({
-                    text: "Save changes",
+                    text: "Continue",
                     type: "submit",
                     attributes: { "data-qa": "submit-btn" }
                 }) }}
-                <a class="govuk-link" href="{{ backLink }}" data-qa="formAnchorLink">
-                    Cancel and go back
-                </a>
             </div>
         </form>
     </div>
