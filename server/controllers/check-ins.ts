@@ -444,8 +444,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { cya } = req.query
 
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const personalDetails = await masClient.getPersonalDetails(crn)
+
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
 
       const checkInMobile = personalDetails?.mobileNumber
       const checkInEmail = personalDetails?.email
