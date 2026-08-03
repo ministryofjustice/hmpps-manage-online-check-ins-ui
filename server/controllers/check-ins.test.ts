@@ -52,7 +52,9 @@ jest.mock('../config', () => {
 })
 
 const mockPersonalDetails = {} as PersonalDetails
-jest.spyOn(MasApiClient.prototype, 'getPersonalDetails').mockImplementation(() => Promise.resolve(mockPersonalDetails))
+const getPersonalDetailsSpy = jest
+  .spyOn(MasApiClient.prototype, 'getPersonalDetails')
+  .mockImplementation(() => Promise.resolve(mockPersonalDetails))
 
 const updatePersonalDetailsSpy = jest
   .spyOn(MasApiClient.prototype, 'updatePersonalDetailsContact')
@@ -327,6 +329,225 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(
         `/case/${crn}/appointments/check-in/manage/${uuid}/restart-summary?cya=true`,
       )
+    })
+  })
+
+  describe('getConfirmContactPreferencePage', () => {
+    it('renders the confirm page with the live MAS values for the preferred method', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce({
+        crn,
+        mobileNumber: '07700900000',
+        email: 'test@example.com',
+      } as PersonalDetails)
+
+      const data = { esupervision: { [crn]: { [uuid]: { checkins: { preferredComs: 'PHONE' } } } } }
+      const req = baseReq(data)
+      req.query = { cya: 'true' }
+
+      await controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith('pages/check-in/confirm-contact-preference.njk', {
+        crn,
+        id: uuid,
+        checkInMobile: '07700900000',
+        checkInEmail: 'test@example.com',
+        preferredComs: 'PHONE',
+        contactPreference: 'mobile number',
+        contactValue: '07700900000',
+        cya: 'true',
+      })
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'editCheckInMobile'],
+        '07700900000',
+      )
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'editCheckInEmail'],
+        'test@example.com',
+      )
+    })
+
+    it('sets success flag and clears contactUpdated when set in session', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: { [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL', contactUpdated: true } } } },
+      }
+      const req = baseReq(data)
+
+      await controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient)(req, res)
+
+      expect(res.locals.success).toBe(true)
+      expect(data.esupervision[crn][uuid].checkins).not.toHaveProperty('contactUpdated')
+    })
+  })
+
+  describe('postConfirmContactPreferencePage', () => {
+    it('redirects to edit-contact-preference when the answer is No, preserving cya', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: {
+          [crn]: { [uuid]: { checkins: { preferredComs: 'PHONE', confirmPreferredComs: 'NO' } } },
+        },
+      }
+      const req = baseReq(data)
+      req.query = { cya: 'true' }
+
+      await controllers.checkIns.postConfirmContactPreferencePage()(req, res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/${uuid}/check-in/edit-contact-preference?change=mobile&cya=true`,
+      )
+    })
+
+    it('redirects to checkin-summary when the answer is Yes and cya is true', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: {
+          [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL', confirmPreferredComs: 'YES' } } },
+        },
+      }
+      const req = baseReq(data)
+      req.query = { cya: 'true' }
+
+      await controllers.checkIns.postConfirmContactPreferencePage()(req, res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/checkin-summary`)
+    })
+
+    it('redirects to photo-options when the answer is Yes and there is no cya', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: {
+          [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL', confirmPreferredComs: 'YES' } } },
+        },
+      }
+      const req = baseReq(data)
+      req.query = {}
+
+      await controllers.checkIns.postConfirmContactPreferencePage()(req, res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/photo-options`)
+    })
+  })
+
+  describe('getEditContactPrePage', () => {
+    it('reports hasContactDetails true when the preferred method already has a value on file', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: { checkins: { preferredComs: 'PHONE', editCheckInMobile: '07700900000' } },
+          },
+        },
+      }
+      const req = baseReq(data)
+      req.query = { change: 'mobile', cya: 'true' }
+
+      await controllers.checkIns.getEditContactPrePage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith('pages/check-in/edit-contact-preference.njk', {
+        crn,
+        id: uuid,
+        change: 'mobile',
+        cya: 'true',
+        preferredComs: 'PHONE',
+        contactPreference: 'mobile number',
+        hasContactDetails: true,
+      })
+    })
+
+    it('reports hasContactDetails false when there is nothing on file for the preferred method', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: { [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL' } } } },
+      }
+      const req = baseReq(data)
+      req.query = { change: 'email' }
+
+      await controllers.checkIns.getEditContactPrePage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/edit-contact-preference.njk',
+        expect.objectContaining({ hasContactDetails: false }),
+      )
+    })
+  })
+
+  describe('postEditContactPrePage', () => {
+    it('saves to MAS, syncs checkInMobile/checkInEmail and confirms the preference, then continues to photo', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      updatePersonalDetailsSpy.mockResolvedValueOnce({
+        crn,
+        mobileNumber: '07711223344',
+        email: 'updated@example.com',
+      } as PersonalDetails)
+
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              checkins: { editCheckInMobile: '07711223344', editCheckInEmail: 'updated@example.com' },
+            },
+          },
+        },
+      }
+      const req = baseReq(data)
+      req.query = {}
+
+      await controllers.checkIns.postEditContactPrePage(hmppsAuthClient)(req, res)
+
+      expect(updatePersonalDetailsSpy).toHaveBeenCalledWith(crn, {
+        emailAddress: 'updated@example.com',
+        mobileNumber: '07711223344',
+      })
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'checkInMobile'],
+        '07711223344',
+      )
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'checkInEmail'],
+        'updated@example.com',
+      )
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'confirmPreferredComs'],
+        'YES',
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/photo-options`)
+    })
+
+    it('redirects to checkin-summary when cya is true', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      updatePersonalDetailsSpy.mockResolvedValueOnce({ crn } as PersonalDetails)
+
+      const data = {
+        esupervision: { [crn]: { [uuid]: { checkins: {} } } },
+      }
+      const req = baseReq(data)
+      req.query = { cya: 'true' }
+
+      await controllers.checkIns.postEditContactPrePage(hmppsAuthClient)(req, res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/checkin-summary`)
     })
   })
 

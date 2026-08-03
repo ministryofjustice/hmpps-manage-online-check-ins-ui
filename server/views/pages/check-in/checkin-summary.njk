@@ -36,6 +36,33 @@
 {% else %}
     {% set photoUrl = takeAPhotoUrl %}
 {% endif %}
+{% if userDetails.preferredComs == "Email" %}
+    {% set contactRow = {
+        key: { html: "Email address" },
+        value: { html: emailValue },
+        actions: {
+            items: [{
+                href: contactPreUrl,
+                text: "Change",
+                visuallyHiddenText: "what is the person's email address",
+                attributes: { 'data-qa': 'checkInEmailAction' }
+            }]
+        }
+    } %}
+{% else %}
+    {% set contactRow = {
+        key: { html: "Mobile number" },
+        value: { html: mobileValue },
+        actions: {
+            items: [{
+                href: contactPreUrl,
+                text: "Change",
+                visuallyHiddenText: "what is the person's mobile number",
+                attributes: { 'data-qa': 'checkInMobileAction' }
+            }]
+        }
+    } %}
+{% endif %}
 
 {% block beforeContent %}
     {{ govukBackLink({
@@ -160,42 +187,7 @@
         }]
         }
     },
-    {
-        key: {
-        html: "Mobile number"
-        },
-        value: {
-        html: mobileValue
-        },
-        actions: {
-        items: [{
-            href: contactPreUrl,
-            text: "Change",
-            visuallyHiddenText: "what is the person's mobile number",
-            attributes: {
-            'data-qa': 'checkInMobileAction'
-            }
-        }]
-        }
-    },
-    {
-        key: {
-        html: "Email address"
-        },
-        value: {
-        html: emailValue
-        },
-        actions: {
-        items: [{
-            href: contactPreUrl,
-            text: "Change",
-            visuallyHiddenText: "what is the person's email address",
-            attributes: {
-            'data-qa': 'checkInEmailAction'
-            }
-        }]
-        }
-    },
+    contactRow,
     {
         key: {
         html: photoOptopionLabel
