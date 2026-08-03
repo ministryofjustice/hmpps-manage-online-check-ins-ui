@@ -18,7 +18,6 @@ import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import ESupervisionClient from '../data/eSupervisionClient'
-import MasApiClient from '../data/masApiClient'
 import { Controller } from '../@types'
 import { CheckinUserDetails } from '../models/Esupervision'
 import config from '../config'
@@ -148,8 +147,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const practitioner = await masClient.getProbationPractitioner(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const practitioner = await eSupervisionClient.getProbationPractitioner(crn)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
@@ -377,8 +376,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const { cya } = req.query
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const personalDetails = await masClient.getPersonalDetails(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
       const checkInMobile = personalDetails?.mobileNumber
       const checkInEmail = personalDetails?.email
       // Seed the edit page from the record so it can render without another API call.
@@ -445,8 +444,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { cya } = req.query
 
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const personalDetails = await masClient.getPersonalDetails(crn)
+
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
 
       const checkInMobile = personalDetails?.mobileNumber
       const checkInEmail = personalDetails?.email
@@ -553,15 +553,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
+      const eSupervisionClient = new ESupervisionClient(token)
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
       const body: PersonalDetailsUpdateRequest = {
         emailAddress: editCheckInEmail,
         mobileNumber: editCheckInMobile?.trim(),
       }
+
       const cya = req.query?.cya === 'true'
-      const personalDetails = await masClient.updatePersonalDetailsContact(crn, body)
+      const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+
       if (personalDetails?.crn) {
         // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
         // longer loops back through contact-preference's GET, which used to be what kept them
@@ -1234,8 +1236,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
 
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const personalDetails = await masClient.getPersonalDetails(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!personalDetails) {
+        return renderError(404)(req, res)
+      }
+
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_WHEN_TO_COMPLETE_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-date-frequency.njk', {
         crn,
@@ -1269,8 +1276,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { cya } = req.query
-      const masClient = new MasApiClient(token)
-      const personalDetails = await masClient.getPersonalDetails(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!personalDetails) {
+        return renderError(404)(req, res)
+      }
+
       const checkInMobile = personalDetails.mobileNumber
       const checkInEmail = personalDetails.email
 
@@ -1365,13 +1377,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'])
       if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-        const masClient = new MasApiClient(token)
+        const eSupervisionClient = new ESupervisionClient(token)
 
         const body: PersonalDetailsUpdateRequest = {
           emailAddress: editCheckInEmail,
           mobileNumber: editCheckInMobile?.trim(),
         }
-        const personalDetails: PersonalDetails = await masClient.updatePersonalDetailsContact(crn, body)
+        const personalDetails: PersonalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
         // If personal details overview exists in session cache, update it with latest values
         if (req.session.data?.personalDetails?.[crn]?.overview) {
           req.session.data.personalDetails[crn].overview = personalDetails
@@ -1402,8 +1414,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
       if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const caseData = await masClient.getPersonalDetails(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const caseData = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!caseData) {
+        return renderError(404)(req, res)
+      }
 
       const userDetails = {
         ...restartDetails,
@@ -1476,8 +1492,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
 
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const masClient = new MasApiClient(token)
-      const caseData = await masClient.getPersonalDetails(crn)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const caseData = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!caseData) {
+        return renderError(404)(req, res)
+      }
 
       const userDetails = {
         ...savedDetails,

@@ -2,6 +2,98 @@
   "mappings": [
     {
       "request": {
+        "urlPattern": "/v2/offenders/crn/X000001/personal-details",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000001",
+          "name": {
+            "forename": "Caroline",
+            "surname": "Wolff"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "07783889300",
+          "telephoneNumber": "0123456999",
+          "email": "address1@gmail.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X778160/personal-details",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X778160",
+          "name": {
+            "forename": "Alton",
+            "surname": "Berge"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "071838893",
+          "telephoneNumber": "0123456999",
+          "email": "address1@gmail.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/.*/probation-practitioner",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "code": "N99TST1",
+          "name": {
+            "forename": "Test",
+            "surname": "Practitioner"
+          },
+          "unallocated": false,
+          "username": "TestPractitioner",
+          "email": "test.practitioner@example.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/[^/]+/contact",
+        "method": "POST"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "{{request.pathSegments.[3]}}",
+          "name": {
+            "forename": "Caroline",
+            "surname": "Wolff"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobileNumber": "{{#if (jsonPath request.body '$.mobileNumber')}}{{jsonPath request.body '$.mobileNumber'}}{{else}}07783889300{{/if}}",
+          "telephoneNumber": "0123456999",
+          "email": "{{#if (jsonPath request.body '$.emailAddress')}}{{jsonPath request.body '$.emailAddress'}}{{else}}address1@gmail.com{{/if}}"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        },
+        "transformers": ["response-template"]
+      }
+    },
+    {
+      "request": {
         "urlPathPattern": "/v2/offender_setup/.+?/upload_location",
         "method": "POST"
       },

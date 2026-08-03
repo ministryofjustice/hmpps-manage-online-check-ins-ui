@@ -5,7 +5,6 @@ export const isValidHost = (host: string): boolean => {
     config.apis.hmppsAuth.url,
     config.apis.hmppsAuth.externalUrl,
     config.apis.tokenVerification.url,
-    config.apis.masApi.url,
     config.apis.probationApi.url,
     config.apis.eSupervisionApi.url,
   ].filter(Boolean)

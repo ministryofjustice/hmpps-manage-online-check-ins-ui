@@ -2,7 +2,6 @@ import { DateTime } from 'luxon'
 import { HmppsAuthClient } from '../data'
 import { Route } from '../@types'
 import ESupervisionClient from '../data/eSupervisionClient'
-import MasApiClient from '../data/masApiClient'
 import { OffenderInfo, OffenderSetup, UploadLocationResponse } from '../data/model/esupervision'
 import { ProbationPractitioner } from '../data/model/personalDetails'
 import logger from '../../logger'
@@ -31,8 +30,7 @@ export const postCheckInDetails = (
       ? parsedFirstCheckin.toFormat('yyyy/M/dd')
       : savedUserDetails?.date
 
-    const masClient = new MasApiClient(token)
-    const pp: ProbationPractitioner = await masClient.getProbationPractitioner(crn)
+    const pp: ProbationPractitioner = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
 
     const data: OffenderInfo = {

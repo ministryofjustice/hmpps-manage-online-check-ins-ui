@@ -2,7 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import superagent from 'superagent'
 import eSupervisionAPI from './eSupervisionAPI'
-import personalDetails from './personalDetails'
 import probationFEIntegration from './probationFEIntegration'
 import user from './user'
 
@@ -27,7 +26,6 @@ export default {
     await importFileMappings()
     return null
   },
-  ...personalDetails,
   ...eSupervisionAPI,
   ...probationFEIntegration,
   ...user,

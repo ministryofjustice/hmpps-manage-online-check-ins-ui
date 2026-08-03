@@ -9,7 +9,6 @@ import renderError from '../middleware/renderError'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import setDataValue from '../utils/setDataValue'
-import MasApiClient from '../data/masApiClient'
 import { PersonalDetails } from '../data/model/personalDetails'
 import { SubjectType } from '../middleware/sendAuditMessage'
 import { checkSendAuditMessage } from './testutils'
@@ -52,12 +51,13 @@ jest.mock('../config', () => {
 })
 
 const mockPersonalDetails = {} as PersonalDetails
+
 const getPersonalDetailsSpy = jest
-  .spyOn(MasApiClient.prototype, 'getPersonalDetails')
+  .spyOn(ESupervisionClient.prototype, 'getPersonalDetails')
   .mockImplementation(() => Promise.resolve(mockPersonalDetails))
 
 const updatePersonalDetailsSpy = jest
-  .spyOn(MasApiClient.prototype, 'updatePersonalDetailsContact')
+  .spyOn(ESupervisionClient.prototype, 'updatePersonalDetailsContact')
   .mockImplementation(() => Promise.resolve({ crn } as PersonalDetails))
 
 const postDeactivateOffender = jest
@@ -585,6 +585,24 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
+    // The page has nothing sensible to render without a name, so it 404s rather than showing
+    // "undefined" in the heading.
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
+
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
+      })
+
+      await controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
   })
 
   describe('postRestartContactPage', () => {
@@ -730,6 +748,26 @@ describe('checkInsController', () => {
           }),
         }),
       )
+    })
+
+    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
+    // The page has nothing sensible to render without a name, so it 404s rather than showing
+    // "undefined" in the heading.
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
+
+      const req = baseReq({
+        esupervision: {
+          [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } },
+        },
+      })
+
+      await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 
