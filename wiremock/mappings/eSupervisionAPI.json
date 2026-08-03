@@ -54,14 +54,14 @@
       "response": {
         "status": 200,
         "jsonBody": {
-          "code": "N07B795",
+          "code": "N99TST1",
           "name": {
-            "forename": "Deborah",
-            "surname": "Fern"
+            "forename": "Test",
+            "surname": "Practitioner"
           },
           "unallocated": false,
-          "username": "DeborahFern",
-          "email": "deborah.fern@justice.gov.uk"
+          "username": "TestPractitioner",
+          "email": "test.practitioner@example.com"
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"

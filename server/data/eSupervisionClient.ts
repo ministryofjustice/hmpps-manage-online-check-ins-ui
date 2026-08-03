@@ -33,11 +33,11 @@ const stubbedPersonalDetails = (crn: string): PersonalDetails => ({
 })
 
 const stubbedProbationPractitioner = (): ProbationPractitioner => ({
-  code: 'N07B795',
-  name: { forename: 'Deborah', surname: 'Fern' },
+  code: 'N99TST1',
+  name: { forename: 'Test', surname: 'Practitioner' },
   unallocated: false,
-  username: 'DeborahFern',
-  email: 'deborah.fern@justice.gov.uk',
+  username: 'TestPractitioner',
+  email: 'test.practitioner@example.com',
 })
 
 export default class ESupervisionClient extends RestClient {

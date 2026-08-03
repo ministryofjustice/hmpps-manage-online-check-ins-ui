@@ -97,10 +97,10 @@ const stubProbationPractitionerNoEmail = (): SuperAgentRequest =>
     response: {
       status: 200,
       jsonBody: {
-        code: 'N07B795',
+        code: 'N99TST1',
         name: {
-          forename: 'Deborah',
-          surname: 'Fern',
+          forename: 'Test',
+          surname: 'Practitioner',
         },
         provider: {
           code: 'N07',
@@ -111,7 +111,7 @@ const stubProbationPractitionerNoEmail = (): SuperAgentRequest =>
           description: 'Automated Allocation Team',
         },
         unallocated: false,
-        username: 'DeborahFern',
+        username: 'TestPractitioner',
         email: null,
       },
       headers: {
@@ -120,7 +120,7 @@ const stubProbationPractitionerNoEmail = (): SuperAgentRequest =>
     },
   })
 
-const stubProbationPractitioner = ({ username = 'DeborahFern' } = {}): SuperAgentRequest =>
+const stubProbationPractitioner = ({ username = 'TestPractitioner' } = {}): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
       urlPattern: '/v2/offenders/crn/.*/probation-practitioner',
@@ -129,10 +129,10 @@ const stubProbationPractitioner = ({ username = 'DeborahFern' } = {}): SuperAgen
     response: {
       status: 200,
       jsonBody: {
-        code: 'N07B795',
+        code: 'N99TST1',
         name: {
-          forename: 'Deborah',
-          surname: 'Fern',
+          forename: 'Test',
+          surname: 'Practitioner',
         },
         provider: {
           code: 'N07',
@@ -144,7 +144,7 @@ const stubProbationPractitioner = ({ username = 'DeborahFern' } = {}): SuperAgen
         },
         unallocated: false,
         username,
-        email: 'deborah.fern@testemail.com',
+        email: 'test.practitioner@example.com',
       },
       headers: {
         'Content-Type': 'application/json',
