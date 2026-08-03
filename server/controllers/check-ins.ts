@@ -71,6 +71,8 @@ type CheckInRouteName =
   | 'postDateFrequencyPage'
   | 'getContactPreferencePage'
   | 'postContactPreferencePage'
+  | 'getConfirmContactPreferencePage'
+  | 'postConfirmContactPreferencePage'
   | 'getEditContactPrePage'
   | 'postEditContactPrePage'
   | 'getPhotoOptionsPage'
@@ -394,27 +396,150 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postContactPreferencePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const cyaQuery = req.query?.cya === 'true' ? '&cya=true' : ''
-      const { change } = req.body
-      const redirectUrl =
-        change === 'main'
-          ? `/case/${crn}/appointments/${id}/check-in/photo-options`
-          : `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cyaQuery}`
-      return res.redirect(redirectUrl)
+
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+
+      const preferredComs = getDataValue(data, ['esupervision', crn, id, 'checkins', 'preferredComs'])
+      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'])
+      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'])
+
+      const cya = req.query?.cya === 'true'
+
+      const selectedContactValue = preferredComs === 'PHONE' ? checkInMobile : checkInEmail
+
+      if (!selectedContactValue?.trim()) {
+        const change = preferredComs === 'PHONE' ? 'mobile' : 'email'
+
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cya ? '&cya=true' : ''}`,
+        )
+      }
+
+      return res.redirect(
+        `/case/${crn}/appointments/${id}/check-in/confirm-contact-preference${cya ? '?cya=true' : ''}`,
+      )
+    }
+  },
+
+  getConfirmContactPreferencePage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+
+      if (req?.session?.errorMessages) {
+        res.locals.errorMessages = req.session.errorMessages
+        delete req.session.errorMessages
+      }
+
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      const { cya } = req.query
+
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const masClient = new MasApiClient(token)
+      const personalDetails = await masClient.getPersonalDetails(crn)
+
+      const checkInMobile = personalDetails?.mobileNumber
+      const checkInEmail = personalDetails?.email
+
+      const preferredComs = getDataValue(data, ['esupervision', crn, id, 'checkins', 'preferredComs'])
+
+      const isPhone = preferredComs === 'PHONE'
+      const contactPreference = isPhone ? 'mobile number' : 'email address'
+      const contactValue = isPhone ? checkInMobile : checkInEmail
+
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
+
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
+
+      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
+
+      if (contactUpdated) {
+        res.locals.success = true
+        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
+      }
+
+      return res.render('pages/check-in/confirm-contact-preference.njk', {
+        crn,
+        id,
+        checkInMobile,
+        checkInEmail,
+        preferredComs,
+        contactPreference,
+        contactValue,
+        cya,
+      })
+    }
+  },
+  postConfirmContactPreferencePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+
+      const checkinsPath = ['esupervision', crn, id, 'checkins']
+
+      const preferredComs = getDataValue(data, [...checkinsPath, 'preferredComs'])
+      const confirmPreferredComs = getDataValue(data, [...checkinsPath, 'confirmPreferredComs'])
+
+      const cya = req.query?.cya === 'true'
+      const cyaQuery = cya ? '&cya=true' : ''
+
+      if (confirmPreferredComs === 'NO') {
+        const change = preferredComs === 'PHONE' ? 'mobile' : 'email'
+
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}${cyaQuery}`,
+        )
+      }
+
+      if (cya) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+      }
+
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/photo-options`)
     }
   },
 
   getEditContactPrePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      const { change } = req.query
+      const { change, cya } = req.query
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      return res.render('pages/check-in/edit-contact-preference.njk', { crn, id, change })
+
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+
+      const preferredComs = getDataValue(data, ['esupervision', crn, id, 'checkins', 'preferredComs'])
+      const contactPreference = preferredComs === 'PHONE' ? 'mobile number' : 'email address'
+      const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
+      const existingContactValue = getDataValue(data, ['esupervision', crn, id, 'checkins', editField])
+      const hasContactDetails = Boolean(existingContactValue?.trim())
+
+      return res.render('pages/check-in/edit-contact-preference.njk', {
+        crn,
+        id,
+        change,
+        cya,
+        preferredComs,
+        contactPreference,
+        hasContactDetails,
+      })
     }
   },
 
@@ -434,13 +559,25 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         emailAddress: editCheckInEmail,
         mobileNumber: editCheckInMobile?.trim(),
       }
-      const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
+
+      const cya = req.query?.cya === 'true'
       const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
-      // Drives the success banner back on the contact preference page.
+
       if (personalDetails?.crn) {
+        // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
+        // longer loops back through contact-preference's GET, which used to be what kept them
+        // in sync with the record.
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobileNumber)
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
+        // Saving the edit is itself a confirmation that the new value is correct, so the
+        // journey can move straight on to photo, whether or not there was a confirm step.
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'confirmPreferredComs'], 'YES')
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/contact-preference${cyaQuery}`)
+      if (cya) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/photo-options`)
     }
   },
 

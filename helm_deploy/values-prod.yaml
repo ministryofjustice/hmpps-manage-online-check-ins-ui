@@ -11,7 +11,7 @@ generic-service:
     HMPPS_AUTH_URL: "https://sign-in.hmpps.service.justice.gov.uk/auth"
     TOKEN_VERIFICATION_API_URL: "https://token-verification-api.prison.service.justice.gov.uk"
     ESUPERVISION_API_URL: 'https://esupervision-api.hmpps.service.justice.gov.uk'
-    AUDIT_ENABLED: "false"
+    AUDIT_ENABLED: "true"
     COMPONENT_API_URL: "https://probation-frontend-components.hmpps.service.justice.gov.uk"
     ENVIRONMENT_NAME: "PRODUCTION"
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation.hmpps.service.justice.gov.uk"

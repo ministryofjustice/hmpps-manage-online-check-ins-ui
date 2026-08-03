@@ -131,20 +131,52 @@ describe('check-in setup flow', () => {
   })
 
   describe('contact preference', () => {
-    const postContactPreference = async (change: string) => {
-      const req = requestFor({ change })
+    const postContactPreference = async (checkins: Record<string, unknown>) => {
+      const req = requestFor({ change: 'main' }, { data: { esupervision: { [crn]: { [id]: { checkins } } } } })
       const res = mockAppResponse()
       await controllers.checkIns.postContactPreferencePage()(req, res)
       return (res.redirect as jest.Mock).mock.calls[0][0]
     }
 
-    it('continues to the photo step on the main submit', async () => {
-      expect(await postContactPreference('main')).toBe(`/case/${crn}/appointments/${id}/check-in/photo-options`)
+    it('continues to the confirm page when the selected contact detail is on file', async () => {
+      expect(await postContactPreference({ preferredComs: 'PHONE', checkInMobile: '07700900000' })).toBe(
+        `/case/${crn}/appointments/${id}/check-in/confirm-contact-preference`,
+      )
     })
 
-    it('diverts to the edit page when changing a contact detail', async () => {
-      expect(await postContactPreference('mobile')).toBe(
+    it('diverts to the edit page when the selected contact detail is missing', async () => {
+      expect(await postContactPreference({ preferredComs: 'PHONE' })).toBe(
         `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=mobile`,
+      )
+    })
+
+    it('preserves cya as a well-formed query string when diverting to the edit page', async () => {
+      const req = requestFor(
+        { change: 'main' },
+        { data: { esupervision: { [crn]: { [id]: { checkins: { preferredComs: 'PHONE' } } } } } },
+      )
+      req.query = { cya: 'true' }
+      const res = mockAppResponse()
+      await controllers.checkIns.postContactPreferencePage()(req, res)
+      expect((res.redirect as jest.Mock).mock.calls[0][0]).toBe(
+        `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=mobile&cya=true`,
+      )
+    })
+
+    it('preserves cya as a well-formed query string when continuing to the confirm page', async () => {
+      const req = requestFor(
+        { change: 'main' },
+        {
+          data: {
+            esupervision: { [crn]: { [id]: { checkins: { preferredComs: 'PHONE', checkInMobile: '07700900000' } } } },
+          },
+        },
+      )
+      req.query = { cya: 'true' }
+      const res = mockAppResponse()
+      await controllers.checkIns.postContactPreferencePage()(req, res)
+      expect((res.redirect as jest.Mock).mock.calls[0][0]).toBe(
+        `/case/${crn}/appointments/${id}/check-in/confirm-contact-preference?cya=true`,
       )
     })
   })

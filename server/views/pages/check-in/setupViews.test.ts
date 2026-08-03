@@ -17,6 +17,10 @@ const base: Record<string, unknown> = {
   csrfToken: 'token',
   paths: { current: '/current' },
   data: { esupervision: { [crn]: { [id]: { checkins: { eligibility: [] } } } }, features: {} },
+  preferredComs: 'PHONE',
+  contactPreference: 'mobile number',
+  contactValue: '07700900000',
+  hasContactDetails: true,
   userDetails: {
     date: '1/8/2026',
     interval: 'Every week',
@@ -45,6 +49,7 @@ const views = [
   'spo-approval',
   'date-frequency',
   'contact-preference',
+  'confirm-contact-preference',
   'edit-contact-preference',
   'photo-options',
   'take-a-photo',
@@ -64,6 +69,13 @@ describe.each(views)('%s', view => {
   it('renders', async () => {
     const html = await render(view, base)
     expect(html.length).toBeGreaterThan(0)
+  })
+
+  it('has balanced div tags', async () => {
+    const html = await render(view, base)
+    const opened = html.match(/<div[\s>]/g) ?? []
+    const closed = html.match(/<\/div>/g) ?? []
+    expect(closed.length).toBe(opened.length)
   })
 
   it('renders with an error summary', async () => {

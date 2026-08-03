@@ -9,15 +9,17 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-
-{% set backLink =  '/case/' + crn + '/appointments/' + id + '/check-in/' + 'date-frequency' if not cya else 'checkin-summary'%}
-{% set radioLabel =  "How does "+ case.name.forename + " want us to send a link to the service?" %}
-{% set radioHint=  "We'll use these details to send a link to "+ case.name.forename + "  each time they need to use online check ins." %}
+{% set captionText = "Confirm " + case.name.forename + "'s " + contactPreference %}
+{% set backLink =  '/case/' + crn + '/appointments/' + id + '/check-in/' + 'contact-preference' if not cya else 'checkin-summary'%}
+{% set radioLabel =  "Is this the right " + contactPreference + " for " + case.name.forename + "?" %}
+{% set radioTextOption = "No, I need to change the " + contactPreference %}
 {% set setMobile =  '[esupervision]['+  crn + '][' + id +'][checkins][checkInMobile]' %}
 {% set setEmail =  '[esupervision]['+  crn + '][' + id +'][checkins][checkInEmail]' %}
 {% set setMobileError =  'esupervision-'+  crn + '-' + id +'-checkins-checkInMobile' %}
 {% set setEmailError =  'esupervision-'+  crn + '-' + id +'-checkins-checkInEmail' %}
 {% set cyaLink =  "?cya=true" if cya else  "" %}
+{% set mobileValue = checkInMobile if checkInMobile else 'No mobile number' %}
+{% set emailValue = checkInEmail if checkInEmail else 'No email address' %}
 
 {% block beforeContent %}
     {{ govukBackLink({
@@ -25,8 +27,17 @@
           href: backLink
     }) }}
 
+    {{ mojBanner({
+        type: 'success',
+        text: 'Contact details saved',
+        classes: 'govuk-!-margin-bottom-2',
+        attributes: { "data-qa": "updateBanner"},
+        iconFallbackText: 'Success'
+    }) if success }}
+
 {% endblock %}
 {% block pageContent %}
+
 
     <form method="post" autocomplete="off" action="{{ paths.current }}">
         {% if errorMessages[setMobileError] or errorMessages[setEmailError] %}
@@ -50,34 +61,51 @@
             </p>
         {% endif %}
         </div>
-        <div class="govuk-!-width-two-thirds">
+
+    <div class="govuk-!-width-two-thirds">
+
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--l">
+                {{ captionText }}
+                <p class="govuk-body govuk-!-margin-top-2">
+                This information is saved in NDelius.
+                </p>
+            </caption>
+
+            <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header govuk-!-font-weight-bold">
+                    {{ contactPreference | capitalize }}
+                </th>
+                <td class="govuk-table__cell">
+                    {{ contactValue }}
+                </td>
+                </tr>
+            </tbody>
+            </table>
             {{ govukRadios({
                 fieldset: {
                     legend: {
                         text: radioLabel ,
-                        classes: 'govuk-fieldset__legend--l govuk-!-margin-bottom-3',
-                        isPageHeading: false
+                        classes: "govuk-label--m govuk-!-font-weight-bold"
                     }
                 },
                 formGroup: {
                     attributes: {
-                        'data-qa': 'checkInPreferredComs'
+                        'data-qa': 'checkInConfirmPreferredComs'
                     }
-                },
-                hint: {
-                    html: radioHint
                 },
                 items: [
                     {
-                        value: "PHONE",
-                        text: "Text message"
+                        value: "YES",
+                        text: "Yes"
                     },
                     {
-                        value: "EMAIL",
-                        text: "Email"
+                        value: "NO",
+                        text: radioTextOption
                     }
                 ]
-            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'preferredComs'])) }}
+            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'confirmPreferredComs'])) }}
 
             <div class="govuk-button-group">
                 <button type="submit" name ="change" value = "main" class="govuk-button" data-module="govuk-button" data-qa="submitBtn">

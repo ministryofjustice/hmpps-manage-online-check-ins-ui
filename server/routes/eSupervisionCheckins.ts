@@ -121,8 +121,20 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getPersonalDetails(hmppsAuthClient),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
-    postRedirectWizard(),
     controllers.checkIns.postContactPreferencePage(),
+  )
+
+  router.get('/case/:crn/appointments/:id/check-in/confirm-contact-preference', [
+    restrictPageAccess({ requiredValues: ['date', 'interval'] }),
+    getPersonalDetails(hmppsAuthClient),
+    controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/confirm-contact-preference',
+    getPersonalDetails(hmppsAuthClient),
+    validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postConfirmContactPreferencePage(),
   )
 
   router.get('/case/:crn/appointments/:id/check-in/edit-contact-preference', [
@@ -139,7 +151,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/photo-options', [
-    restrictPageAccess({ requiredValues: ['preferredComs'] }),
+    restrictPageAccess({ requiredValues: ['preferredComs', 'confirmPreferredComs'] }),
     getPersonalDetails(hmppsAuthClient),
     controllers.checkIns.getPhotoOptionsPage(),
   ])
