@@ -586,7 +586,10 @@ describe('checkInsController', () => {
       )
     })
 
-    it('renders without contact details when the person cannot be found', async () => {
+    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
+    // The page has nothing sensible to render without a name, so it 404s rather than showing
+    // "undefined" in the heading.
+    it('renders a 404 when the person cannot be found', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
@@ -595,12 +598,10 @@ describe('checkInsController', () => {
         esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
       })
 
-      await expect(controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)).resolves.not.toThrow()
+      await controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)
 
-      expect(renderSpy).toHaveBeenCalledWith(
-        'pages/check-in/manage/restart-contact-preference.njk',
-        expect.objectContaining({ checkInMobile: undefined, checkInEmail: undefined }),
-      )
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 
@@ -749,7 +750,10 @@ describe('checkInsController', () => {
       )
     })
 
-    it("falls back to 'No mobile number' / 'No email address' when the person cannot be found", async () => {
+    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
+    // The page has nothing sensible to render without a name, so it 404s rather than showing
+    // "undefined" in the heading.
+    it('renders a 404 when the person cannot be found', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
@@ -762,15 +766,8 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
 
-      expect(renderSpy).toHaveBeenCalledWith(
-        'pages/check-in/manage/restart-checkin-summary.njk',
-        expect.objectContaining({
-          userDetails: expect.objectContaining({
-            checkInMobile: 'No mobile number',
-            checkInEmail: 'No email address',
-          }),
-        }),
-      )
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 
