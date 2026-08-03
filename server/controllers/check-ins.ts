@@ -1135,8 +1135,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { cya } = req.query
       const eSupervisionClient = new ESupervisionClient(token)
       const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
-      const checkInMobile = personalDetails.mobileNumber
-      const checkInEmail = personalDetails.email
+      const checkInMobile = personalDetails?.mobileNumber
+      const checkInEmail = personalDetails?.email
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
@@ -1273,8 +1273,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
-        checkInMobile: restartDetails.checkInMobile || caseData.mobileNumber || 'No mobile number',
-        checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
+        checkInMobile: restartDetails.checkInMobile || caseData?.mobileNumber || 'No mobile number',
+        checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
       }
       // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN_SUMMARY', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {

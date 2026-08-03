@@ -365,6 +365,23 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it('renders without contact details when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
+
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
+      })
+
+      await expect(controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)).resolves.not.toThrow()
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-contact-preference.njk',
+        expect.objectContaining({ checkInMobile: undefined, checkInEmail: undefined }),
+      )
+    })
   })
 
   describe('postRestartContactPage', () => {
@@ -507,6 +524,30 @@ describe('checkInsController', () => {
           userDetails: expect.objectContaining({
             interval: 'Every week',
             preferredComs: 'Email',
+          }),
+        }),
+      )
+    })
+
+    it("falls back to 'No mobile number' / 'No email address' when the person cannot be found", async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
+
+      const req = baseReq({
+        esupervision: {
+          [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } },
+        },
+      })
+
+      await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-checkin-summary.njk',
+        expect.objectContaining({
+          userDetails: expect.objectContaining({
+            checkInMobile: 'No mobile number',
+            checkInEmail: 'No email address',
           }),
         }),
       )
