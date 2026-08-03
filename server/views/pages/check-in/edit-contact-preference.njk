@@ -1,6 +1,5 @@
 {% extends "../_form.njk" %}
 
-{% set pageHeading = "Edit contact details for " + case.name.forename %}
 {% set textAreaTitle = "What is " + case.name.forename + "'s " + contactPreference + "?" %}
 {% set pageTitleText = "Edit contact details for the person" %}
 {% if errorMessages and errorMessages | length %}
@@ -20,13 +19,6 @@
 {% set editHint = 'For example, 07771 900 900. The mobile number must belong to ' + case.name.forename + '.' if isPhone else 'For example, name@example.com. The email address must belong to ' + case.name.forename + '.' %}
 
 {% block primary %}
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
-                {{ pageHeading }}
-            </h2>
-        </div>
-    </div>
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
