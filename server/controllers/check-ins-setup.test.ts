@@ -10,6 +10,7 @@ jest.mock('uuid', () => ({
 
 jest.mock('../../logger', () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }))
 jest.mock('../data/eSupervisionClient')
+jest.mock('@ministryofjustice/hmpps-audit-client')
 jest.mock('../data/hmppsAuthClient', () => {
   return jest.fn().mockImplementation(() => ({
     getSystemClientToken: jest.fn().mockResolvedValue('token-1'),

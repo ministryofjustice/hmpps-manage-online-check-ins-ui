@@ -135,6 +135,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn)) {
         return renderError(404)(req, res)
       }
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_START_SETUP', crn, SubjectType.CRN)
       return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/eligibility-check`)
     }
   },
@@ -143,6 +144,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -190,6 +192,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_NOT_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -211,6 +214,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -241,6 +245,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_ELIGIBLE_TO_USE_CHECK_IN_AS_EXISTING_F2F_CONTACT',
+        crn,
+        SubjectType.CRN,
+      )
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -266,6 +276,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SPO_APPROVAL_TO_USE_CHECK_INS', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -293,6 +304,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRationalePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_RATIONALE_TO_USE_CHECK_INS', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -335,6 +347,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getDateFrequencyPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SETUP_ONLINE_CHECK_INS', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -365,6 +378,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getContactPreferencePage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONTACT_PREFERENCES', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -429,7 +443,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getConfirmContactPreferencePage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONFIRM_CONTACT_PREFERENCES',
+        crn,
+        SubjectType.CRN,
+      )
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -519,10 +538,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { change, cya } = req.query
+      await sendAuditMessage(res, 'EDIT_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONTACT_PREFERENCE', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-
       req.session.data = req.session.data || {}
       const { data } = req.session
 
@@ -585,6 +604,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getPhotoOptionsPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_PHOTO_OPTIONS', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -614,6 +634,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getTakePhotoPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_TAKE_A_PHOTO', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -636,6 +657,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getUploadPhotoPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_UPLOAD_PHOTO', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -657,6 +679,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getPhotoRulesPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_PHOTO_RULES', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -678,6 +701,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getCheckinSummaryPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_SUMMARY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
@@ -715,6 +739,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONFIRMATION', crn, SubjectType.CRN)
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
       await postCheckinInComplete(hmppsAuthClient)(req, res)
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
@@ -808,7 +833,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_STOP_CHECK_IN', crn, SubjectType.CRN)
-
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
       const redirectUrl = `${mpopBaseUrl}/case/${crn}`
@@ -1048,6 +1072,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getManageCheckinDatePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_SETTINGS', crn, SubjectType.CRN)
+
       req.session.data = req.session.data || {}
       const checkInMinDate = getMinDate()
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
@@ -1070,7 +1096,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
-
       if (!offenderDetails) {
         return renderError(404)(req, res)
       }
@@ -1116,6 +1141,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getManageContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
       req.session.data = req.session.data || {}
       const { data } = req.session
       const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'])
@@ -1175,6 +1201,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getManageEditContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'EDIT_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { change } = req.query
@@ -1217,6 +1244,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRestartCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_WHEN_TO_COMPLETE_ONLINE_CHECK_IN',
+        crn,
+        SubjectType.CRN,
+      )
       req.session.data = req.session.data || {}
       const { data } = req.session
       const cya = req.query.cya === 'true'
@@ -1242,8 +1275,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
-
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_WHEN_TO_COMPLETE_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-date-frequency.njk', {
         crn,
         id,
@@ -1268,6 +1299,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRestartContactPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       if (req?.session?.errorMessages) {
         res.locals.errorMessages = req.session.errorMessages
         delete req?.session?.errorMessages
@@ -1297,7 +1329,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.restartCheckin?.contactUpdated
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-contact-preference.njk', {
         crn,
         id,
@@ -1325,6 +1356,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRestartEditContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'EDIT_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       req.session.data = req.session.data || {}
       const { change, cya } = req.query
       // To show success message on edit contact preference page
@@ -1353,7 +1385,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'restartCheckin',
         'editCheckInEmail',
       ])
-      // await sendAuditMessage(res, 'EDIT_MAS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-edit-contact.njk', {
         crn,
         id,
@@ -1372,7 +1403,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { previousMobile, previousEmail } = req.body
-
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'])
       if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
@@ -1410,6 +1440,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRestartSummaryPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN_SUMMARY',
+        crn,
+        SubjectType.CRN,
+      )
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
       if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
@@ -1428,7 +1464,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile: restartDetails.checkInMobile || caseData.mobileNumber || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
       }
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN_SUMMARY', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {
         crn,
         id,
@@ -1481,7 +1516,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getRestartConfirmation: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN_CONFIRMATION',
+        crn,
+        SubjectType.CRN,
+      )
       req.session.data = req.session.data || {}
       const { data } = req.session
 
@@ -1507,7 +1547,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         displayDay: dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
       }
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin'], undefined)
-      // await sendAuditMessage(res, 'VIEW_MAS_MANAGE_RESTART_ONLINE_CHECK_IN_CONFIRMATION', crn, SubjectType.CRN)
       return res.render('pages/check-in/manage/restart-confirmation.njk', {
         crn,
         id,
@@ -1842,7 +1881,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getSelectQuestionPage: () => {
     return async (req, res) => {
       const { crn, id, templateId } = req.params as Record<string, string>
-
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_SELECT', crn, SubjectType.CRN)
       const questionTemplateAndInputs =
         getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs']) || {}
 
