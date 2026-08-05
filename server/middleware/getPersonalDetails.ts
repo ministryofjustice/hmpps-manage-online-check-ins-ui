@@ -17,10 +17,8 @@ export const getPersonalDetails = (
 
     let offenderDetails: OffenderByCRNResponse
     let headerDetails: OffenderHeaderDetails
-    let riskData : RiskData
+    let riskData: RiskData
     if (!req?.session?.data?.personalDetails?.[crn] || process.env.NODE_ENV === 'development') {
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupervisionClient = new ESupervisionClient(token)
       const authOptions = asUser(res.locals.user.token)
       ;[offenderDetails, headerDetails, riskData] = await Promise.all([
         eSupervisionClient.getOffenderByCRN(crn),
@@ -41,7 +39,7 @@ export const getPersonalDetails = (
     } else {
       ;({ offenderDetails, headerDetails, riskData } = req.session.data.personalDetails[crn])
     }
-    
+
     res.locals.case = await eSupervisionClient.getPersonalDetails(crn)
 
     if (!res.locals.case) {
@@ -49,8 +47,8 @@ export const getPersonalDetails = (
     }
 
     res.locals.riskData = riskData
-    res.locals.headerPersonName = { 
-      forename: offenderDetails.details.name.forename, 
+    res.locals.headerPersonName = {
+      forename: offenderDetails.details.name.forename,
       surname: offenderDetails.details.name.surname,
     }
     res.locals.headerCRN = crn
@@ -58,7 +56,7 @@ export const getPersonalDetails = (
     res.locals.tierScore = headerDetails.tierScore
     res.locals.tierDetailsLink = headerDetails.tierDetailsLink
     res.locals.overallRisk = headerDetails.overallRisk
-    
+
     return next()
   }
 }

@@ -18,7 +18,7 @@ import {
   UploadLocationResponse,
   EsupervisionUpcomingQuestionItemsResponse,
   OffenderByCRNResponse,
-  OffenderHeaderDetails
+  OffenderHeaderDetails,
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'

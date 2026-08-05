@@ -6,7 +6,6 @@ import express, { Request, RequestHandler } from 'express'
 import nunjucks from 'nunjucks'
 import { arnsNunjucksSetup } from '@ministryofjustice/hmpps-arns-frontend-components-lib'
 
-
 import type { AppResponse } from '../models/Locals'
 import config from '../config'
 import logger from '../../logger'

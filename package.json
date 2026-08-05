@@ -225,6 +225,7 @@
     "@ministryofjustice/hmpps-azure-telemetry": {
       "@opentelemetry/core": "^2.10.0"
     },
+    "@ministryofjustice/hmpps-auth-clients": "3.0.0",
     "cypress-multi-reporters": {
       "mocha": {
         "diff": "^8.0.4",
