@@ -3,7 +3,6 @@ import path from 'path'
 import superagent from 'superagent'
 import eSupervisionAPI from './eSupervisionAPI'
 import probationFEIntegration from './probationFEIntegration'
-import user from './user'
 
 const wiremockAdminUrl = 'http://localhost:9091/__admin'
 const mappingsDir = path.resolve(__dirname, '../mappings')
@@ -28,5 +27,4 @@ export default {
   },
   ...eSupervisionAPI,
   ...probationFEIntegration,
-  ...user,
 }

@@ -1,5 +1,5 @@
 {% extends "../../_form.njk" %}
-{% set phoneeNumber = case.mobileNumber %}
+{% set phoneeNumber = case.mobile %}
 {% set checkInDateVal = userDetails.date | dmyToLongDate %}
 {% set rearranging = appointment['rearrange-or-cancel'] %}
 {% set buttonText = "Return to " + case.name.forename + "'s overview" %}

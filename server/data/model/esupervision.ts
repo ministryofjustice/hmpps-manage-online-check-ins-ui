@@ -5,7 +5,7 @@ export interface ESupervisionCheckIn {
   uuid: string
   status: 'SUBMITTED' | 'REVIEWED' | 'EXPIRED'
   dueDate: string
-  personalDetails: PersonalDetails
+  personalDetails: OffenderPersonalDetails
   submittedAt?: string
   surveyResponse: unknown
   createdBy: string
@@ -110,7 +110,7 @@ export interface OffenderSetupCompleteResponse {
   createdAt: string
   createdBy: string
   updatedAt: string
-  personalDetails?: PersonalDetails
+  personalDetails?: OffenderPersonalDetails
 }
 
 export interface Practitioner {
@@ -133,7 +133,7 @@ export interface Practitioner {
   }
 }
 
-export interface PersonalDetails {
+export interface OffenderPersonalDetails {
   crn: string
   name: Name
   mobile: string
@@ -145,7 +145,6 @@ interface Name {
   forename: string
   surname: string
 }
-// This was OffenderCheckinsByCRNResponse but I've renamed it because it doesn't actually fetch any check ins
 export interface OffenderCheckinsByCRNResponse {
   uuid: string
   crn: string
@@ -154,13 +153,13 @@ export interface OffenderCheckinsByCRNResponse {
   checkinInterval: CheckInterval
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
-  mobile?: string
-  email?: string
   details?: {
     name?: {
       forename?: string
       surname?: string
     }
+    mobile?: string
+    email?: string
   }
 }
 

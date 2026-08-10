@@ -150,10 +150,6 @@ export default {
   },
   ingressUrl: get('INGRESS_URL', 'http://localhost:3000', requiredInProduction),
   environmentName: get('ENVIRONMENT_NAME', ''),
-  // Temporary stub setting while PI API changes are in progress. Only enabled where the helm
-  // values set it (dev). Guarded against PRODUCTION so leaving the env var set can't stub prod.
-  stubPersonalDetails:
-    get('ESUPERVISION_STUB_PERSONAL_DETAILS', 'false') === 'true' && get('ENVIRONMENT_NAME', '') !== 'PRODUCTION',
   dateFields: ['date'],
   timeFields: [
     { name: 'start', dateField: 'date' },
