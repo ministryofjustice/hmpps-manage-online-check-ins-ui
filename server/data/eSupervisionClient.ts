@@ -190,9 +190,6 @@ export default class ESupervisionClient extends RestClient {
   // GET /v2/offenders/crn/{crn}/personal-details — name and contact details for a PoP.
   // Used by the setup flow before an offender record exists, so it cannot come from getOffenderByCRN.
   async getPersonalDetails(crn: string): Promise<PersonalDetails | null> {
-    if (config.stubPersonalDetails) {
-      return stubbedPersonalDetails(crn)
-    }
     return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: true })
   }
 
