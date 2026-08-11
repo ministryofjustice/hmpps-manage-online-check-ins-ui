@@ -15,7 +15,6 @@ import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRe
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 
-// export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
     // we should use this redirect for the root route when we're ready to deploy
