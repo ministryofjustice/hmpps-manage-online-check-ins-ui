@@ -12,8 +12,118 @@ import RestartContactPreferencePage from '../pages/check-ins/restart/restart-con
 import RestartDateFrequencyPage from '../pages/check-ins/restart/restart-date-frequency.page'
 import RestartEditContactPreferencePage from '../pages/check-ins/restart/restart-edit-contact-preference.page'
 import StopCheckins from '../pages/check-ins/stop-checkins'
+import ChangeSettingsPage from '../pages/check-ins/change-settings'
+import EligibilityCheckPage from '../pages/check-ins/eligibility-check'
+import ManageContactPage from '../pages/check-ins/manage-contact'
+import ManageEditContactPage from '../pages/check-ins/manage-edit-contact'
 
 context('check-ins overview and manage pages', () => {
+  it('should show online check ins section with check in details', () => {
+    cy.task('resetMocks')
+    cy.task('stubGetUpcomingCheckinQuestions')
+    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7`)
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    manageCheckins.getElementData('checkinSettingsCard').should('contain.text', 'Check in settings')
+    manageCheckins.getElementData('checkinSettingsCard').find('.app-summary-card__actions').should('exist')
+    manageCheckins.getElementData('nextCheckinDueLabel').should('contain.text', 'Next check in')
+    const expectedDate = DateTime.now().plus({ days: 5 }).toFormat('d MMMM yyyy')
+    manageCheckins.getElementData('nextCheckInValue').should('contain.text', expectedDate)
+    manageCheckins.getElementData('frequencyLabel').should('contain.text', 'Frequency')
+    manageCheckins.getElementData('frequencyValue').should('contain.text', 'Every week')
+    manageCheckins.getElementData('checkinContactCard').should('contain.text', 'Contact details')
+    manageCheckins.getElementData('methodLabel').should('contain.text', 'Mobile number')
+    manageCheckins.getElementData('methodValue').should('contain.text', '071838893')
+  })
+
+  it('should show online check ins due section ', () => {
+    cy.task('resetMocks')
+    cy.task('stubGetUpcomingCheckinQuestions')
+    cy.visit(`/case/X000001/appointments/check-in/eligibility-check`)
+    const eligibilityCheckPage = new EligibilityCheckPage()
+    eligibilityCheckPage.checkOnPage()
+    eligibilityCheckPage.getBackLink().should('have.attr', 'href', '/case/X000001/')
+  })
+
+  it('should show checkin details', () => {
+    cy.task('resetMocks')
+    cy.task('stubGetUpcomingCheckinQuestions')
+    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7`)
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    manageCheckins.getElementData('checkinSettingsCard').should('contain.text', 'Check in settings')
+    manageCheckins.getElementData('nextCheckinDueLabel').should('contain.text', 'Next check in')
+    const expectedDate = DateTime.now().plus({ days: 5 }).toFormat('d MMMM yyyy')
+    manageCheckins.getElementData('nextCheckInValue').should('contain.text', expectedDate)
+    manageCheckins.getElementData('frequencyLabel').should('contain.text', 'Frequency')
+    manageCheckins.getElementData('frequencyValue').should('contain.text', 'Every week')
+    manageCheckins.getElementData('checkinSettingsCard').find('.govuk-link').should('contain.text', 'Change')
+
+    manageCheckins.getElementData('checkinContactCard').should('contain.text', 'Contact details')
+    manageCheckins.getElementData('checkinContactCard').find('.govuk-link').should('contain.text', 'Change')
+    manageCheckins.getElementData('methodLabel').should('contain.text', 'Mobile number')
+    manageCheckins.getElementData('methodValue').should('contain.text', '071838893')
+
+    manageCheckins.getElementData('photoCard').should('contain.text', 'Photo')
+    manageCheckins.getElementData('photoLabel').should('contain.text', 'Photo of Alton')
+    manageCheckins.getImage().should('have.attr', 'src', '/assets/images/placeholder.png')
+    manageCheckins.getImage().should('have.attr', 'alt', 'Image of Alton Berge')
+  })
+
+  it('should be able to visit contact details page', () => {
+    cy.task('resetMocks')
+    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7`)
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    manageCheckins.getElementData('checkinContactCard').should('contain.text', 'Contact details')
+    manageCheckins.getElementData('checkinContactCard').find('.govuk-link').should('contain.text', 'Change')
+    manageCheckins.getElementData('checkinContactCard').find('.govuk-link').click()
+    const manageContact = new ManageContactPage()
+    manageContact.checkOnPage()
+
+    manageContact.getElement('button[name="change"][value="mobile"]').click()
+    const manageEditContactPage = new ManageEditContactPage()
+    manageEditContactPage.checkOnPage()
+    manageEditContactPage.getElement('a.govuk-back-link').should('be.visible').click()
+    manageContact.checkOnPage()
+
+    manageContact.getElement('button[name="change"][value="emailAddress"]').click()
+    manageEditContactPage.checkOnPage()
+    manageEditContactPage
+      .getAlert()
+      .should('be.visible')
+      .and(
+        'contain',
+        'If you change contact details here, this will update the record in NDelius. The contact details must belong to the person.',
+      )
+    manageEditContactPage.getBackLink().click()
+    manageContact.checkOnPage()
+  })
+
+  it('should be able to visit change settings page', () => {
+    cy.task('resetMocks')
+    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7`)
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    manageCheckins.getElementData('checkinSettingsCard').should('contain.text', 'Check in settings')
+    manageCheckins.getElementData('checkinSettingsCard').find('.govuk-link').should('contain.text', 'Change')
+    manageCheckins.getElementData('checkinSettingsCard').find('.govuk-link').click()
+    const changeSettingsPage = new ChangeSettingsPage()
+    changeSettingsPage.checkOnPage()
+    const future = DateTime.now().plus({ days: 2 })
+    changeSettingsPage
+      .getElementData('checkInDate')
+      .find('input.moj-js-datepicker-input')
+      .clear()
+      .type(future.toFormat('d/M/yyyy'))
+      .blur()
+    changeSettingsPage
+      .getElementData('checkInFrequency')
+      .find('input[type="radio"][value="WEEKLY"]')
+      .should('be.checked')
+    changeSettingsPage.getSubmitBtn().click()
+  })
+
   it('should be able to stop check in', () => {
     cy.task('resetMocks')
     cy.visit(`/case/X778160/appointments/check-in/manage`)

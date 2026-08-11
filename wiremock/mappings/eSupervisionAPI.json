@@ -14,8 +14,7 @@
             "surname": "Wolff"
           },
           "dateOfBirth": "1979-08-18",
-          "mobileNumber": "07783889300",
-          "telephoneNumber": "0123456999",
+          "mobile": "07783889300",
           "email": "address1@gmail.com"
         },
         "headers": {
@@ -37,8 +36,7 @@
             "surname": "Berge"
           },
           "dateOfBirth": "1979-08-18",
-          "mobileNumber": "071838893",
-          "telephoneNumber": "0123456999",
+          "mobile": "071838893",
           "email": "address1@gmail.com"
         },
         "headers": {
@@ -48,7 +46,7 @@
     },
     {
       "request": {
-        "urlPattern": "/v2/offenders/crn/.*/probation-practitioner",
+        "urlPattern": "/v2/offenders/crn/.*/practitioner-details",
         "method": "GET"
       },
       "response": {
@@ -70,21 +68,15 @@
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offenders/crn/[^/]+/contact",
-        "method": "POST"
+        "urlPathPattern": "/v2/offenders/crn/[^/]+/contact-details",
+        "method": "PUT"
       },
       "response": {
         "status": 200,
         "jsonBody": {
           "crn": "{{request.pathSegments.[3]}}",
-          "name": {
-            "forename": "Caroline",
-            "surname": "Wolff"
-          },
-          "dateOfBirth": "1979-08-18",
-          "mobileNumber": "{{#if (jsonPath request.body '$.mobileNumber')}}{{jsonPath request.body '$.mobileNumber'}}{{else}}07783889300{{/if}}",
-          "telephoneNumber": "0123456999",
-          "email": "{{#if (jsonPath request.body '$.emailAddress')}}{{jsonPath request.body '$.emailAddress'}}{{else}}address1@gmail.com{{/if}}"
+          "mobile": "{{#if (jsonPath request.body '$.mobile')}}{{jsonPath request.body '$.mobile'}}{{else}}07783889300{{/if}}",
+          "email": "{{#if (jsonPath request.body '$.email')}}{{jsonPath request.body '$.email'}}{{else}}address1@gmail.com{{/if}}"
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
@@ -258,9 +250,11 @@
           "photoUrl": "/assets/images/placeholder.png",
           "details": {
             "name": {
-              "forename": "Joe",
-              "surname": "Bloggs"
-            }
+              "forename": "Alton",
+              "surname": "Berge"
+            },
+            "mobile": "071838893",
+            "email": "address1@gmail.com"
           }
         },
         "headers": {

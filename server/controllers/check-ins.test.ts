@@ -9,7 +9,7 @@ import renderError from '../middleware/renderError'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import setDataValue from '../utils/setDataValue'
-import { PersonalDetails } from '../data/model/personalDetails'
+import { ContactDetailsUpdateResponse, PersonalDetails } from '../data/model/personalDetails'
 import { SubjectType } from '../middleware/sendAuditMessage'
 import { checkSendAuditMessage } from './testutils'
 
@@ -56,9 +56,9 @@ const getPersonalDetailsSpy = jest
   .spyOn(ESupervisionClient.prototype, 'getPersonalDetails')
   .mockImplementation(() => Promise.resolve(mockPersonalDetails))
 
-const updatePersonalDetailsSpy = jest
-  .spyOn(ESupervisionClient.prototype, 'updatePersonalDetailsContact')
-  .mockImplementation(() => Promise.resolve({ crn } as PersonalDetails))
+const updateContactDetailsSpy = jest
+  .spyOn(ESupervisionClient.prototype, 'updateContactDetails')
+  .mockImplementation(() => Promise.resolve({ crn } as ContactDetailsUpdateResponse))
 
 const postDeactivateOffender = jest
   .spyOn(ESupervisionClient.prototype, 'postDeactivateOffender')
@@ -96,6 +96,8 @@ const offenderCheckinsByCRNResponse = {
       forename: 'Joe',
       surname: 'Bloggs',
     },
+    mobile: '07700900000',
+    email: 'joe.bloggs@example.com',
   },
 } as OffenderCheckinsByCRNResponse
 
@@ -141,6 +143,8 @@ describe('checkInsController', () => {
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
       expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+      expect(context.email).toBe(offenderCheckinsByCRNResponse.details.email)
+      expect(context.mobile).toBe(offenderCheckinsByCRNResponse.details.mobile)
 
       expect(context.offenderCheckinsByCRNResponse).toEqual(offenderCheckinsByCRNResponse)
       checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
@@ -157,6 +161,68 @@ describe('checkInsController', () => {
 
       expect(mockRenderError).toHaveBeenCalledWith(404)
       expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
+  })
+
+  describe('getManageContactPage', () => {
+    it('falls back to the offender record mobile/email when nothing is saved in session yet', async () => {
+      const req = baseReq({})
+
+      await controllers.checkIns.getManageContactPage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalled()
+      const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
+
+      expect(template).toBe('pages/check-in/manage/manage-contact.njk')
+      expect(context.checkInMobile).toBe(offenderCheckinsByCRNResponse.details.mobile)
+      expect(context.checkInEmail).toBe(offenderCheckinsByCRNResponse.details.email)
+      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
+    })
+
+    it('prefers values already saved in session over the offender record', async () => {
+      const req = baseReq({
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              manageCheckin: {
+                checkInMobile: '07711223344',
+                checkInEmail: 'saved@example.com',
+              },
+            },
+          },
+        },
+      })
+
+      await controllers.checkIns.getManageContactPage()(req, res)
+
+      const [, context] = (renderSpy as jest.Mock).mock.calls.pop()
+
+      expect(context.checkInMobile).toBe('07711223344')
+      expect(context.checkInEmail).toBe('saved@example.com')
+    })
+  })
+
+  describe('postManageContactPage', () => {
+    it('seeds editCheckInMobile/editCheckInEmail from the offender record when session is empty', async () => {
+      mockSetDataValue.mockClear()
+      const req = baseReq({})
+      req.body = { change: 'mobile' }
+
+      await controllers.checkIns.postManageContactPage(hmppsAuthClient)(req, res)
+
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'manageCheckin', 'editCheckInMobile'],
+        offenderCheckinsByCRNResponse.details.mobile,
+      )
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'manageCheckin', 'editCheckInEmail'],
+        offenderCheckinsByCRNResponse.details.email,
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${uuid}/edit-contact?change=mobile`,
+      )
     })
   })
 
@@ -309,6 +375,18 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const req = baseReq({})
+
+      await controllers.checkIns.getRestartCheckinPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
   })
 
   describe('postRestartCheckinPage', () => {
@@ -338,7 +416,7 @@ describe('checkInsController', () => {
       mockIsValidUUID.mockReturnValue(true)
       getPersonalDetailsSpy.mockResolvedValueOnce({
         crn,
-        mobileNumber: '07700900000',
+        mobile: '07700900000',
         email: 'test@example.com',
       } as PersonalDetails)
 
@@ -492,11 +570,11 @@ describe('checkInsController', () => {
     it('saves to MAS, syncs checkInMobile/checkInEmail and confirms the preference, then continues to photo', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      updatePersonalDetailsSpy.mockResolvedValueOnce({
+      updateContactDetailsSpy.mockResolvedValueOnce({
         crn,
-        mobileNumber: '07711223344',
+        mobile: '07711223344',
         email: 'updated@example.com',
-      } as PersonalDetails)
+      } as ContactDetailsUpdateResponse)
 
       const data = {
         esupervision: {
@@ -512,9 +590,10 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postEditContactPrePage(hmppsAuthClient)(req, res)
 
-      expect(updatePersonalDetailsSpy).toHaveBeenCalledWith(crn, {
-        emailAddress: 'updated@example.com',
-        mobileNumber: '07711223344',
+      expect(updateContactDetailsSpy).toHaveBeenCalledWith(crn, {
+        practitionerId: 'user-1',
+        email: 'updated@example.com',
+        mobile: '07711223344',
       })
       expect(mockSetDataValue).toHaveBeenCalledWith(
         data,
@@ -537,7 +616,7 @@ describe('checkInsController', () => {
     it('redirects to checkin-summary when cya is true', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      updatePersonalDetailsSpy.mockResolvedValueOnce({ crn } as PersonalDetails)
+      updateContactDetailsSpy.mockResolvedValueOnce({ crn } as ContactDetailsUpdateResponse)
 
       const data = {
         esupervision: { [crn]: { [uuid]: { checkins: {} } } },
@@ -555,8 +634,11 @@ describe('checkInsController', () => {
     it('renders restart contact page and stores edit values in session', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      ;(mockPersonalDetails as PersonalDetails).mobileNumber = '07700900000'
-      ;(mockPersonalDetails as PersonalDetails).email = 'test@example.com'
+      getPersonalDetailsSpy.mockResolvedValueOnce({
+        crn,
+        mobile: '07700900000',
+        email: 'test@example.com',
+      } as PersonalDetails)
 
       const req = baseReq({
         esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
@@ -586,17 +668,11 @@ describe('checkInsController', () => {
       )
     })
 
-    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
-    // The page has nothing sensible to render without a name, so it 404s rather than showing
-    // "undefined" in the heading.
     it('renders a 404 when the person cannot be found', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
-
-      const req = baseReq({
-        esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
-      })
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const req = baseReq({})
 
       await controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)
 
@@ -643,6 +719,8 @@ describe('checkInsController', () => {
             forename: 'Joe',
             surname: 'Bloggs',
           },
+          mobile: '07700900000',
+          email: 'joe.bloggs@example.com',
         },
         change: 'email',
         cya: 'false',
@@ -685,9 +763,10 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postRestartEditContactPage(hmppsAuthClient)(req, res)
 
-      expect(updatePersonalDetailsSpy).toHaveBeenCalledWith(crn, {
-        emailAddress: 'test@example.com',
-        mobileNumber: '07123456789',
+      expect(updateContactDetailsSpy).toHaveBeenCalledWith(crn, {
+        practitionerId: 'user-1',
+        email: 'test@example.com',
+        mobile: '07123456789',
       })
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-contact`)
     })
@@ -713,7 +792,7 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postRestartEditContactPage(hmppsAuthClient)(req, res)
 
-      expect(updatePersonalDetailsSpy).not.toHaveBeenCalled()
+      expect(updateContactDetailsSpy).not.toHaveBeenCalled()
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-contact`)
     })
   })
@@ -750,19 +829,24 @@ describe('checkInsController', () => {
       )
     })
 
-    // getPersonalDetails is called with handle404: true, so a missing record resolves to null.
-    // The page has nothing sensible to render without a name, so it 404s rather than showing
-    // "undefined" in the heading.
     it('renders a 404 when the person cannot be found', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      ;(ESupervisionClient.prototype.getPersonalDetails as jest.Mock).mockResolvedValueOnce(null)
-
-      const req = baseReq({
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const data = {
         esupervision: {
-          [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } },
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                interval: 'WEEKLY',
+                preferredComs: 'EMAIL',
+                date: '19/2/2026',
+              },
+            },
+          },
         },
-      })
+      }
+      const req = baseReq(data)
 
       await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
 
@@ -877,6 +961,31 @@ describe('checkInsController', () => {
       await controllers.checkIns.getRestartConfirmation(hmppsAuthClient)(req, res)
 
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+    })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                date: '19/2/2026',
+                interval: 'WEEKLY',
+                preferredComs: 'EMAIL',
+              },
+            },
+          },
+        },
+      }
+      const req = baseReq(data)
+
+      await controllers.checkIns.getRestartConfirmation(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 

@@ -12,7 +12,7 @@ nunjucksSetup(app)
 const base: Record<string, unknown> = {
   crn,
   id,
-  case: { name: { forename: 'Bob', surname: 'Smith' }, mobileNumber: '07700900000', email: 'bob@example.com' },
+  case: { name: { forename: 'Bob', surname: 'Smith' }, mobile: '07700900000', email: 'bob@example.com' },
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
   paths: { current: '/current' },

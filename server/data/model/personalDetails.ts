@@ -8,15 +8,21 @@ export interface PersonalDetails {
   crn: string
   name: Name
   dateOfBirth?: string
-  mobileNumber?: string
-  telephoneNumber?: string
+  mobile?: string
   email?: string
 }
 
-export interface PersonalDetailsUpdateRequest {
+export interface ContactDetailsUpdateRequest {
   [index: string]: string | boolean
-  mobileNumber?: string
-  emailAddress?: string
+  practitionerId: string
+  mobile?: string
+  email?: string
+}
+
+export interface ContactDetailsUpdateResponse {
+  crn: string
+  mobile?: string
+  email?: string
 }
 
 export interface ProbationPractitioner {
