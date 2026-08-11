@@ -48,7 +48,7 @@ async function resolveOffenderDetails(
   if (offenderDetails !== null) {
     return offenderDetails
   }
-  const caseDetails: PersonalDetails = await eSupervisionClient.getPersonalDetails(crn)
+  const caseDetails = await eSupervisionClient.getPersonalDetails(crn)
   if (!caseDetails) {
     return null
   }
