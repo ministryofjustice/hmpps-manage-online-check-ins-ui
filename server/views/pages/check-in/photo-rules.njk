@@ -23,7 +23,7 @@
 {% endblock %}
 {% block form %}
 
-    <p>Make sure:</p>
+    <p class="govuk-body">Make sure:</p>
     <ul class="govuk-list govuk-list--bullet">
         <li>the photo is well lit</li>
         <li>they are in front of a plain background</li>
@@ -35,7 +35,7 @@
         <span>Image</span>
     </div>
     <div class="govuk-button-group">
-            <a href="{{ summaryLink }}" class="govuk-button" data-qa="submit-btn">Yes, continue</a>
-            <a href="{{ backLink }}" class="govuk-button govuk-button--secondary" data-qa="anotherPhotoBtn">{{ buttonText }}</a>
+        <a href="{{ summaryLink }}" class="govuk-button" data-qa="submit-btn">Yes, continue</a>
+        <a href="{{ backLink }}" class="govuk-button govuk-button--secondary" data-qa="anotherPhotoBtn">{{ buttonText }}</a>
     </div>
 {% endblock %}

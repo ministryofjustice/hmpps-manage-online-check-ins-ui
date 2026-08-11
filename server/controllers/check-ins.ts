@@ -573,11 +573,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupervisionClient = new ESupervisionClient(token)
+      const practitionerId = res.locals.user.username
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
       const body: PersonalDetailsUpdateRequest = {
-        emailAddress: editCheckInEmail,
-        mobileNumber: editCheckInMobile?.trim(),
+        practitionerId,
+        email: editCheckInEmail,
+        mobile: editCheckInMobile?.trim(),
       }
 
       const cya = req.query?.cya === 'true'
@@ -1408,10 +1410,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
         const eSupervisionClient = new ESupervisionClient(token)
-
+        const practitionerId = res.locals.user.username
         const body: PersonalDetailsUpdateRequest = {
-          emailAddress: editCheckInEmail,
-          mobileNumber: editCheckInMobile?.trim(),
+          practitionerId,
+          email: editCheckInEmail,
+          mobile: editCheckInMobile?.trim(),
         }
         const personalDetails: PersonalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
         // If personal details overview exists in session cache, update it with latest values
@@ -1431,6 +1434,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'],
             editCheckInEmail,
           )
+          // checkInMobile/checkInEmail (read by the restart summary and confirmation pages) are
+          // separate from editCheckInMobile/editCheckInEmail and must be kept in sync here too.
+          setDataValue(
+            req.session.data,
+            ['esupervision', crn, id, 'restartCheckin', 'checkInMobile'],
+            editCheckInMobile?.trim(),
+          )
+          setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'checkInEmail'], editCheckInEmail)
         }
       }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-contact`)

@@ -193,28 +193,17 @@ export default class ESupervisionClient extends RestClient {
     return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: true })
   }
 
-  // GET /v2/offenders/crn/{crn}/probation-practitioner — supplies the practitioner id and the
+  // GET /v2/offenders/crn/{crn}/practitioner-details — supplies the practitioner id and the
   // unallocated flag that allows/denies entry to the setup flow.
   async getProbationPractitioner(crn: string): Promise<ProbationPractitioner> {
-    if (config.stubPersonalDetails) {
-      return stubbedProbationPractitioner()
-    }
-    return this.get({ path: `/v2/offenders/crn/${crn}/probation-practitioner` })
+    return this.get({ path: `/v2/offenders/crn/${crn}/practitioner-details` })
   }
 
-  // POST /v2/offenders/crn/{crn}/contact — writes an edited email/mobile back to the PoP case record.
+  // PUT /v2/offenders/crn/{crn}/contact-details — writes an edited email/mobile back to the PoP case record.
   async updatePersonalDetailsContact(crn: string, body: PersonalDetailsUpdateRequest): Promise<PersonalDetails | null> {
-    if (config.stubPersonalDetails) {
-      const stub = stubbedPersonalDetails(crn)
-      return {
-        ...stub,
-        email: body.emailAddress ?? stub.email,
-        mobileNumber: body.mobileNumber ?? stub.mobileNumber,
-      }
-    }
-    return this.post({
+    return this.put({
       data: body,
-      path: `/v2/offenders/crn/${crn}/contact`,
+      path: `/v2/offenders/crn/${crn}/contact-details`,
       handle404: false,
       handle500: false,
     })

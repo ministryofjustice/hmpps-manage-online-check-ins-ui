@@ -1,5 +1,6 @@
 import { type Router } from 'express'
 import type { Services } from '../services'
+import config from '../config'
 import validate from '../middleware/validation'
 import autoStoreSessionData from '../middleware/autoStoreSessionData'
 import controllers from '../controllers'
@@ -21,6 +22,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
     // return res.redirect(mpopBaseUrl)
     res.render('pages/index')
+  })
+
+  // The case overview itself lives in MPOP, not this service - send bare /case/:crn hits there
+  // rather than every view having to know MPOP's URL when it links back to the overview page.
+  router.get('/case/:crn', (req, res) => {
+    const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+    return res.redirect(`${mpopBaseUrl}/case/${encodeURIComponent(req.params.crn)}`)
   })
 
   // Setup flow: eligibility -> rationale -> schedule -> contact -> photo -> summary -> confirmation.
