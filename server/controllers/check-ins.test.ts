@@ -375,6 +375,18 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const req = baseReq({})
+
+      await controllers.checkIns.getRestartCheckinPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
   })
 
   describe('postRestartCheckinPage', () => {
@@ -622,10 +634,11 @@ describe('checkInsController', () => {
     it('renders restart contact page and stores edit values in session', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
-      res.locals.offenderCheckinsByCRNResponse = {
-        ...offenderCheckinsByCRNResponse,
-        details: { ...offenderCheckinsByCRNResponse.details, mobile: '07700900000', email: 'test@example.com' },
-      }
+      getPersonalDetailsSpy.mockResolvedValueOnce({
+        crn,
+        mobile: '07700900000',
+        email: 'test@example.com',
+      } as PersonalDetails)
 
       const req = baseReq({
         esupervision: { [crn]: { [uuid]: { restartCheckin: { preferredComs: 'EMAIL' } } } },
@@ -653,6 +666,18 @@ describe('checkInsController', () => {
           preferredComs: 'EMAIL',
         }),
       )
+    })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const req = baseReq({})
+
+      await controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 
@@ -803,6 +828,31 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                interval: 'WEEKLY',
+                preferredComs: 'EMAIL',
+                date: '19/2/2026',
+              },
+            },
+          },
+        },
+      }
+      const req = baseReq(data)
+
+      await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
   })
 
   describe('postRestartSummaryPage', () => {
@@ -911,6 +961,31 @@ describe('checkInsController', () => {
       await controllers.checkIns.getRestartConfirmation(hmppsAuthClient)(req, res)
 
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+    })
+
+    it('renders a 404 when the person cannot be found', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      getPersonalDetailsSpy.mockResolvedValueOnce(null)
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                date: '19/2/2026',
+                interval: 'WEEKLY',
+                preferredComs: 'EMAIL',
+              },
+            },
+          },
+        },
+      }
+      const req = baseReq(data)
+
+      await controllers.checkIns.getRestartConfirmation(hmppsAuthClient)(req, res)
+
+      expect(mockRenderError).toHaveBeenCalledWith(404)
+      expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
   })
 

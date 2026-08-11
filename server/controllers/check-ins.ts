@@ -1247,7 +1247,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartCheckinPage: () => {
+  getRestartCheckinPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(
@@ -1260,10 +1260,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const cya = req.query.cya === 'true'
       const checkInMinDate = getMinDate()
-      const offenderSettings = res.locals.offenderCheckinsByCRNResponse
 
       const defaultsLoaded = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'])
       if (!defaultsLoaded) {
+        const offenderSettings = res.locals.offenderCheckinsByCRNResponse
+
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval'], offenderSettings.checkinInterval)
         setDataValue(
@@ -1273,11 +1274,18 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!personalDetails) {
+        return renderError(404)(req, res)
+      }
       return res.render('pages/check-in/manage/restart-date-frequency.njk', {
         crn,
         id,
         checkInMinDate,
-        case: offenderSettings.details,
+        case: personalDetails,
         cya,
       })
     }
@@ -1294,7 +1302,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartContactPage: () => {
+  getRestartContactPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
@@ -1302,13 +1310,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         res.locals.errorMessages = req.session.errorMessages
         delete req?.session?.errorMessages
       }
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { cya } = req.query
-      const offenderDetails = res.locals.offenderCheckinsByCRNResponse.details
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
 
-      const checkInMobile = offenderDetails?.mobile
-      const checkInEmail = offenderDetails?.email
+      if (!personalDetails) {
+        return renderError(404)(req, res)
+      }
+
+      const checkInMobile = personalDetails.mobile
+      const checkInEmail = personalDetails.email
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
@@ -1327,7 +1341,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
         preferredComs,
-        case: offenderDetails,
+        case: personalDetails,
         cya,
       })
     }
@@ -1430,7 +1444,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartSummaryPage: () => {
+  getRestartSummaryPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(
@@ -1442,14 +1456,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
       if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
-      const caseData = res.locals.offenderCheckinsByCRNResponse.details
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const caseData = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!caseData) {
+        return renderError(404)(req, res)
+      }
 
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
-        checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
-        checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
+        checkInMobile: restartDetails.checkInMobile || caseData.mobile || 'No mobile number',
+        checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
       }
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {
         crn,
@@ -1500,7 +1520,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartConfirmation: () => {
+  getRestartConfirmation: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(
@@ -1518,7 +1538,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
 
-      const caseData = res.locals.offenderCheckinsByCRNResponse.details
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const caseData = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!caseData) {
+        return renderError(404)(req, res)
+      }
 
       const userDetails = {
         ...savedDetails,

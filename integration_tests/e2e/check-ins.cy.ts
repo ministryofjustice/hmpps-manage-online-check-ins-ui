@@ -100,7 +100,7 @@ context('check-ins overview and manage pages', () => {
     manageContact.checkOnPage()
   })
 
-  it('should be able to vist change settings page', () => {
+  it('should be able to visit change settings page', () => {
     cy.task('resetMocks')
     cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7`)
     const manageCheckins = new ManageCheckins()
