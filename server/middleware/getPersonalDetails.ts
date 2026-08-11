@@ -7,7 +7,6 @@ import { CachedPersonalDetails } from '../data/Data'
 import ESupervisionClient from '../data/eSupervisionClient'
 import renderError from './renderError'
 import { OffenderByCRNResponse } from '../data/model/esupervision'
-import { PersonalDetails } from '../data/model/personalDetails'
 
 type PartialOffenderByCRNResponse = Partial<OffenderByCRNResponse>
 

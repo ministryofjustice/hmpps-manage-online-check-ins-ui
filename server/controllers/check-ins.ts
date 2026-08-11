@@ -11,7 +11,7 @@ import {
   ESupervisionReview,
   ReactivateOffenderRequest,
 } from '../data/model/esupervision'
-import { PersonalDetails, PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
+import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
