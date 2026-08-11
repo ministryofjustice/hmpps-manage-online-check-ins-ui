@@ -1413,7 +1413,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           email: editCheckInEmail,
           mobile: editCheckInMobile?.trim(),
         }
-        const personalDetails: PersonalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+        const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
         // If personal details overview exists in session cache, update it with latest values
         if (req.session.data?.personalDetails?.[crn]?.overview) {
           req.session.data.personalDetails[crn].overview = personalDetails
