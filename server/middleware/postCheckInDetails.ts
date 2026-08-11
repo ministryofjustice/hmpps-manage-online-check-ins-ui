@@ -30,7 +30,7 @@ export const postCheckInDetails = (
       ? parsedFirstCheckin.toFormat('yyyy/M/dd')
       : savedUserDetails?.date
 
-    const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
+    const pp: ProbationPractitioner = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
 
     const data: OffenderInfo = {
