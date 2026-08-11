@@ -820,8 +820,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         // the /manage route has no :id param; the check-in id is the offender uuid
         id: checkinRes?.uuid ?? id,
         case: checkinRes?.details,
-        email: checkinRes?.email ?? '',
-        mobile: checkinRes?.mobile ?? '',
+        email: checkinRes?.details?.email ?? '',
+        mobile: checkinRes?.details?.mobile ?? '',
         offenderCheckinsByCRNResponse: checkinRes,
         showChange,
         upcomingCheckin,
@@ -1145,14 +1145,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
       req.session.data = req.session.data || {}
       const { data } = req.session
-      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'])
-      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'])
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      const checkInMobile =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile']) ?? checkinRes?.details?.mobile
+      const checkInEmail =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail']) ?? checkinRes?.details?.email
       const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'contactUpdated'])
       if (contactUpdated) {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.manageCheckin?.contactUpdated
       }
-      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const isPrefComsSet = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'])
       if (isPrefComsSet === undefined) {
         setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], checkinRes?.contactPreference)
@@ -1173,8 +1175,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { change } = req.body
       const { data } = req.session
-      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'])
-      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'])
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      const checkInMobile =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile']) ?? checkinRes?.details?.mobile
+      const checkInEmail =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail']) ?? checkinRes?.details?.email
       setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], checkInEmail)
       let redirectUrl = `/case/${crn}/appointments/check-in/manage/${id}/edit-contact?change=${change}`
