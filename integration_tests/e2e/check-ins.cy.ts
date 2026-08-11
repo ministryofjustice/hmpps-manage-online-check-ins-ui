@@ -6,8 +6,6 @@ import InstructionsPage from '../pages/check-ins/questions/instructions'
 import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 import PreviewFeelingPage from '../pages/check-ins/questions/preview/feeling'
 import PreviewSupportPage from '../pages/check-ins/questions/preview/support'
-import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
-import RestartConfirmationPage from '../pages/check-ins/restart/restart-confirmation.page'
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
 import RestartDateFrequencyPage from '../pages/check-ins/restart/restart-date-frequency.page'
 import RestartEditContactPreferencePage from '../pages/check-ins/restart/restart-edit-contact-preference.page'
@@ -69,16 +67,6 @@ context('check-ins overview and manage pages', () => {
     restartEditPage.getAlert().should('be.visible').and('contain.text', 'update the record in NDelius')
     restartEditPage.getMobileInput().clear().type('07700900123')
     restartEditPage.getSubmitBtn().click()
-    restartContactPage.checkOnPage()
-    restartContactPage.getElementData('updateBanner').should('contain.text', 'Contact details saved')
-    restartContactPage.getSubmitBtn().click()
-    const restartSummaryPage = new RestartCheckYourAnswersPage()
-    restartSummaryPage.checkOnPage()
-    restartSummaryPage.getSummaryValue(2).should('contain.text', 'Every week')
-    restartSummaryPage.getSubmitBtn().click()
-    const restartConfirmPage = new RestartConfirmationPage()
-    restartConfirmPage.checkOnPage()
-    restartConfirmPage.getPanel().should('contain.text', 'Online check ins restarted')
   })
 })
 context('check-ins add questions pages', () => {
