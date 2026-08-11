@@ -23,24 +23,6 @@ import {
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
 
-// Temporary responses when config.stubPersonalDetails is true while PI API changes are in progress
-const stubbedPersonalDetails = (crn: string): PersonalDetails => ({
-  crn,
-  name: { forename: 'Dave', surname: 'Tiger' },
-  dateOfBirth: '1979-08-18',
-  mobileNumber: '07700900000',
-  telephoneNumber: '0123456999',
-  email: 'address1@example.com',
-})
-
-const stubbedProbationPractitioner = (): ProbationPractitioner => ({
-  code: 'N99TST1',
-  name: { forename: 'Test', surname: 'Practitioner' },
-  unallocated: false,
-  username: 'TestPractitioner',
-  email: 'test.practitioner@example.com',
-})
-
 export default class ESupervisionClient extends RestClient {
   constructor(token: string) {
     super('HMPPS E-Supervision API', config.apis.eSupervisionApi, token)
