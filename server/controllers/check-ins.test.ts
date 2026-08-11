@@ -96,6 +96,8 @@ const offenderCheckinsByCRNResponse = {
       forename: 'Joe',
       surname: 'Bloggs',
     },
+    mobile: '07700900000',
+    email: 'joe.bloggs@example.com',
   },
 } as OffenderCheckinsByCRNResponse
 
@@ -141,6 +143,8 @@ describe('checkInsController', () => {
       expect(context.crn).toBe(crn)
       expect(context.id).toBe(uuid)
       expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+      expect(context.email).toBe(offenderCheckinsByCRNResponse.details.email)
+      expect(context.mobile).toBe(offenderCheckinsByCRNResponse.details.mobile)
 
       expect(context.offenderCheckinsByCRNResponse).toEqual(offenderCheckinsByCRNResponse)
       checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN', crn, SubjectType.CRN)
@@ -157,6 +161,68 @@ describe('checkInsController', () => {
 
       expect(mockRenderError).toHaveBeenCalledWith(404)
       expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
+    })
+  })
+
+  describe('getManageContactPage', () => {
+    it('falls back to the offender record mobile/email when nothing is saved in session yet', async () => {
+      const req = baseReq({})
+
+      await controllers.checkIns.getManageContactPage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalled()
+      const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
+
+      expect(template).toBe('pages/check-in/manage/manage-contact.njk')
+      expect(context.checkInMobile).toBe(offenderCheckinsByCRNResponse.details.mobile)
+      expect(context.checkInEmail).toBe(offenderCheckinsByCRNResponse.details.email)
+      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
+    })
+
+    it('prefers values already saved in session over the offender record', async () => {
+      const req = baseReq({
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              manageCheckin: {
+                checkInMobile: '07711223344',
+                checkInEmail: 'saved@example.com',
+              },
+            },
+          },
+        },
+      })
+
+      await controllers.checkIns.getManageContactPage()(req, res)
+
+      const [, context] = (renderSpy as jest.Mock).mock.calls.pop()
+
+      expect(context.checkInMobile).toBe('07711223344')
+      expect(context.checkInEmail).toBe('saved@example.com')
+    })
+  })
+
+  describe('postManageContactPage', () => {
+    it('seeds editCheckInMobile/editCheckInEmail from the offender record when session is empty', async () => {
+      mockSetDataValue.mockClear()
+      const req = baseReq({})
+      req.body = { change: 'mobile' }
+
+      await controllers.checkIns.postManageContactPage(hmppsAuthClient)(req, res)
+
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'manageCheckin', 'editCheckInMobile'],
+        offenderCheckinsByCRNResponse.details.mobile,
+      )
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'manageCheckin', 'editCheckInEmail'],
+        offenderCheckinsByCRNResponse.details.email,
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${uuid}/edit-contact?change=mobile`,
+      )
     })
   })
 
@@ -628,6 +694,8 @@ describe('checkInsController', () => {
             forename: 'Joe',
             surname: 'Bloggs',
           },
+          mobile: '07700900000',
+          email: 'joe.bloggs@example.com',
         },
         change: 'email',
         cya: 'false',
