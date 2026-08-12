@@ -15,8 +15,9 @@ export interface PersonalDetails {
 
 export interface PersonalDetailsUpdateRequest {
   [index: string]: string | boolean
-  mobileNumber?: string
-  emailAddress?: string
+  practitionerId: string
+  mobile?: string
+  email?: string
 }
 
 export interface ProbationPractitioner {
@@ -26,3 +27,11 @@ export interface ProbationPractitioner {
   username: string
   email?: string
 }
+
+// export interface HeaderDetails {
+//   crn: string
+//   dateOfBirth: string
+//   tierScore: string
+//   tierDetailsLink: string
+//   overallRisk: string
+// }

@@ -11,7 +11,7 @@ import {
   ESupervisionReview,
   ReactivateOffenderRequest,
 } from '../data/model/esupervision'
-import { PersonalDetails, PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
+import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
@@ -573,11 +573,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupervisionClient = new ESupervisionClient(token)
+      const practitionerId = res.locals.user.username
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
       const body: PersonalDetailsUpdateRequest = {
-        emailAddress: editCheckInEmail,
-        mobileNumber: editCheckInMobile?.trim(),
+        practitionerId,
+        email: editCheckInEmail,
+        mobile: editCheckInMobile?.trim(),
       }
 
       const cya = req.query?.cya === 'true'
@@ -1296,7 +1298,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartContactPage: hmppsAuthClient => {
+  getRestartContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_RESTART_ONLINE_CHECK_IN', crn, SubjectType.CRN)
@@ -1304,19 +1306,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         res.locals.errorMessages = req.session.errorMessages
         delete req?.session?.errorMessages
       }
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       req.session.data = req.session.data || {}
       const { data } = req.session
       const { cya } = req.query
-      const eSupervisionClient = new ESupervisionClient(token)
-      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
-
-      if (!personalDetails) {
-        return renderError(404)(req, res)
-      }
-
-      const checkInMobile = personalDetails.mobileNumber
-      const checkInEmail = personalDetails.email
+      // The restart flow only runs for an offender that already exists, so its live contact
+      // details (kept up to date by updatePersonalDetailsContact) come from the full offender
+      // record already fetched by getCheckinOffenderDetails - the personal-details endpoint is
+      // for the pre-setup flow and doesn't reflect edits made after registration.
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse?.details
+      const checkInMobile = offenderDetails?.mobile ?? ''
+      const checkInEmail = offenderDetails?.email ?? ''
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
@@ -1335,7 +1334,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
         preferredComs,
-        case: personalDetails,
+        case: offenderDetails,
         cya,
       })
     }
@@ -1408,12 +1407,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
         const eSupervisionClient = new ESupervisionClient(token)
-
+        const practitionerId = res.locals.user.username
         const body: PersonalDetailsUpdateRequest = {
-          emailAddress: editCheckInEmail,
-          mobileNumber: editCheckInMobile?.trim(),
+          practitionerId,
+          email: editCheckInEmail,
+          mobile: editCheckInMobile?.trim(),
         }
-        const personalDetails: PersonalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+        const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
         // If personal details overview exists in session cache, update it with latest values
         if (req.session.data?.personalDetails?.[crn]?.overview) {
           req.session.data.personalDetails[crn].overview = personalDetails
@@ -1431,13 +1431,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'],
             editCheckInEmail,
           )
+          // checkInMobile/checkInEmail (read by the restart summary and confirmation pages) are
+          // separate from editCheckInMobile/editCheckInEmail and must be kept in sync here too.
+          setDataValue(
+            req.session.data,
+            ['esupervision', crn, id, 'restartCheckin', 'checkInMobile'],
+            editCheckInMobile?.trim(),
+          )
+          setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'checkInEmail'], editCheckInEmail)
         }
       }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-contact`)
     }
   },
 
-  getRestartSummaryPage: hmppsAuthClient => {
+  getRestartSummaryPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(
@@ -1449,20 +1457,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
       if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupervisionClient = new ESupervisionClient(token)
-      const caseData = await eSupervisionClient.getPersonalDetails(crn)
-
-      if (!caseData) {
-        return renderError(404)(req, res)
-      }
+      // See getRestartContactPage: use the live offender record already fetched by
+      // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
+      const caseData = res.locals.offenderCheckinsByCRNResponse?.details
 
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
-        checkInMobile: restartDetails.checkInMobile || caseData.mobileNumber || 'No mobile number',
-        checkInEmail: restartDetails.checkInEmail || caseData.email || 'No email address',
+        checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
+        checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
       }
       return res.render('pages/check-in/manage/restart-checkin-summary.njk', {
         crn,
@@ -1513,7 +1517,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getRestartConfirmation: hmppsAuthClient => {
+  getRestartConfirmation: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(
@@ -1531,13 +1535,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
 
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupervisionClient = new ESupervisionClient(token)
-      const caseData = await eSupervisionClient.getPersonalDetails(crn)
-
-      if (!caseData) {
-        return renderError(404)(req, res)
-      }
+      // See getRestartContactPage: use the live offender record already fetched by
+      // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
+      const caseData = res.locals.offenderCheckinsByCRNResponse?.details
 
       const userDetails = {
         ...savedDetails,

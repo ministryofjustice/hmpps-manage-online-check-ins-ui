@@ -9,7 +9,9 @@ const IMAGE_STORAGE_KEY = 'esImageUpload'
 const displayUploadedImage = document.getElementsByClassName('es-uploaded-image')
 const uploadedImageData = localStorage.getItem(IMAGE_STORAGE_KEY)
 
-const photoUploadInput = document.getElementById('photoUpload-input')
+// govuk-frontend's file upload enhancement renames the input to `${id}-input` and gives the
+// original id to its own drop-zone element, so this lookup only resolves after initAll() runs.
+let photoUploadInput
 const photoContentDisplay = document.getElementById('photoPreview')
 let validationMessage = document.getElementById('photoUploadMessage')
 
@@ -114,9 +116,13 @@ if (document.getElementById('registerPoPStartPage')) {
   window.history.replaceState({}, '', url.pathname)
 }
 
-// Handle the photo upload input change event
-if (photoUploadInput) {
-  photoUploadInput.addEventListener('change', event => handlePhotoSelection(event))
+// Call once govukFrontend.initAll() has enhanced the file upload field, otherwise
+// 'photoUpload-input' doesn't exist yet and the listener silently never attaches.
+const initPhotoUpload = () => {
+  photoUploadInput = document.getElementById('photoUpload-input')
+  if (photoUploadInput) {
+    photoUploadInput.addEventListener('change', event => handlePhotoSelection(event))
+  }
 }
 
 const handlePhotoSelection = event => {
@@ -326,4 +332,4 @@ const showRegistrationError = error => {
   }
 }
 
-export { handlePhotoSelection, dataUrlToBlob, showValidationMessage }
+export { handlePhotoSelection, dataUrlToBlob, showValidationMessage, initPhotoUpload }

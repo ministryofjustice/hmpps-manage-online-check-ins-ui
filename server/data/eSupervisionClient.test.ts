@@ -10,7 +10,7 @@ import {
   ESupervisionCheckIn,
   EsupervisionUpcomingQuestionItemsResponse,
   EsupervisionUpcomingQuestionsResponse,
-  OffenderCheckinsByCRNResponse,
+  OffenderByCRNResponse,
 } from './model/esupervision'
 
 import ESupervisionClient from './eSupervisionClient'
@@ -105,7 +105,7 @@ describe('ESupervisionClient', () => {
             surname: 'Bloggs',
           },
         },
-      } as OffenderCheckinsByCRNResponse
+      } as OffenderByCRNResponse
 
       fakeESupervisionApi
         .get(`/v2/offenders/crn/${crn}`)
