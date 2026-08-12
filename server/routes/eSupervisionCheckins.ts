@@ -23,6 +23,12 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     res.render('pages/index')
   })
 
+  // The cases overview page lives in MPOP - redirect /case hits there
+  router.get('/case', (req, res) => {
+    const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+    return res.redirect(`${mpopBaseUrl}/case`)
+  })
+
   // The case overview itself lives in MPOP, not this service - send bare /case/:crn hits there
   // rather than every view having to know MPOP's URL when it links back to the overview page.
   router.get('/case/:crn', (req, res) => {
