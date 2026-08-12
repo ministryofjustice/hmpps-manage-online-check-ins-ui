@@ -41,6 +41,7 @@ export interface LocalParams {
   body?: Record<string, string | string[]>
   checkInMinDate?: string
   back?: string
+  backLink?: string
   change?: string
   cya?: string
   checkInMobile?: string

@@ -74,7 +74,28 @@ const eSuperVision: Route<void> = (req, res, next) => {
     validateSetupPage('full-eligibility', 'eligibility-full', 'full-eligibility')
     validateSetupPage('spo-approval', 'spo-approval', 'spo-approval')
     validateSetupPage('rationale', 'rationale', 'rationale')
+    if (baseUrl.includes(setup('rationale'))) {
+      // Mirrors getRationalePage's backLink logic - _form.njk only shows a back link when one
+      // is passed in, and this page's eligibility branch isn't derivable from cya alone.
+      const eligibility = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibility']) || []
+      const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
+      const eligibilityChoice = sessionVal('checkins', 'eligibilityChoice')
+      if (cya === 'true') {
+        localParams.backLink = setup('checkin-summary')
+      } else if (eligibilityChoice === 'REPLACE_F2F') {
+        localParams.backLink = setup('spo-approval')
+      } else if (eligibilityArray.includes('eligibility-none')) {
+        localParams.backLink = setup('full-eligibility')
+      } else {
+        localParams.backLink = setup('supplementary-eligibility')
+      }
+    }
+
     validateSetupPage('date-frequency', 'date-frequency', 'date-frequency')
+    if (baseUrl.includes(setup('date-frequency'))) {
+      // Mirrors getDateFrequencyPage's backLink logic - see note above on rationale.
+      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('rationale')
+    }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
 
