@@ -68,7 +68,12 @@ export default class ESupervisionClient extends RestClient {
   }
 
   async getOffenderHeaderByCRN(crn: string): Promise<OffenderHeaderDetails | null> {
-    return this.get({ path: `/v2/offenders/header/${crn}`, handle404: true })
+    return this.get({
+      path: `/v2/offenders/header/${crn}`,
+      handle404: true,
+      handle500: true,
+      errorMessage: 'Failed to fetch offender header details',
+    })
   }
 
   async postDeactivateOffender(
