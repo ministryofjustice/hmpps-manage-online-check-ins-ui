@@ -10,9 +10,9 @@ export interface PersonalDetails {
   crn: string
   name: Name
   dateOfBirth?: string
-  mobile: string
-  email: string | null
-  practitioner: Practitioner
+  mobile?: string | null
+  email?: string | null
+  practitioner?: Practitioner
 }
 
 export interface PersonalDetailsUpdateRequest {
