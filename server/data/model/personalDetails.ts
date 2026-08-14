@@ -1,3 +1,5 @@
+import { Practitioner } from './esupervision'
+
 export interface Name {
   forename: string
   middleName?: string
@@ -8,9 +10,9 @@ export interface PersonalDetails {
   crn: string
   name: Name
   dateOfBirth?: string
-  mobileNumber?: string
-  telephoneNumber?: string
-  email?: string
+  mobile: string
+  email: string | null
+  practitioner: Practitioner
 }
 
 export interface PersonalDetailsUpdateRequest {
