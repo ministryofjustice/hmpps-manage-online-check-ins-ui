@@ -621,7 +621,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const nextMobile = typeof editCheckInMobile === 'string' ? editCheckInMobile.trim() : undefined
       const nextEmail = typeof editCheckInEmail === 'string' ? editCheckInEmail.trim() : undefined
 
-      if ((previousMobile?.trim() ?? '') === (nextMobile ?? '') && (previousEmail?.trim() ?? '') === (nextEmail ?? '')) {
+      if (
+        (previousMobile?.trim() ?? '') === (nextMobile ?? '') &&
+        (previousEmail?.trim() ?? '') === (nextEmail ?? '')
+      ) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/contact`)
       }
 
