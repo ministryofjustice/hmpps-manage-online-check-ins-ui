@@ -1,6 +1,7 @@
 {% extends "../partials/layout.njk" %}
-
-{% set pageTitle = applicationName + " - Error" %}
+{% set pageTitle = makePageTitle({
+  pageHeading: [title]
+}) %}
 {% set mainClasses = "govuk-body" %}
 
 {% block content %}
