@@ -918,7 +918,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
 
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
     }
   },
 
