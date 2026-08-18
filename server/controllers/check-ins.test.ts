@@ -202,7 +202,7 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postManageStopCheckin(hmppsAuthClient)(req, res)
 
-      expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
     })
 
     it('stops check in, clears session data and redirects', async () => {
@@ -240,7 +240,7 @@ describe('checkInsController', () => {
         null,
       )
 
-      expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
     })
 
     it('escapes double quotes in the reason', async () => {
