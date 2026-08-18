@@ -202,7 +202,7 @@ describe('checkInsController', () => {
 
       await controllers.checkIns.postManageStopCheckin(hmppsAuthClient)(req, res)
 
-      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      expect(redirectSpy).toHaveBeenCalledWith(303, `/case/${crn}/appointments/check-in/manage/${uuid}`)
     })
 
     it('stops check in, clears session data and redirects', async () => {
