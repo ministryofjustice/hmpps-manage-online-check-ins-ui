@@ -392,7 +392,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupervisionClient = new ESupervisionClient(token)
       const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
-      const checkInMobile = personalDetails?.mobileNumber
+      const checkInMobile = personalDetails?.mobile
       const checkInEmail = personalDetails?.email
       // Seed the edit page from the record so it can render without another API call.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
@@ -467,7 +467,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const eSupervisionClient = new ESupervisionClient(token)
       const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
 
-      const checkInMobile = personalDetails?.mobileNumber
+      const checkInMobile = personalDetails?.mobile
       const checkInEmail = personalDetails?.email
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'checkins', 'preferredComs'])
@@ -589,7 +589,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
         // longer loops back through contact-preference's GET, which used to be what kept them
         // in sync with the record.
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobileNumber)
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
         // Saving the edit is itself a confirmation that the new value is correct, so the
@@ -600,6 +600,48 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/photo-options`)
+    }
+  },
+
+  postManageEditContactPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const practitionerId = res.locals.user.username
+      const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'])
+      const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'])
+      const { previousMobile, previousEmail } = req.body as { previousMobile?: string; previousEmail?: string }
+
+      const nextMobile = typeof editCheckInMobile === 'string' ? editCheckInMobile.trim() : undefined
+      const nextEmail = typeof editCheckInEmail === 'string' ? editCheckInEmail.trim() : undefined
+
+      if (
+        (previousMobile?.trim() ?? '') === (nextMobile ?? '') &&
+        (previousEmail?.trim() ?? '') === (nextEmail ?? '')
+      ) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/contact`)
+      }
+
+      const body: PersonalDetailsUpdateRequest = {
+        practitionerId,
+        email: nextEmail,
+        mobile: nextMobile,
+      }
+
+      const response = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+      if (response?.crn) {
+        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'contactUpdated'], true)
+        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'], response.mobile)
+        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'], response.email)
+      }
+      const redirectUrl = `/case/${crn}/appointments/check-in/manage/${id}/contact`
+      return res.redirect(redirectUrl)
     }
   },
 
@@ -821,8 +863,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         // the /manage route has no :id param; the check-in id is the offender uuid
         id: checkinRes?.uuid ?? id,
         case: checkinRes?.details,
-        email: checkinRes?.email ?? '',
-        mobile: checkinRes?.mobile ?? '',
+        email: checkinRes?.details?.email ?? '',
+        mobile: checkinRes?.details?.mobile ?? '',
         offenderCheckinsByCRNResponse: checkinRes,
         showChange,
         upcomingCheckin,
@@ -1146,14 +1188,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_CONTACT', crn, SubjectType.CRN)
       req.session.data = req.session.data || {}
       const { data } = req.session
-      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'])
-      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'])
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      const checkInMobile =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile']) ?? checkinRes?.details?.mobile
+      const checkInEmail =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail']) ?? checkinRes?.details?.email
       const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'contactUpdated'])
       if (contactUpdated) {
         res.locals.success = true
         delete req.session?.data?.esupervision?.[crn]?.[id]?.manageCheckin?.contactUpdated
       }
-      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const isPrefComsSet = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'])
       if (isPrefComsSet === undefined) {
         setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], checkinRes?.contactPreference)
@@ -1174,8 +1218,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { change } = req.body
       const { data } = req.session
-      const checkInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'])
-      const checkInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'])
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      const checkInMobile =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile']) ?? checkinRes?.details?.mobile
+      const checkInEmail =
+        getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail']) ?? checkinRes?.details?.email
       setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], checkInEmail)
       let redirectUrl = `/case/${crn}/appointments/check-in/manage/${id}/edit-contact?change=${change}`
@@ -1222,24 +1269,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
       })
-    }
-  },
-
-  // No MAS personal-details API in this service; the edited contact is persisted to session only.
-  postManageEditContactPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      req.session.data = req.session.data || {}
-      const { data } = req.session
-      const { previousMobile, previousEmail } = req.body
-      const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'])
-      const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'])
-      if (previousMobile?.trim() !== editCheckInMobile?.trim() || previousEmail !== editCheckInEmail) {
-        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'contactUpdated'], true)
-        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInMobile'], editCheckInMobile?.trim())
-        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'checkInEmail'], editCheckInEmail)
-      }
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/contact`)
     }
   },
 

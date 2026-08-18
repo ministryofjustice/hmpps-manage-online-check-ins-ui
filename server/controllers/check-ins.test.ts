@@ -338,7 +338,7 @@ describe('checkInsController', () => {
       mockIsValidUUID.mockReturnValue(true)
       getPersonalDetailsSpy.mockResolvedValueOnce({
         crn,
-        mobileNumber: '07700900000',
+        mobile: '07700900000',
         email: 'test@example.com',
       } as PersonalDetails)
 
@@ -494,7 +494,7 @@ describe('checkInsController', () => {
       mockIsValidUUID.mockReturnValue(true)
       updatePersonalDetailsSpy.mockResolvedValueOnce({
         crn,
-        mobileNumber: '07711223344',
+        mobile: '07711223344',
         email: 'updated@example.com',
       } as PersonalDetails)
 

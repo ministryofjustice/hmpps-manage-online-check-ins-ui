@@ -123,9 +123,11 @@
   display: block;
 }
 
-.es-debug {
-  background: #f499be;
-  outline: 3px solid #f499be;
-  color: #000;
+.guidance-panel {
+  border-left-color: govuk-colour('blue');
+  background-color: #eaf4f9;
 }
 
+.guidance-panel--narrow {
+  max-width: 55ch;
+}

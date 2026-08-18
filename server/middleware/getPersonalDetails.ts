@@ -55,7 +55,7 @@ async function resolveOffenderDetails(
     details: {
       name: caseDetails.name,
       dateOfBirth: caseDetails.dateOfBirth,
-      mobile: caseDetails.mobileNumber,
+      mobile: caseDetails.mobile,
       email: caseDetails.email,
     },
   }
