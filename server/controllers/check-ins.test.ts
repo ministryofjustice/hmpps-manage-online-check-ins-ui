@@ -1081,7 +1081,7 @@ describe('checkInsController', () => {
           language: 'en-GB',
           author: 'user-1',
         })
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
       })
 
       it('handles completely empty session data by redirecting to manage page', async () => {
@@ -1092,7 +1092,7 @@ describe('checkInsController', () => {
 
         await controllers.checkIns.postAddQuestionsPage(hmppsAuthClient)(req, res)
 
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
       })
 
       it('calls DELETE endpoint when there are no custom questions to save', async () => {
@@ -1123,7 +1123,7 @@ describe('checkInsController', () => {
           ['esupervision', crn, id, 'questionsAdded'],
           false,
         )
-        expect(redirectSpy).toHaveBeenCalledWith(303, `https://localhost:9091/manage-people-on-probation/case/${crn}`)
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
       })
 
       it('renders 500 error page if saving questions to the API fails', async () => {

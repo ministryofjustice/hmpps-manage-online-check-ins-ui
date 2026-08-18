@@ -1725,9 +1725,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         }
 
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions'], undefined)
-        const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-        const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-        return res.redirect(303, redirectUrl)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       } catch (error: any) {
         logger.error(`Failed to assign/delete questions for CRN ${crn}:`, error)
         return renderError(error?.status || 500)(req, res)
