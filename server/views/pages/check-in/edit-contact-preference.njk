@@ -12,7 +12,7 @@
   }) %}
 {% endif %}
 {% set urlBase = '/case/' + crn + '/appointments/' + id + '/check-in' %}
-{% set backLink = urlBase + '/confirm-contact-preference' if hasContactDetails else urlBase + 'contact-preference' %}
+{% set backLink = urlBase + '/confirm-contact-preference' if hasContactDetails else urlBase + '/contact-preference' %}
 {% if cya %}
 {% set backLink = urlBase + '/checkin-summary' %}
 {% endif %}
