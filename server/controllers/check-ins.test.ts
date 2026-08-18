@@ -240,7 +240,7 @@ describe('checkInsController', () => {
         null,
       )
 
-      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      expect(redirectSpy).toHaveBeenCalledWith(303, `/case/${crn}/appointments/check-in/manage/${uuid}`)
     })
 
     it('escapes double quotes in the reason', async () => {
