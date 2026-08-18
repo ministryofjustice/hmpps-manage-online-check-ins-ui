@@ -11,8 +11,11 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set cyaLink = "?cya=true" if cya else "" %}
-{% set backLink = ('/case/' + crn + '/appointments/' + id + '/check-in/confirm-contact-preference' + cyaLink) if hasContactDetails else ('/case/' + crn + '/appointments/' + id + '/check-in/contact-preference' + cyaLink) %}
+{% set urlBase = '/case/' + crn + '/appointments/' + id + '/check-in' %}
+{% set backLink = urlBase + '/confirm-contact-preference' if hasContactDetails else urlBase + '/contact-preference' %}
+{% if cya %}
+{% set backLink = urlBase + '/checkin-summary' %}
+{% endif %}
 {% set notStandardForm = true %}
 {% set isPhone = preferredComs === 'PHONE' %}
 {% set editField = 'editCheckInMobile' if isPhone else 'editCheckInEmail' %}

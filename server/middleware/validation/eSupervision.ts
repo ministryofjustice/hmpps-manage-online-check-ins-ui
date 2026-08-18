@@ -2,6 +2,7 @@ import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
 import getDataValue from '../../utils/getDataValue'
+import setDataValue from '../../utils/setDataValue'
 import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
 import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
@@ -137,6 +138,16 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/checkin-settings`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'checkin-settings' }))
+      if (Object.keys(errorMessages).length) {
+        // autoStoreSessionData has already overwritten the session's manageCheckin date/interval
+        // with the invalid submission by this point - restore the real values fetched from the
+        // API so the re-rendered form shows the saved check-in date, not the rejected input.
+        const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], {
+          date: offenderDetails?.firstCheckin,
+          interval: offenderDetails?.checkinInterval,
+        })
+      }
     }
   }
 
@@ -162,10 +173,28 @@ const eSuperVision: Route<void> = (req, res, next) => {
       localParams.change = body?.change as string
       const editCheckInEmail = sessionVal('manageCheckin', 'editCheckInEmail')
       const editCheckInMobile = sessionVal('manageCheckin', 'editCheckInMobile')
+      // These hidden inputs carry the API-backed values from when the page loaded, untouched by
+      // autoStoreSessionData, so they survive even though the session copy gets overwritten by
+      // the (possibly blank) submission above.
+      const { previousMobile, previousEmail } = body as { previousMobile?: string; previousEmail?: string }
       errorMessages = validateWithSpec(
         req,
-        eSuperVisionValidation({ crn, id, editCheckInEmail, editCheckInMobile, page: 'edit-contact' }),
+        eSuperVisionValidation({
+          crn,
+          id,
+          editCheckInEmail,
+          editCheckInMobile,
+          previousCheckInMobile: previousMobile,
+          previousCheckInEmail: previousEmail,
+          page: 'edit-contact',
+        }),
       )
+      if (!editCheckInMobile && !editCheckInEmail && (previousMobile || previousEmail)) {
+        // Both were cleared but at least one had a value - redisplay the saved contact details
+        // instead of the blank submission that autoStoreSessionData already wrote to session.
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], previousMobile)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], previousEmail)
+      }
     }
   }
 
