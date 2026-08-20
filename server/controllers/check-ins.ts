@@ -85,6 +85,7 @@ type CheckInRouteName =
   | 'postPhotoRulesPage'
   | 'getCheckinSummaryPage'
   | 'postCheckinSummaryPage'
+  | 'postConfirmEnd'
   | 'getConfirmationPage'
   | 'getManageCheckinPage'
   | 'postManageStopCheckin'
@@ -750,6 +751,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
+      // Setup already completed (e.g. the browser back button was used from the confirmation
+      // page) - send them to the check-in overview instead of re-showing stale answers.
+      if (savedUserDetails?.completed) {
+        return res.redirect(
+          savedUserDetails.activeId
+            ? `/case/${crn}/appointments/check-in/manage/${savedUserDetails.activeId}`
+            : `/case/${crn}/appointments/check-in/manage`,
+        )
+      }
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: id,
@@ -777,6 +787,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
+  // Completes registration, then redirects to the GET confirmation page so a browser back
+  // navigation re-fetches rather than re-triggering the completion side effect
+  postConfirmEnd: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      await postCheckinInComplete(hmppsAuthClient)(req, res)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/confirm-end`)
+    }
+  },
+
   getConfirmationPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -785,7 +808,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONFIRMATION', crn, SubjectType.CRN)
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
-      await postCheckinInComplete(hmppsAuthClient)(req, res)
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       // Completing setup creates the offender record, so the uuid to manage them by is
       // only available once the check-in registration has gone through.
@@ -802,6 +824,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const checkInDate = DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').startOf('day')
       const isFutureCheckinDate = checkInDate > DateTime.now().startOf('day')
+
+      // Flag the setup as completed so a browser back navigation to checkin-summary redirects
+      // to the check-in overview instead of re-showing the now-stale check-your-answers page.
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'completed'], true)
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'activeId'], activeId)
 
       return res.render('pages/check-in/confirmation.njk', { crn, id, activeId, userDetails, isFutureCheckinDate })
     }

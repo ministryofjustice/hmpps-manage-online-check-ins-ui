@@ -209,7 +209,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     [`[esupervision][${crn}][${id}][manageCheckin][editCheckInMobile]`]: {
       optional: page !== 'edit-contact' || (!editContactRequired && !editCheckInMobile),
       checks: [
-        { validator: isNotEmpty, msg: 'Enter a mobile number or email address' },
+        { validator: isNotEmpty, msg: 'Enter a mobile number' },
         { validator: isValidMobileNumber, msg: 'Enter a mobile number in the correct format.' },
         { validator: charsOrLess, length: 35, msg: 'Mobile number must be 35 characters or less.' },
       ],
@@ -217,7 +217,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     [`[esupervision][${crn}][${id}][manageCheckin][editCheckInEmail]`]: {
       optional: page !== 'edit-contact' || (!editContactRequired && !editCheckInEmail),
       checks: [
-        { validator: isNotEmpty, msg: 'Enter a mobile number or email address' },
+        { validator: isNotEmpty, msg: 'Enter an email address' },
         { validator: isEmail, msg: 'Enter an email address in the correct format.' },
         { validator: charsOrLess, length: 254, msg: 'Email address must be 254 characters or less.' },
       ],

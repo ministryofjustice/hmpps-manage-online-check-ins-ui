@@ -172,8 +172,8 @@ describe('Test eSuperVision validation', () => {
       expect(res.render).toHaveBeenCalled()
       const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
       expect(renderArgs.errorMessages).toEqual({
-        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number or email address',
-        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter a mobile number or email address',
+        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number',
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
       })
       // Redisplays the saved contact details instead of the blank submission.
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
