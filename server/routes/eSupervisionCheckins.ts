@@ -436,6 +436,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.post('/case/:crn/appointments/:id/check-in/review/expired', [
     validateCrnAndId,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
     getCheckIn(hmppsAuthClient),
     validate.checkInReview,
     autoStoreSessionData(hmppsAuthClient),
