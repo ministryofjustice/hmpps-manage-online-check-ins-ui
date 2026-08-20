@@ -229,6 +229,33 @@ describe('check-in setup flow', () => {
     })
   })
 
+  describe('postConfirmEnd', () => {
+    it('completes setup and redirects to the GET confirmation page', async () => {
+      const postOffenderSetupComplete = jest.fn().mockResolvedValue({})
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
+
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)
+
+      expect(postOffenderSetupComplete).toHaveBeenCalledWith(id)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/confirm-end`)
+    })
+
+    it('renders a 404 and does not complete setup when the crn or id is invalid', async () => {
+      const postOffenderSetupComplete = jest.fn()
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
+
+      const req = httpMocks.createRequest({ params: { crn: 'not-a-crn', id }, session: {}, query: {} })
+      const res = mockAppResponse()
+      await controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)
+
+      expect(postOffenderSetupComplete).not.toHaveBeenCalled()
+      expect(res.redirect).not.toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+  })
+
   describe('unallocated cases', () => {
     it('are redirected away from the setup flow', async () => {
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
