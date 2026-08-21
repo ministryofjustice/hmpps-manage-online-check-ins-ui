@@ -182,6 +182,80 @@ describe('check-in setup flow', () => {
     })
   })
 
+  describe('checkin summary', () => {
+    it('renders the check-your-answers page for an in-progress setup', async () => {
+      const req = requestFor(
+        {},
+        { data: { esupervision: { [crn]: { [id]: { checkins: { photoUploadOption: 'TAKE_A_PIC' } } } } } },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/checkin-summary.njk', expect.anything())
+    })
+
+    it('redirects to the check-in overview instead of re-showing stale answers once setup has completed', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  checkins: { photoUploadOption: 'TAKE_A_PIC', completed: true, activeId: 'active-id-1' },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/active-id-1`)
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the id-less overview when no activeId was recorded', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: { [crn]: { [id]: { checkins: { photoUploadOption: 'TAKE_A_PIC', completed: true } } } },
+          },
+        },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage`)
+    })
+  })
+
+  describe('postConfirmEnd', () => {
+    it('completes setup and redirects to the GET confirmation page', async () => {
+      const postOffenderSetupComplete = jest.fn().mockResolvedValue({})
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
+
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)
+
+      expect(postOffenderSetupComplete).toHaveBeenCalledWith(id)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/confirm-end`)
+    })
+
+    it('renders a 404 and does not complete setup when the crn or id is invalid', async () => {
+      const postOffenderSetupComplete = jest.fn()
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
+
+      const req = httpMocks.createRequest({ params: { crn: 'not-a-crn', id }, session: {}, query: {} })
+      const res = mockAppResponse()
+      await controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)
+
+      expect(postOffenderSetupComplete).not.toHaveBeenCalled()
+      expect(res.redirect).not.toHaveBeenCalled()
+      expect(res.status).toHaveBeenCalledWith(404)
+    })
+  })
+
   describe('unallocated cases', () => {
     it('are redirected away from the setup flow', async () => {
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
