@@ -466,6 +466,8 @@ describe('checkInsController', () => {
         preferredComs: 'PHONE',
         contactPreference: 'mobile number',
         hasContactDetails: true,
+        previousMobile: '07700900000',
+        previousEmail: undefined,
       })
     })
 
@@ -549,6 +551,34 @@ describe('checkInsController', () => {
       await controllers.checkIns.postEditContactPrePage(hmppsAuthClient)(req, res)
 
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/checkin-summary`)
+    })
+
+    it('does not save or set the success banner when the value submitted matches what was on the page', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const data = {
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              checkins: { editCheckInMobile: '07711223344', editCheckInEmail: 'name@example.com' },
+            },
+          },
+        },
+      }
+      const req = baseReq(data)
+      req.query = {}
+      req.body = { previousMobile: '07711223344', previousEmail: 'name@example.com' }
+
+      await controllers.checkIns.postEditContactPrePage(hmppsAuthClient)(req, res)
+
+      expect(updatePersonalDetailsSpy).not.toHaveBeenCalled()
+      expect(mockSetDataValue).not.toHaveBeenCalledWith(
+        data,
+        ['esupervision', crn, uuid, 'checkins', 'contactUpdated'],
+        true,
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/photo-options`)
     })
   })
 

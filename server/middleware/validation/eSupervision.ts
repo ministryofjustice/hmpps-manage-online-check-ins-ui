@@ -173,6 +173,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
       localParams.change = body?.change as string
       const editCheckInEmail = sessionVal('manageCheckin', 'editCheckInEmail')
       const editCheckInMobile = sessionVal('manageCheckin', 'editCheckInMobile')
+      const preferredComs = sessionVal('manageCheckin', 'preferredComs')
       // These hidden inputs carry the API-backed values from when the page loaded, untouched by
       // autoStoreSessionData, so they survive even though the session copy gets overwritten by
       // the (possibly blank) submission above.
@@ -184,15 +185,17 @@ const eSuperVision: Route<void> = (req, res, next) => {
           id,
           editCheckInEmail,
           editCheckInMobile,
-          previousCheckInMobile: previousMobile,
-          previousCheckInEmail: previousEmail,
+          preferredComs,
           page: 'edit-contact',
         }),
       )
-      if (!editCheckInMobile && !editCheckInEmail && (previousMobile || previousEmail)) {
-        // Both were cleared but at least one had a value - redisplay the saved contact details
-        // instead of the blank submission that autoStoreSessionData already wrote to session.
+      // The preferred contact method can't be cleared - if validation rejected it, redisplay
+      // its saved value instead of the blank submission that autoStoreSessionData already wrote
+      // to session.
+      if (errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInMobile`] && previousMobile) {
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], previousMobile)
+      }
+      if (errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInEmail`] && previousEmail) {
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], previousEmail)
       }
     }

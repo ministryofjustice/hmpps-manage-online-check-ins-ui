@@ -151,13 +151,18 @@ describe('Test eSuperVision validation', () => {
   describe('Test manage-edit-contact', () => {
     const manageEditContactUrl = `${manageBase}/edit-contact`
 
-    it('requires both fields when both had values and are cleared', () => {
+    // Scenario 1 & 2: whichever method is the person's preferred contact method can never be
+    // cleared - that's true whether or not the other field still has a value, since a stale
+    // preference (set once from NDelius, only changed via the main contact-preference form)
+    // would otherwise let the wrong field be treated as required.
+    it('blocks clearing email when email is the preferred contact method, even if mobile still has a value', () => {
       const esupervision = {
         [crn]: {
           [id]: {
             manageCheckin: {
-              editCheckInMobile: '',
+              editCheckInMobile: '07700 900900',
               editCheckInEmail: '',
+              preferredComs: 'EMAIL',
             },
           },
         },
@@ -172,23 +177,54 @@ describe('Test eSuperVision validation', () => {
       expect(res.render).toHaveBeenCalled()
       const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
       expect(renderArgs.errorMessages).toEqual({
-        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number',
-        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
       })
-      // Redisplays the saved contact details instead of the blank submission.
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
         editCheckInMobile: '07700 900900',
         editCheckInEmail: 'name@example.com',
+        preferredComs: 'EMAIL',
       })
     })
 
-    it('requires both fields when only one had a value and is cleared', () => {
+    it('blocks clearing mobile when mobile is the preferred contact method, even if email still has a value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '',
+              editCheckInEmail: 'name@example.com',
+              preferredComs: 'PHONE',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number in the correct format.',
+      })
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        editCheckInMobile: '07700 900900',
+        editCheckInEmail: 'name@example.com',
+        preferredComs: 'PHONE',
+      })
+    })
+
+    it('blocks clearing the only contact method when it is also the preferred one', () => {
       const esupervision = {
         [crn]: {
           [id]: {
             manageCheckin: {
               editCheckInMobile: '',
               editCheckInEmail: '',
+              preferredComs: 'EMAIL',
             },
           },
         },
@@ -201,15 +237,20 @@ describe('Test eSuperVision validation', () => {
       const res = mockAppResponse()
       validation.eSuperVision(req, res, next)
       expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
+      })
     })
 
-    it('allows clearing one field when the other still has a value', () => {
+    it('allows clearing the non-preferred field when it still has a value', () => {
       const esupervision = {
         [crn]: {
           [id]: {
             manageCheckin: {
               editCheckInMobile: '',
               editCheckInEmail: 'name@example.com',
+              preferredComs: 'EMAIL',
             },
           },
         },
