@@ -1,5 +1,5 @@
 {% extends "../../partials/contacts.njk" %}
-{% set pageTitleText = "How does the person want us to send a link to the service?" %}
+{% set pageTitleText = "Confirm the person's " + contactPreference %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
