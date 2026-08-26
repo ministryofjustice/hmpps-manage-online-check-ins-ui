@@ -41,6 +41,8 @@
         <form method="post" autocomplete="off" action="{{ paths.current }}">
             <input type="hidden" name="_csrf" value="{{ csrfToken }}">
             <input type="hidden" name="change" value="{{ change }}">
+            <input type="hidden" name="previousMobile" value="{{ previousMobile }}">
+            <input type="hidden" name="previousEmail" value="{{ previousEmail }}">
 
             {{ govukInput({
                 label: {

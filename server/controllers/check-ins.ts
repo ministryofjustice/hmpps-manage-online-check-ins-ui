@@ -551,6 +551,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
       const existingContactValue = getDataValue(data, ['esupervision', crn, id, 'checkins', editField])
       const hasContactDetails = Boolean(existingContactValue?.trim())
+      const previousMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
+      const previousEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
 
       return res.render('pages/check-in/edit-contact-preference.njk', {
         crn,
@@ -560,6 +562,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         preferredComs,
         contactPreference,
         hasContactDetails,
+        previousMobile,
+        previousEmail,
       })
     }
   },
@@ -577,26 +581,36 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const practitionerId = res.locals.user.username
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
-      const body: PersonalDetailsUpdateRequest = {
-        practitionerId,
-        email: editCheckInEmail,
-        mobile: editCheckInMobile?.trim(),
-      }
+      const nextEmail = editCheckInEmail?.trim()
+      const nextMobile = editCheckInMobile?.trim()
+      // Carries the value as it was when the page loaded, untouched by autoStoreSessionData, so
+      // this reflects what the user actually changed rather than a second, possibly differently
+      // formatted, live fetch of the record.
+      const { previousMobile, previousEmail } = req.body as { previousMobile?: string; previousEmail?: string }
 
       const cya = req.query?.cya === 'true'
-      const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+      const hasChanged =
+        (previousMobile?.trim() ?? '') !== (nextMobile ?? '') || (previousEmail?.trim() ?? '') !== (nextEmail ?? '')
 
-      if (personalDetails?.crn) {
-        // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
-        // longer loops back through contact-preference's GET, which used to be what kept them
-        // in sync with the record.
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
-        // Saving the edit is itself a confirmation that the new value is correct, so the
-        // journey can move straight on to photo, whether or not there was a confirm step.
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'confirmPreferredComs'], 'YES')
+      if (hasChanged) {
+        const body: PersonalDetailsUpdateRequest = {
+          practitionerId,
+          email: nextEmail,
+          mobile: nextMobile,
+        }
+        const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+        if (personalDetails?.crn) {
+          // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
+          // longer loops back through contact-preference's GET, which used to be what kept them
+          // in sync with the record.
+          setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
+          setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
+          setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
+        }
       }
+      // Saving the edit is itself a confirmation that the new value is correct, so the
+      // journey can move straight on to photo, whether or not there was a confirm step.
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'confirmPreferredComs'], 'YES')
       if (cya) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
       }
@@ -760,6 +774,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/check-in/manage`,
         )
       }
+      // A "change" link into edit-contact-preference can be abandoned with the back link
+      // before a missing mobile/email is actually entered - re-check here so setup can't be
+      // confirmed with no way to reach the person on their chosen contact method.
+      if (savedUserDetails?.preferredComs) {
+        const selectedContactValue =
+          savedUserDetails.preferredComs === 'PHONE' ? savedUserDetails?.checkInMobile : savedUserDetails?.checkInEmail
+        if (!selectedContactValue?.trim()) {
+          const change = savedUserDetails.preferredComs === 'PHONE' ? 'mobile' : 'email'
+          return res.redirect(
+            `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}&cya=true`,
+          )
+        }
+      }
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: id,
@@ -875,7 +902,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       if (questionsAdded) {
         res.locals.success = true
-        const forename = 'the person'
+        const forename = checkinRes?.details?.name?.forename || 'the person'
         const rawCheckinDate = upcomingCheckin?.expectedCheckinDate
         const nextCheckinDate = dateWithYear(rawCheckinDate)
         successMessageHtml = `
@@ -1671,11 +1698,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             }
           })
         } catch (error: any) {
-          if (error?.status === 404 || error?.response?.status === 404) {
+          const status = error?.status || error?.response?.status
+          const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
+          if (status === 404 || isInactiveOffender) {
             logger.info(`No upcoming questions found for CRN ${crn}.`)
           } else {
             logger.error(`Failed to fetch upcoming questions for CRN ${crn}:`, error)
-            return renderError(error?.status || 500)(req, res)
+            return renderError(status || 500)(req, res)
           }
         }
         setDataValue(
