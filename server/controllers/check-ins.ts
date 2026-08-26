@@ -581,7 +581,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const practitionerId = res.locals.user.username
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
-      const nextEmail = editCheckInEmail
+      const nextEmail = editCheckInEmail?.trim()
       const nextMobile = editCheckInMobile?.trim()
       // Carries the value as it was when the page loaded, untouched by autoStoreSessionData, so
       // this reflects what the user actually changed rather than a second, possibly differently
@@ -590,7 +590,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const cya = req.query?.cya === 'true'
       const hasChanged =
-        (previousMobile?.trim() ?? '') !== (nextMobile ?? '') || (previousEmail ?? '') !== (nextEmail ?? '')
+        (previousMobile?.trim() ?? '') !== (nextMobile ?? '') || (previousEmail?.trim() ?? '') !== (nextEmail ?? '')
 
       if (hasChanged) {
         const body: PersonalDetailsUpdateRequest = {

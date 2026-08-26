@@ -12,12 +12,18 @@ describe('is not empty', () => {
 })
 
 describe('isEmail', () => {
-  it.each(['name@example.com', 'first.last@example.co.uk', 'user+tag@example.com', 'a1@b2.com', 'a@b.co'])(
-    '%s is a valid email',
-    (email: string) => {
-      expect(isEmail(email)).toEqual(true)
-    },
-  )
+  it.each([
+    'name@example.com',
+    'first.last@example.co.uk',
+    'user+tag@example.com',
+    'a1@b2.com',
+    'a@b.co',
+    ' name@example.com',
+    'name@example.com ',
+    ' name@example.com ',
+  ])('%s is a valid email', (email: string) => {
+    expect(isEmail(email)).toEqual(true)
+  })
 
   it.each([
     'plainaddress',

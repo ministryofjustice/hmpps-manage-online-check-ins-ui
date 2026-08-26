@@ -189,13 +189,22 @@ const eSuperVision: Route<void> = (req, res, next) => {
           page: 'edit-contact',
         }),
       )
-      // The preferred contact method can't be cleared - if validation rejected it, redisplay
-      // its saved value instead of the blank submission that autoStoreSessionData already wrote
-      // to session.
-      if (errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInMobile`] && previousMobile) {
+      // The preferred contact method can't be cleared - if it was rejected for being blank,
+      // redisplay its saved value instead of the blank submission that autoStoreSessionData
+      // already wrote to session. A malformed (non-empty) submission is left alone so the user
+      // can see and fix what they actually typed.
+      if (
+        !editCheckInMobile &&
+        errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInMobile`] &&
+        previousMobile
+      ) {
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], previousMobile)
       }
-      if (errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInEmail`] && previousEmail) {
+      if (
+        !editCheckInEmail &&
+        errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInEmail`] &&
+        previousEmail
+      ) {
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], previousEmail)
       }
     }

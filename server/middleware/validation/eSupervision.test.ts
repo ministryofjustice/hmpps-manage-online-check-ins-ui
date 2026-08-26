@@ -177,11 +177,42 @@ describe('Test eSuperVision validation', () => {
       expect(res.render).toHaveBeenCalled()
       const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
       expect(renderArgs.errorMessages).toEqual({
-        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
       })
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
         editCheckInMobile: '07700 900900',
         editCheckInEmail: 'name@example.com',
+        preferredComs: 'EMAIL',
+      })
+    })
+
+    it('keeps the malformed submission on screen instead of redisplaying the saved value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '07700 900900',
+              editCheckInEmail: 'not-an-email',
+              preferredComs: 'EMAIL',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
+      })
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        editCheckInMobile: '07700 900900',
+        editCheckInEmail: 'not-an-email',
         preferredComs: 'EMAIL',
       })
     })
@@ -208,7 +239,7 @@ describe('Test eSuperVision validation', () => {
       expect(res.render).toHaveBeenCalled()
       const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
       expect(renderArgs.errorMessages).toEqual({
-        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number in the correct format.',
+        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number',
       })
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
         editCheckInMobile: '07700 900900',
@@ -239,7 +270,7 @@ describe('Test eSuperVision validation', () => {
       expect(res.render).toHaveBeenCalled()
       const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
       expect(renderArgs.errorMessages).toEqual({
-        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
       })
     })
 

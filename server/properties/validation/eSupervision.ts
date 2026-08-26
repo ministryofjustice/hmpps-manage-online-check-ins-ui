@@ -195,12 +195,12 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     },
 
     // edit-contact — whichever method is the person's current preferred contact method can
-    // never be cleared, so that field is always checked (an empty value fails the format check
-    // below and shows the same message as a genuinely malformed value). The other field is only
-    // format-checked when a value is present, since it's fine for it to be blank.
+    // never be cleared, so that field is always checked. The other field is only format-checked
+    // when a value is present, since it's fine for it to be blank.
     [`[esupervision][${crn}][${id}][manageCheckin][editCheckInMobile]`]: {
       optional: page !== 'edit-contact' || (preferredComs !== 'PHONE' && !editCheckInMobile),
       checks: [
+        { validator: isNotEmpty, msg: 'Enter a mobile number' },
         { validator: isValidMobileNumber, msg: 'Enter a mobile number in the correct format.' },
         { validator: charsOrLess, length: 35, msg: 'Mobile number must be 35 characters or less.' },
       ],
@@ -208,6 +208,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     [`[esupervision][${crn}][${id}][manageCheckin][editCheckInEmail]`]: {
       optional: page !== 'edit-contact' || (preferredComs !== 'EMAIL' && !editCheckInEmail),
       checks: [
+        { validator: isNotEmpty, msg: 'Enter an email address' },
         { validator: isEmail, msg: 'Enter an email address in the correct format.' },
         { validator: charsOrLess, length: 254, msg: 'Email address must be 254 characters or less.' },
       ],
