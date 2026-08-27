@@ -399,11 +399,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
 
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
       return res.render('pages/check-in/contact-preference.njk', { crn, id, checkInMobile, checkInEmail, cya })
     }
   },
@@ -481,13 +476,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
 
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
-
       return res.render('pages/check-in/confirm-contact-preference.njk', {
         crn,
         id,
@@ -554,6 +542,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const previousMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
       const previousEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
 
+      const urlBase = `/case/${crn}/appointments/${id}/check-in`
+      // Going back to checkin-summary only makes sense once there's a value on file for the
+      // newly-selected preference - otherwise checkin-summary's own "can't finish setup without
+      // a value" guard immediately bounces back here, making Back look like it does nothing.
+      let backLink: string
+      if (cya === 'true') {
+        backLink = hasContactDetails ? `${urlBase}/checkin-summary` : `${urlBase}/contact-preference?cya=true`
+      } else {
+        backLink = hasContactDetails ? `${urlBase}/confirm-contact-preference` : `${urlBase}/contact-preference`
+      }
+
       return res.render('pages/check-in/edit-contact-preference.njk', {
         crn,
         id,
@@ -564,6 +563,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         hasContactDetails,
         previousMobile,
         previousEmail,
+        backLink,
       })
     }
   },
@@ -605,7 +605,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           // in sync with the record.
           setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
           setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
-          setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
         }
       }
       // Saving the edit is itself a confirmation that the new value is correct, so the

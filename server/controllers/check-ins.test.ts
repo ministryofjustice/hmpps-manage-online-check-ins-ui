@@ -369,21 +369,6 @@ describe('checkInsController', () => {
         'test@example.com',
       )
     })
-
-    it('sets success flag and clears contactUpdated when set in session', async () => {
-      mockIsValidCrn.mockReturnValue(true)
-      mockIsValidUUID.mockReturnValue(true)
-
-      const data = {
-        esupervision: { [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL', contactUpdated: true } } } },
-      }
-      const req = baseReq(data)
-
-      await controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient)(req, res)
-
-      expect(res.locals.success).toBe(true)
-      expect(data.esupervision[crn][uuid].checkins).not.toHaveProperty('contactUpdated')
-    })
   })
 
   describe('postConfirmContactPreferencePage', () => {
@@ -468,6 +453,7 @@ describe('checkInsController', () => {
         hasContactDetails: true,
         previousMobile: '07700900000',
         previousEmail: undefined,
+        backLink: `/case/${crn}/appointments/${uuid}/check-in/checkin-summary`,
       })
     })
 
@@ -487,6 +473,57 @@ describe('checkInsController', () => {
         'pages/check-in/edit-contact-preference.njk',
         expect.objectContaining({ hasContactDetails: false }),
       )
+    })
+
+    describe('back link', () => {
+      const backLinkFor = async (
+        preferredComs: string,
+        editValue: string | undefined,
+        query: Record<string, string>,
+      ) => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
+        const data = {
+          esupervision: {
+            [crn]: { [uuid]: { checkins: { preferredComs, [editField]: editValue } } },
+          },
+        }
+        const req = baseReq(data)
+        req.query = query
+
+        await controllers.checkIns.getEditContactPrePage()(req, res)
+
+        return ((renderSpy as jest.Mock).mock.calls[0][1] as Record<string, unknown>).backLink
+      }
+
+      it('goes to confirm-contact-preference when there is already a value and this is not a change-your-answers link', async () => {
+        expect(await backLinkFor('EMAIL', 'name@example.com', {})).toBe(
+          `/case/${crn}/appointments/${uuid}/check-in/confirm-contact-preference`,
+        )
+      })
+
+      it('goes to contact-preference when there is no value and this is not a change-your-answers link', async () => {
+        expect(await backLinkFor('PHONE', undefined, {})).toBe(
+          `/case/${crn}/appointments/${uuid}/check-in/contact-preference`,
+        )
+      })
+
+      it('goes to checkin-summary when there is already a value and this is a change-your-answers link', async () => {
+        expect(await backLinkFor('EMAIL', 'name@example.com', { cya: 'true' })).toBe(
+          `/case/${crn}/appointments/${uuid}/check-in/checkin-summary`,
+        )
+      })
+
+      it('goes to contact-preference, retaining cya, when there is no value and this is a change-your-answers link', async () => {
+        // Regression check: checkin-summary's guard redirects straight back here whenever the
+        // newly-selected preference has no value on file, so sending Back to checkin-summary in
+        // this case would just bounce the user between the two pages.
+        expect(await backLinkFor('PHONE', undefined, { cya: 'true' })).toBe(
+          `/case/${crn}/appointments/${uuid}/check-in/contact-preference?cya=true`,
+        )
+      })
     })
   })
 

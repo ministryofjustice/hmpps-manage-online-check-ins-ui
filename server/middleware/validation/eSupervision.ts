@@ -163,6 +163,12 @@ const eSuperVision: Route<void> = (req, res, next) => {
           req,
           eSuperVisionValidation({ crn, id, checkInEmail, checkInMobile, page: 'manage-contact', change: 'main' }),
         )
+        if (Object.keys(errorMessages).length) {
+          const savedPreference = res.locals.offenderCheckinsByCRNResponse?.contactPreference
+          if (savedPreference) {
+            setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], savedPreference)
+          }
+        }
       }
     }
   }
