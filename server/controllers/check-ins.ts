@@ -542,6 +542,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const previousMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
       const previousEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
 
+      const urlBase = `/case/${crn}/appointments/${id}/check-in`
+      // Going back to checkin-summary only makes sense once there's a value on file for the
+      // newly-selected preference - otherwise checkin-summary's own "can't finish setup without
+      // a value" guard immediately bounces back here, making Back look like it does nothing.
+      let backLink: string
+      if (cya === 'true') {
+        backLink = hasContactDetails ? `${urlBase}/checkin-summary` : `${urlBase}/contact-preference?cya=true`
+      } else {
+        backLink = hasContactDetails ? `${urlBase}/confirm-contact-preference` : `${urlBase}/contact-preference`
+      }
+
       return res.render('pages/check-in/edit-contact-preference.njk', {
         crn,
         id,
@@ -552,6 +563,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         hasContactDetails,
         previousMobile,
         previousEmail,
+        backLink,
       })
     }
   },
