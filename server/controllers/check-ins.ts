@@ -399,11 +399,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
 
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
       return res.render('pages/check-in/contact-preference.njk', { crn, id, checkInMobile, checkInEmail, cya })
     }
   },
@@ -480,13 +475,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
 
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
-
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
 
       return res.render('pages/check-in/confirm-contact-preference.njk', {
         crn,
@@ -605,7 +593,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           // in sync with the record.
           setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
           setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
-          setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
         }
       }
       // Saving the edit is itself a confirmation that the new value is correct, so the

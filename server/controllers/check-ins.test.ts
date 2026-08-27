@@ -369,21 +369,6 @@ describe('checkInsController', () => {
         'test@example.com',
       )
     })
-
-    it('sets success flag and clears contactUpdated when set in session', async () => {
-      mockIsValidCrn.mockReturnValue(true)
-      mockIsValidUUID.mockReturnValue(true)
-
-      const data = {
-        esupervision: { [crn]: { [uuid]: { checkins: { preferredComs: 'EMAIL', contactUpdated: true } } } },
-      }
-      const req = baseReq(data)
-
-      await controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient)(req, res)
-
-      expect(res.locals.success).toBe(true)
-      expect(data.esupervision[crn][uuid].checkins).not.toHaveProperty('contactUpdated')
-    })
   })
 
   describe('postConfirmContactPreferencePage', () => {
