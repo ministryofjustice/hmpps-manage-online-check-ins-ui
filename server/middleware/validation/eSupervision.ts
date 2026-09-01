@@ -120,8 +120,19 @@ const eSuperVision: Route<void> = (req, res, next) => {
       const preferredComs = sessionVal('checkins', 'preferredComs')
       localParams.preferredComs = preferredComs
       localParams.contactPreference = preferredComs === 'PHONE' ? 'mobile number' : 'email address'
-      const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
-      localParams.hasContactDetails = Boolean(sessionVal('checkins', editField)?.trim())
+      const { previousMobile, previousEmail } = body as { previousMobile?: string; previousEmail?: string }
+      const previousValue = preferredComs === 'PHONE' ? previousMobile : previousEmail
+      const hasContactDetails = Boolean(previousValue?.trim())
+      localParams.hasContactDetails = hasContactDetails
+
+      const urlBase = `/case/${crn}/appointments/${id}/check-in`
+      let backLink: string
+      if (cya === 'true') {
+        backLink = hasContactDetails ? `${urlBase}/checkin-summary` : `${urlBase}/contact-preference?cya=true`
+      } else {
+        backLink = hasContactDetails ? `${urlBase}/confirm-contact-preference` : `${urlBase}/contact-preference`
+      }
+      localParams.backLink = backLink
     }
   }
 
