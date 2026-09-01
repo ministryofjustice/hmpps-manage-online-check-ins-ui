@@ -11,6 +11,7 @@ jest.mock('uuid', () => ({
 
 const manageBase = `/case/${crn}/appointments/check-in/manage/${id}`
 const manageStopCheckinsUrl = `${manageBase}/stop-checkin`
+const setupBaseUrl = `/case/${crn}/appointments/${id}/check-in`
 const reqBase = {
   method: 'POST',
   params: { crn, id },
@@ -218,6 +219,50 @@ describe('Test eSuperVision validation', () => {
       validation.eSuperVision(req, res, next)
       expect(next).toHaveBeenCalled()
       expect(req.session.data.esupervision[crn][id].manageCheckin.preferredComs).toBe('PHONE')
+    })
+  })
+
+  describe('Test edit-contact-preference back link', () => {
+    const editContactPreferenceUrl = `${setupBaseUrl}/edit-contact-preference`
+    const backLinkFor = (previousMobile: string, query: Record<string, string>) => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            checkins: {
+              preferredComs: 'PHONE',
+              editCheckInMobile: 'not-a-mobile-number',
+              editCheckInEmail: 'name@example.com',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: editContactPreferenceUrl,
+        query,
+        body: { esupervision, previousMobile, previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      return renderArgs.backLink
+    }
+
+    it('goes to contact-preference, retaining cya, when there was no value on file before this edit and this is a change-your-answers link', () => {
+      expect(backLinkFor('', { cya: 'true' })).toBe(`${setupBaseUrl}/contact-preference?cya=true`)
+    })
+
+    it('goes to checkin-summary when there was already a value on file before this edit and this is a change-your-answers link', () => {
+      expect(backLinkFor('07700 900900', { cya: 'true' })).toBe(`${setupBaseUrl}/checkin-summary`)
+    })
+
+    it('goes to contact-preference when there was no value on file before this edit and this is not a change-your-answers link', () => {
+      expect(backLinkFor('', {})).toBe(`${setupBaseUrl}/contact-preference`)
+    })
+
+    it('goes to confirm-contact-preference when there was already a value on file before this edit and this is not a change-your-answers link', () => {
+      expect(backLinkFor('07700 900900', {})).toBe(`${setupBaseUrl}/confirm-contact-preference`)
     })
   })
 
