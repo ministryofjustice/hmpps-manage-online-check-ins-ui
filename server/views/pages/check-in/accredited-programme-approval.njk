@@ -1,0 +1,51 @@
+{% extends "../_form.njk" %}
+
+{% set title = "Confirm you’ve discussed this case with the accredited programme treatment manager"  %}
+{% set pageTitleText = "Confirm you’ve discussed this case with the accredited programme treatment manager" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set showAnchorLink = true %}
+{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/instructions' %}
+
+{% set checkboxTitle = "Confirm approval" %}
+{% block form %}
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-full">
+
+            <p class="govuk-body">You must have spoken to the accredited programme treatment manager before you sign someone in Tier A or B up to use online check ins. This person can only use online check ins while they’re on the accredited programme. Once this ends, they will no longer be eligible to use online check ins.  </p>
+            <p class="govuk-body">You must only replace some face to face meetings. You must still meet the person a minimum of once a month face to face.</p>
+
+            {{ govukCheckboxes({
+                name: "esupervision[" + crn + "][" + id + "][checkins][accreditedProgrammeApproval]",
+                idPrefix: "esupervision-" + crn + "-" + id + "-checkins-accreditedProgrammeApproval",
+                fieldset: {
+                    legend: {
+                        text: checkboxTitle,
+                        isPageHeading: false,
+                        classes: "govuk-fieldset__legend--m"
+                    }
+                },
+                errorMessage: {
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-checkins-accreditedProgrammeApproval"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-checkins-accreditedProgrammeApproval"],
+                items: [
+                {
+                  value: "accredited-programme-approval",
+                  text: "I can confirm that I have discussed the person with their accredited programme treatment manager before using online check ins to reduce face to face contact",
+                  label: {
+                    classes: "govuk-!-width-three-quarters"
+                  },
+                  checked: isApproved
+                }
+            ]
+            }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'accreditedProgrammeApproval']) }}
+        </div>
+    </div>
+{% endblock %}

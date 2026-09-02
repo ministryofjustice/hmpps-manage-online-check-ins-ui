@@ -58,6 +58,7 @@ export default {
   applicationName: 'Manage online check ins',
   env: get('ENVIRONMENT', 'dev', requiredInProduction) as 'local' | 'dev' | 'test' | 'preprod' | 'prod',
   staticResourceCacheDuration: '1h',
+  eligibilityCheckV2Enabled: get('ELIGIBILITY_CHECK_V2_ENABLED', 'false') === 'true',
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
     host: get('REDIS_HOST', 'localhost', requiredInProduction),

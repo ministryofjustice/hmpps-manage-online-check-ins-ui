@@ -3,6 +3,7 @@ import controllers from '.'
 import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import ESupervisionClient from '../data/eSupervisionClient'
+import config from '../config'
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
@@ -57,6 +58,72 @@ describe('check-in setup flow', () => {
       expect(await postEligibility(['eligibility-2', 'eligibility-9'])).toBe(
         `/case/${crn}/appointments/${id}/check-in/denied-eligibility`,
       )
+    })
+  })
+
+  describe('eligibility check v2 flag', () => {
+    afterEach(() => {
+      config.eligibilityCheckV2Enabled = false
+    })
+
+    it('sends new setups to the instructions page when the flag is on', async () => {
+      config.eligibilityCheckV2Enabled = true
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getStartSetup()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringMatching(new RegExp(`^/case/${crn}/appointments/[\\w-]+/check-in/instructions$`)),
+      )
+    })
+
+    it('renders the instructions template via the dedicated controller when the flag is on', async () => {
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: false }),
+      }))
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/instructions.njk', expect.objectContaining({ crn, id }))
+    })
+
+    it('still renders the original template via the original controller when the flag is off', async () => {
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: false }),
+      }))
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility-check.njk',
+        expect.objectContaining({ crn, id }),
+      )
+    })
+
+    it('skips the old outcome branching and goes to the accredited programme approval step via the dedicated controller', async () => {
+      // accreditedProgramme is currently hardcoded true pending the backend - see the TODO in check-ins.ts
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.postInstructionsPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`,
+      )
+    })
+
+    it('renders the accredited programme approval template via the dedicated controller', async () => {
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getAccreditedProgrammeApprovalPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/accredited-programme-approval.njk',
+        expect.objectContaining({ crn, id }),
+      )
+    })
+
+    it('still renders the original spo-approval template via the original controller', async () => {
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getSPOApprovalPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/spo-approval.njk', expect.objectContaining({ crn, id }))
     })
   })
 
