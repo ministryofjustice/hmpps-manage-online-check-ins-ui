@@ -16,6 +16,7 @@ generic-service:
     ARNS_API_URL: 'https://assess-risks-and-needs-dev.hmpps.service.justice.gov.uk'
     ENVIRONMENT_NAME: DEV
     AUDIT_ENABLED: "true"
+    ELIGIBILITY_CHECK_V2_ENABLED: 'true'
     COMPONENT_API_URL: "https://probation-frontend-components-dev.hmpps.service.justice.gov.uk"
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation-dev.hmpps.service.justice.gov.uk"
     ESUPERVISION_GUIDANCE_LINK: 'https://probation-check-in-dev.hmpps.service.justice.gov.uk'
