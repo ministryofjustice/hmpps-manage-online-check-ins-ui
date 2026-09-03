@@ -4,6 +4,7 @@ import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import ESupervisionClient from '../data/eSupervisionClient'
 import config from '../config'
+import { getOffenderEligibility } from '../data/mockAccreditedProgramme'
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
@@ -17,6 +18,9 @@ jest.mock('../data/hmppsAuthClient', () => {
     getSystemClientToken: jest.fn().mockResolvedValue('token-1'),
   }))
 })
+jest.mock('../data/mockAccreditedProgramme', () => ({
+  getOffenderEligibility: jest.fn(),
+}))
 
 const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
@@ -26,7 +30,10 @@ const requestFor = (body: Record<string, unknown> = {}, session: Record<string, 
   httpMocks.createRequest({ params: { crn, id }, body, session, query: {} })
 
 describe('check-in setup flow', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(getOffenderEligibility as jest.Mock).mockResolvedValue({ accreditedProgramme: true, tierA: true, tierB: true })
+  })
 
   describe('eligibility branching', () => {
     const postEligibility = async (eligibility: string | string[]) => {
@@ -83,7 +90,28 @@ describe('check-in setup flow', () => {
       const req = requestFor()
       const res = mockAppResponse()
       await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
-      expect(res.render).toHaveBeenCalledWith('pages/check-in/instructions.njk', expect.objectContaining({ crn, id }))
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/instructions.njk',
+        expect.objectContaining({ crn, id, accreditedProgramme: true }),
+      )
+    })
+
+    it('does not show the accredited programme content when in Tier A/B but not on an accredited programme', async () => {
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: false }),
+      }))
+      ;(getOffenderEligibility as jest.Mock).mockResolvedValue({
+        accreditedProgramme: false,
+        tierA: true,
+        tierB: false,
+      })
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/instructions.njk',
+        expect.objectContaining({ crn, id, accreditedProgramme: false }),
+      )
     })
 
     it('still renders the original template via the original controller when the flag is off', async () => {
@@ -99,14 +127,25 @@ describe('check-in setup flow', () => {
       )
     })
 
-    it('skips the old outcome branching and goes to the accredited programme approval step via the dedicated controller', async () => {
-      // accreditedProgramme is currently hardcoded true pending the backend - see the TODO in check-ins.ts
+    it('goes to the accredited programme approval step when on an accredited programme and in Tier A or B', async () => {
       const req = requestFor()
       const res = mockAppResponse()
       await controllers.checkIns.postInstructionsPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(
         `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`,
       )
+    })
+
+    it.each([
+      ['accredited programme but not in Tier A or B', { accreditedProgramme: true, tierA: false, tierB: false }],
+      ['in Tier A but not on an accredited programme', { accreditedProgramme: false, tierA: true, tierB: false }],
+      ['in Tier B but not on an accredited programme', { accreditedProgramme: false, tierA: false, tierB: true }],
+    ])('skips the accredited programme approval step when %s', async (_description, eligibility) => {
+      ;(getOffenderEligibility as jest.Mock).mockResolvedValue(eligibility)
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.postInstructionsPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/rationale`)
     })
 
     it('renders the accredited programme approval template via the dedicated controller', async () => {
@@ -178,6 +217,40 @@ describe('check-in setup flow', () => {
       expect(await backLinkFor({ eligibilityChoice: 'REPLACE_F2F' }, { cya: 'true' })).toBe(
         `/case/${crn}/appointments/${id}/check-in/checkin-summary`,
       )
+    })
+
+    describe('with the eligibility check v2 flag on', () => {
+      afterEach(() => {
+        config.eligibilityCheckV2Enabled = false
+      })
+
+      it('retraces the accredited programme approval branch and shows its hint', async () => {
+        config.eligibilityCheckV2Enabled = true
+        const req = httpMocks.createRequest({
+          params: { crn, id },
+          query: {},
+          session: { data: { esupervision: { [crn]: { [id]: { checkins: { accreditedProgramme: true } } } } } },
+        })
+        const res = mockAppResponse()
+        await controllers.checkIns.getRationalePage()(req, res)
+        const renderedLocals = (res.render as jest.Mock).mock.calls[0][1]
+        expect(renderedLocals.backLink).toBe(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
+        expect(renderedLocals.accreditedProgramme).toBe(true)
+      })
+
+      it('retraces the instructions page and hides the accredited programme hint when not on the programme', async () => {
+        config.eligibilityCheckV2Enabled = true
+        const req = httpMocks.createRequest({
+          params: { crn, id },
+          query: {},
+          session: { data: { esupervision: { [crn]: { [id]: { checkins: { accreditedProgramme: false } } } } } },
+        })
+        const res = mockAppResponse()
+        await controllers.checkIns.getRationalePage()(req, res)
+        const renderedLocals = (res.render as jest.Mock).mock.calls[0][1]
+        expect(renderedLocals.backLink).toBe(`/case/${crn}/appointments/${id}/check-in/instructions`)
+        expect(renderedLocals.accreditedProgramme).toBeFalsy()
+      })
     })
   })
 

@@ -84,6 +84,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
       const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
       const eligibilityChoice = sessionVal('checkins', 'eligibilityChoice')
       const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
+      if (config.eligibilityCheckV2Enabled) {
+        localParams.accreditedProgramme = Boolean(accreditedProgramme)
+      }
       if (cya === 'true') {
         localParams.backLink = setup('checkin-summary')
       } else if (config.eligibilityCheckV2Enabled) {

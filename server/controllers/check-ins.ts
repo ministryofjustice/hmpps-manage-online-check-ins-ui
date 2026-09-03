@@ -30,7 +30,7 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
-import { getOffenderEligibility } from '../data/mockAccreditedProgramme'
+import { getOffenderEligibility, OffenderEligibility } from '../data/mockAccreditedProgramme'
 
 const checkinIntervals: { id: string; label: string }[] = [
   { id: 'WEEKLY', label: 'Every week' },
@@ -45,6 +45,12 @@ const getMinDate = (): string => {
   return today.getDate() > 9
     ? DateTime.fromJSDate(today).toFormat('dd/M/yyyy')
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
+}
+
+// The accredited-programme content/approval step only applies when the person is on an
+// accredited programme AND in Tier A or B - either alone isn't enough.
+function isTierAOrBOnAccreditedProgramme({ accreditedProgramme, tierA, tierB }: OffenderEligibility): boolean {
+  return accreditedProgramme && (tierA || tierB)
 }
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
@@ -209,16 +215,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
-      const { accreditedProgramme, tierA, tierB } = await getOffenderEligibility(crn)
+      const eligibility = await getOffenderEligibility(crn)
       return res.render('pages/check-in/instructions.njk', {
         crn,
         id,
         back,
         guidanceUrl: config.guidance.link,
         data: req.session.data,
-        accreditedProgramme,
-        tierA,
-        tierB,
+        accreditedProgramme: isTierAOrBOnAccreditedProgramme(eligibility),
       })
     }
   },
@@ -231,7 +235,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'id'], id)
-      const { accreditedProgramme } = await getOffenderEligibility(crn)
+      const eligibility = await getOffenderEligibility(crn)
+      const accreditedProgramme = isTierAOrBOnAccreditedProgramme(eligibility)
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], accreditedProgramme)
       if (accreditedProgramme) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
@@ -436,7 +441,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       } else {
         backLink = `/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`
       }
-      return res.render('pages/check-in/rationale.njk', { crn, id, backLink })
+      return res.render('pages/check-in/rationale.njk', {
+        crn,
+        id,
+        backLink,
+        accreditedProgramme: config.eligibilityCheckV2Enabled ? accreditedProgramme : undefined,
+      })
     }
   },
 
