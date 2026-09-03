@@ -30,6 +30,7 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
+import { getOffenderEligibility, OffenderEligibility } from '../data/mockAccreditedProgramme'
 
 const checkinIntervals: { id: string; label: string }[] = [
   { id: 'WEEKLY', label: 'Every week' },
@@ -46,6 +47,12 @@ const getMinDate = (): string => {
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
 }
 
+// The accredited-programme content/approval step only applies when the person is on an
+// accredited programme AND in Tier A or B - either alone isn't enough.
+function isTierAOrBOnAccreditedProgramme({ accreditedProgramme, tierA, tierB }: OffenderEligibility): boolean {
+  return accreditedProgramme && (tierA || tierB)
+}
+
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   if (checkIn.livenessEnabled) {
     return checkIn.livenessResult === 'LIVE' && checkIn.autoIdCheck === 'MATCH'
@@ -57,6 +64,8 @@ type CheckInRouteName =
   | 'getStartSetup'
   | 'getEligibilityPage'
   | 'postEligibilityPage'
+  | 'getInstructionsPage'
+  | 'postInstructionsPage'
   | 'getEligibilityDeniedPage'
   | 'postEligibilityDeniedPage'
   | 'getFullEligibilityPage'
@@ -65,6 +74,8 @@ type CheckInRouteName =
   | 'postSupplementaryEligibilityPage'
   | 'getSPOApprovalPage'
   | 'postSPOApprovalPage'
+  | 'getAccreditedProgrammeApprovalPage'
+  | 'postAccreditedProgrammeApprovalPage'
   | 'getRationalePage'
   | 'postRationalePage'
   | 'getDateFrequencyPage'
@@ -137,7 +148,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_START_SETUP', crn, SubjectType.CRN)
-      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/eligibility-check`)
+      const nextStep = config.eligibilityCheckV2Enabled ? 'instructions' : 'eligibility-check'
+      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/${nextStep}`)
     }
   },
 
@@ -186,6 +198,50 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`)
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+  },
+
+  getInstructionsPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const practitioner = await eSupervisionClient.getProbationPractitioner(crn)
+      if (practitioner?.unallocated) {
+        return res.redirect(`/case/${crn}/appointments`)
+      }
+      const eligibility = await getOffenderEligibility(crn)
+      return res.render('pages/check-in/instructions.njk', {
+        crn,
+        id,
+        back,
+        guidanceUrl: config.guidance.link,
+        data: req.session.data,
+        accreditedProgramme: isTierAOrBOnAccreditedProgramme(eligibility),
+      })
+    }
+  },
+
+  postInstructionsPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'id'], id)
+      const eligibility = await getOffenderEligibility(crn)
+      const accreditedProgramme = isTierAOrBOnAccreditedProgramme(eligibility)
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], accreditedProgramme)
+      if (accreditedProgramme) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
     }
   },
 
@@ -302,6 +358,48 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
+  getAccreditedProgrammeApprovalPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_ACCREDITED_PROGRAMME_APPROVAL_TO_USE_CHECK_INS',
+        crn,
+        SubjectType.CRN,
+      )
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const answer = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'checkins',
+        'accreditedProgrammeApproval',
+      ])
+      const isApproved =
+        answer === 'accredited-programme-approval' ||
+        (Array.isArray(answer) && answer.includes('accredited-programme-approval'))
+      return res.render('pages/check-in/accredited-programme-approval.njk', { crn, id, back, isApproved })
+    }
+  },
+
+  postAccreditedProgrammeApprovalPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const approval = req.body?.esupervision?.[crn]?.[id]?.checkins?.accreditedProgrammeApproval
+      if (approval) {
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgrammeApproval'], approval)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+    }
+  },
+
   getRationalePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -320,10 +418,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'eligibilityChoice',
       ])
 
+      const accreditedProgramme = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'checkins',
+        'accreditedProgramme',
+      ])
+
       // Back needs to retrace whichever eligibility branch got the user here.
       let backLink: string
       if (cya) {
         backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      } else if (config.eligibilityCheckV2Enabled) {
+        backLink = accreditedProgramme
+          ? `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`
+          : `/case/${crn}/appointments/${id}/check-in/instructions`
       } else if (eligibilityChoice === 'REPLACE_F2F') {
         backLink = `/case/${crn}/appointments/${id}/check-in/spo-approval`
       } else if (eligibilityArray.includes('eligibility-none')) {
@@ -331,7 +441,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       } else {
         backLink = `/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`
       }
-      return res.render('pages/check-in/rationale.njk', { crn, id, backLink })
+      return res.render('pages/check-in/rationale.njk', {
+        crn,
+        id,
+        backLink,
+        accreditedProgramme: config.eligibilityCheckV2Enabled ? accreditedProgramme : undefined,
+      })
     }
   },
 

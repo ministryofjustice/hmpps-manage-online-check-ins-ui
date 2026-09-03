@@ -31,6 +31,7 @@ generic-service:
     REDIS_ENABLED: 'true'
     REDIS_TLS_ENABLED: 'true'
     TOKEN_VERIFICATION_ENABLED: 'true'
+    ELIGIBILITY_CHECK_V2_ENABLED: 'false'
     AUDIT_SQS_REGION: 'eu-west-2'
     AUDIT_SERVICE_NAME: 'hmpps-esupervision'
     FEEDBACK_BANNER_LINK: 'https://www.smartsurvey.co.uk/t/AAGPPN?service=Online%20check%20ins'

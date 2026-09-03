@@ -47,6 +47,7 @@ const views = [
   'eligibility-denied',
   'rationale',
   'spo-approval',
+  'accredited-programme-approval',
   'date-frequency',
   'contact-preference',
   'confirm-contact-preference',

@@ -72,8 +72,10 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
   const validateSetupFlow = () => {
     validateSetupPage('eligibility-check', 'eligibility-check', 'eligibility-check')
+    validateSetupPage('instructions', 'instructions', 'instructions')
     validateSetupPage('full-eligibility', 'eligibility-full', 'full-eligibility')
     validateSetupPage('spo-approval', 'spo-approval', 'spo-approval')
+    validateSetupPage('accredited-programme-approval', 'accredited-programme-approval', 'accredited-programme-approval')
     validateSetupPage('rationale', 'rationale', 'rationale')
     if (baseUrl.includes(setup('rationale'))) {
       // Mirrors getRationalePage's backLink logic - _form.njk only shows a back link when one
@@ -81,8 +83,14 @@ const eSuperVision: Route<void> = (req, res, next) => {
       const eligibility = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibility']) || []
       const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
       const eligibilityChoice = sessionVal('checkins', 'eligibilityChoice')
+      const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
+      if (config.eligibilityCheckV2Enabled) {
+        localParams.accreditedProgramme = Boolean(accreditedProgramme)
+      }
       if (cya === 'true') {
         localParams.backLink = setup('checkin-summary')
+      } else if (config.eligibilityCheckV2Enabled) {
+        localParams.backLink = accreditedProgramme ? setup('accredited-programme-approval') : setup('instructions')
       } else if (eligibilityChoice === 'REPLACE_F2F') {
         localParams.backLink = setup('spo-approval')
       } else if (eligibilityArray.includes('eligibility-none')) {
