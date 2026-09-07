@@ -176,6 +176,43 @@ const stubGetUpcomingCheckinQuestionItems = () => {
   })
 }
 
+export const stubPractitionerAlerts = (count: number) => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPathPattern: '/v2/practitioners/.+?/alerts',
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      jsonBody: { count },
+    },
+  })
+}
+
+export const stubPractitionerAlerts500Response = () => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      method: 'GET',
+      urlPathPattern: '/v2/practitioners/.+?/alerts',
+    },
+    response: {
+      status: 500,
+      jsonBody: {
+        status: 500,
+        errorCode: null,
+        userMessage: '500 internal server error',
+        developerMessage: '500 internal server error',
+        moreInfo: null,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  })
+}
+
 const stubDeleteAssignedQuestionsFromCheckIn = () => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
@@ -206,4 +243,6 @@ export default {
   stubGetUpcomingCheckinQuestions,
   stubAssignQuestions,
   stubDeleteAssignedQuestionsFromCheckIn,
+  stubPractitionerAlerts,
+  stubPractitionerAlerts500Response,
 }

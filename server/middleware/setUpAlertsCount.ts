@@ -6,10 +6,7 @@ import logger from '../../logger'
 export default function setUpAlertsCount(hmppsAuthClient: HmppsAuthClient) {
   const router = express.Router()
 
-  router.use(async (req, res, next) => {
-    if (req.method !== 'GET') {
-      return next()
-    }
+  router.use(async (_req, res, next) => {
     res.locals.alertsCount = null
     try {
       const { username } = res.locals.user
@@ -20,7 +17,7 @@ export default function setUpAlertsCount(hmppsAuthClient: HmppsAuthClient) {
     } catch (error) {
       logger.warn(error, 'Failed to fetch practitioner alerts count')
     }
-    return next()
+    next()
   })
 
   return router
