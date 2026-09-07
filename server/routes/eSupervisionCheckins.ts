@@ -17,10 +17,8 @@ import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
-    // we should use this redirect for the root route when we're ready to deploy
-    // const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-    // return res.redirect(mpopBaseUrl)
-    res.render('pages/index')
+    const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
+    return res.redirect(mpopBaseUrl)
   })
 
   // The cases overview page lives in MPOP - redirect /case hits there
@@ -226,6 +224,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.post('/case/:crn/appointments/:id/check-in/confirm-end', [
+    controllers.checkIns.postConfirmEnd(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/:id/check-in/confirm-end', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getConfirmationPage(hmppsAuthClient),
   ])
@@ -438,6 +440,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.post('/case/:crn/appointments/:id/check-in/review/expired', [
     validateCrnAndId,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
     getCheckIn(hmppsAuthClient),
     validate.checkInReview,
     autoStoreSessionData(hmppsAuthClient),

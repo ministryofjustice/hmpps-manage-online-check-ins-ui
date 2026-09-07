@@ -11,8 +11,6 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set cyaLink = "?cya=true" if cya else "" %}
-{% set backLink = ('/case/' + crn + '/appointments/' + id + '/check-in/confirm-contact-preference' + cyaLink) if hasContactDetails else ('/case/' + crn + '/appointments/' + id + '/check-in/contact-preference' + cyaLink) %}
 {% set notStandardForm = true %}
 {% set isPhone = preferredComs === 'PHONE' %}
 {% set editField = 'editCheckInMobile' if isPhone else 'editCheckInEmail' %}
@@ -38,6 +36,8 @@
         <form method="post" autocomplete="off" action="{{ paths.current }}">
             <input type="hidden" name="_csrf" value="{{ csrfToken }}">
             <input type="hidden" name="change" value="{{ change }}">
+            <input type="hidden" name="previousMobile" value="{{ previousMobile }}">
+            <input type="hidden" name="previousEmail" value="{{ previousEmail }}">
 
             {{ govukInput({
                 label: {

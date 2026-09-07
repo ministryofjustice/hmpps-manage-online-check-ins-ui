@@ -10,7 +10,7 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set backLink =  '/case/' + crn + '/appointments/' + id + '/check-in/' + 'contact-preference' if not cya else 'checkin-summary'%}
+{% set backLink =  '/case/' + crn + '/appointments/' + id + '/check-in/' + 'confirm-contact-preference' if not cya else 'checkin-summary'%}
 {% set radioLabel =  "How do you want to take a photo of "+ case.name.forename + "?" %}
 {% set insertTextMsg =  "Turn off notifications and close anything you do not want " + case.name.forename + " to see before <br/> taking the photo." %}
 

@@ -2,6 +2,7 @@ import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
 import getDataValue from '../../utils/getDataValue'
+import setDataValue from '../../utils/setDataValue'
 import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
 import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
@@ -119,8 +120,19 @@ const eSuperVision: Route<void> = (req, res, next) => {
       const preferredComs = sessionVal('checkins', 'preferredComs')
       localParams.preferredComs = preferredComs
       localParams.contactPreference = preferredComs === 'PHONE' ? 'mobile number' : 'email address'
-      const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
-      localParams.hasContactDetails = Boolean(sessionVal('checkins', editField)?.trim())
+      const { previousMobile, previousEmail } = body as { previousMobile?: string; previousEmail?: string }
+      const previousValue = preferredComs === 'PHONE' ? previousMobile : previousEmail
+      const hasContactDetails = Boolean(previousValue?.trim())
+      localParams.hasContactDetails = hasContactDetails
+
+      const urlBase = `/case/${crn}/appointments/${id}/check-in`
+      let backLink: string
+      if (cya === 'true') {
+        backLink = hasContactDetails ? `${urlBase}/checkin-summary` : `${urlBase}/contact-preference?cya=true`
+      } else {
+        backLink = hasContactDetails ? `${urlBase}/confirm-contact-preference` : `${urlBase}/contact-preference`
+      }
+      localParams.backLink = backLink
     }
   }
 
@@ -137,6 +149,16 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/checkin-settings`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'checkin-settings' }))
+      if (Object.keys(errorMessages).length) {
+        // autoStoreSessionData has already overwritten the session's manageCheckin date/interval
+        // with the invalid submission by this point - restore the real values fetched from the
+        // API so the re-rendered form shows the saved check-in date, not the rejected input.
+        const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], {
+          date: offenderDetails?.firstCheckin,
+          interval: offenderDetails?.checkinInterval,
+        })
+      }
     }
   }
 
@@ -152,6 +174,12 @@ const eSuperVision: Route<void> = (req, res, next) => {
           req,
           eSuperVisionValidation({ crn, id, checkInEmail, checkInMobile, page: 'manage-contact', change: 'main' }),
         )
+        if (Object.keys(errorMessages).length) {
+          const savedPreference = res.locals.offenderCheckinsByCRNResponse?.contactPreference
+          if (savedPreference) {
+            setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], savedPreference)
+          }
+        }
       }
     }
   }
@@ -162,10 +190,40 @@ const eSuperVision: Route<void> = (req, res, next) => {
       localParams.change = body?.change as string
       const editCheckInEmail = sessionVal('manageCheckin', 'editCheckInEmail')
       const editCheckInMobile = sessionVal('manageCheckin', 'editCheckInMobile')
+      const preferredComs = sessionVal('manageCheckin', 'preferredComs')
+      // These hidden inputs carry the API-backed values from when the page loaded, untouched by
+      // autoStoreSessionData, so they survive even though the session copy gets overwritten by
+      // the (possibly blank) submission above.
+      const { previousMobile, previousEmail } = body as { previousMobile?: string; previousEmail?: string }
       errorMessages = validateWithSpec(
         req,
-        eSuperVisionValidation({ crn, id, editCheckInEmail, editCheckInMobile, page: 'edit-contact' }),
+        eSuperVisionValidation({
+          crn,
+          id,
+          editCheckInEmail,
+          editCheckInMobile,
+          preferredComs,
+          page: 'edit-contact',
+        }),
       )
+      // The preferred contact method can't be cleared - if it was rejected for being blank,
+      // redisplay its saved value instead of the blank submission that autoStoreSessionData
+      // already wrote to session. A malformed (non-empty) submission is left alone so the user
+      // can see and fix what they actually typed.
+      if (
+        !editCheckInMobile &&
+        errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInMobile`] &&
+        previousMobile
+      ) {
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInMobile'], previousMobile)
+      }
+      if (
+        !editCheckInEmail &&
+        errorMessages[`esupervision-${crn}-${id}-manageCheckin-editCheckInEmail`] &&
+        previousEmail
+      ) {
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'editCheckInEmail'], previousEmail)
+      }
     }
   }
 

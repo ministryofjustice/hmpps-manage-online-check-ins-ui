@@ -85,6 +85,7 @@ type CheckInRouteName =
   | 'postPhotoRulesPage'
   | 'getCheckinSummaryPage'
   | 'postCheckinSummaryPage'
+  | 'postConfirmEnd'
   | 'getConfirmationPage'
   | 'getManageCheckinPage'
   | 'postManageStopCheckin'
@@ -398,11 +399,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
 
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
       return res.render('pages/check-in/contact-preference.njk', { crn, id, checkInMobile, checkInEmail, cya })
     }
   },
@@ -480,13 +476,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
 
-      const contactUpdated = getDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'])
-
-      if (contactUpdated) {
-        res.locals.success = true
-        delete req.session?.data?.esupervision?.[crn]?.[id]?.checkins?.contactUpdated
-      }
-
       return res.render('pages/check-in/confirm-contact-preference.njk', {
         crn,
         id,
@@ -550,6 +539,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const editField = preferredComs === 'PHONE' ? 'editCheckInMobile' : 'editCheckInEmail'
       const existingContactValue = getDataValue(data, ['esupervision', crn, id, 'checkins', editField])
       const hasContactDetails = Boolean(existingContactValue?.trim())
+      const previousMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
+      const previousEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
+
+      const urlBase = `/case/${crn}/appointments/${id}/check-in`
+      // Going back to checkin-summary only makes sense once there's a value on file for the
+      // newly-selected preference - otherwise checkin-summary's own "can't finish setup without
+      // a value" guard immediately bounces back here, making Back look like it does nothing.
+      let backLink: string
+      if (cya === 'true') {
+        backLink = hasContactDetails ? `${urlBase}/checkin-summary` : `${urlBase}/contact-preference?cya=true`
+      } else {
+        backLink = hasContactDetails ? `${urlBase}/confirm-contact-preference` : `${urlBase}/contact-preference`
+      }
 
       return res.render('pages/check-in/edit-contact-preference.njk', {
         crn,
@@ -559,6 +561,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         preferredComs,
         contactPreference,
         hasContactDetails,
+        previousMobile,
+        previousEmail,
+        backLink,
       })
     }
   },
@@ -576,26 +581,35 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const practitionerId = res.locals.user.username
       const editCheckInEmail = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'])
       const editCheckInMobile = getDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'])
-      const body: PersonalDetailsUpdateRequest = {
-        practitionerId,
-        email: editCheckInEmail,
-        mobile: editCheckInMobile?.trim(),
-      }
+      const nextEmail = editCheckInEmail?.trim()
+      const nextMobile = editCheckInMobile?.trim()
+      // Carries the value as it was when the page loaded, untouched by autoStoreSessionData, so
+      // this reflects what the user actually changed rather than a second, possibly differently
+      // formatted, live fetch of the record.
+      const { previousMobile, previousEmail } = req.body as { previousMobile?: string; previousEmail?: string }
 
       const cya = req.query?.cya === 'true'
-      const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+      const hasChanged =
+        (previousMobile?.trim() ?? '') !== (nextMobile ?? '') || (previousEmail?.trim() ?? '') !== (nextEmail ?? '')
 
-      if (personalDetails?.crn) {
-        // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
-        // longer loops back through contact-preference's GET, which used to be what kept them
-        // in sync with the record.
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'contactUpdated'], true)
-        // Saving the edit is itself a confirmation that the new value is correct, so the
-        // journey can move straight on to photo, whether or not there was a confirm step.
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'confirmPreferredComs'], 'YES')
+      if (hasChanged) {
+        const body: PersonalDetailsUpdateRequest = {
+          practitionerId,
+          email: nextEmail,
+          mobile: nextMobile,
+        }
+        const personalDetails = await eSupervisionClient.updatePersonalDetailsContact(crn, body)
+        if (personalDetails?.crn) {
+          // checkin-summary reads checkInMobile/checkInEmail directly, and this redirect no
+          // longer loops back through contact-preference's GET, which used to be what kept them
+          // in sync with the record.
+          setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInMobile'], personalDetails.mobile)
+          setDataValue(data, ['esupervision', crn, id, 'checkins', 'checkInEmail'], personalDetails.email)
+        }
       }
+      // Saving the edit is itself a confirmation that the new value is correct, so the
+      // journey can move straight on to photo, whether or not there was a confirm step.
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'confirmPreferredComs'], 'YES')
       if (cya) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
       }
@@ -750,6 +764,28 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
+      // Setup already completed (e.g. the browser back button was used from the confirmation
+      // page) - send them to the check-in overview instead of re-showing stale answers.
+      if (savedUserDetails?.completed) {
+        return res.redirect(
+          savedUserDetails.activeId
+            ? `/case/${crn}/appointments/check-in/manage/${savedUserDetails.activeId}`
+            : `/case/${crn}/appointments/check-in/manage`,
+        )
+      }
+      // A "change" link into edit-contact-preference can be abandoned with the back link
+      // before a missing mobile/email is actually entered - re-check here so setup can't be
+      // confirmed with no way to reach the person on their chosen contact method.
+      if (savedUserDetails?.preferredComs) {
+        const selectedContactValue =
+          savedUserDetails.preferredComs === 'PHONE' ? savedUserDetails?.checkInMobile : savedUserDetails?.checkInEmail
+        if (!selectedContactValue?.trim()) {
+          const change = savedUserDetails.preferredComs === 'PHONE' ? 'mobile' : 'email'
+          return res.redirect(
+            `/case/${crn}/appointments/${id}/check-in/edit-contact-preference?change=${change}&cya=true`,
+          )
+        }
+      }
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: id,
@@ -777,6 +813,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
+  // Completes registration, then redirects to the GET confirmation page so a browser back
+  // navigation re-fetches rather than re-triggering the completion side effect
+  postConfirmEnd: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      await postCheckinInComplete(hmppsAuthClient)(req, res)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/confirm-end`)
+    }
+  },
+
   getConfirmationPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -785,7 +834,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_IN_CONFIRMATION', crn, SubjectType.CRN)
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
-      await postCheckinInComplete(hmppsAuthClient)(req, res)
       await getCheckinOffenderDetails(hmppsAuthClient)(req, res, () => {})
       // Completing setup creates the offender record, so the uuid to manage them by is
       // only available once the check-in registration has gone through.
@@ -802,6 +850,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const checkInDate = DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').startOf('day')
       const isFutureCheckinDate = checkInDate > DateTime.now().startOf('day')
+
+      // Flag the setup as completed so a browser back navigation to checkin-summary redirects
+      // to the check-in overview instead of re-showing the now-stale check-your-answers page.
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'completed'], true)
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'activeId'], activeId)
 
       return res.render('pages/check-in/confirmation.njk', { crn, id, activeId, userDetails, isFutureCheckinDate })
     }
@@ -848,7 +901,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       if (questionsAdded) {
         res.locals.success = true
-        const forename = 'the person'
+        const forename = checkinRes?.details?.name?.forename || 'the person'
         const rawCheckinDate = upcomingCheckin?.expectedCheckinDate
         const nextCheckinDate = dateWithYear(rawCheckinDate)
         successMessageHtml = `
@@ -917,9 +970,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       res.locals.offenderCheckinsByCRNResponse = await eSupervisionClient.postDeactivateOffender(id, body)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
-      const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-      const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-      return res.redirect(303, redirectUrl)
+
+      return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
     }
   },
 
@@ -1645,11 +1697,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             }
           })
         } catch (error: any) {
-          if (error?.status === 404 || error?.response?.status === 404) {
+          const status = error?.status || error?.response?.status
+          const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
+          if (status === 404 || isInactiveOffender) {
             logger.info(`No upcoming questions found for CRN ${crn}.`)
           } else {
             logger.error(`Failed to fetch upcoming questions for CRN ${crn}:`, error)
-            return renderError(error?.status || 500)(req, res)
+            return renderError(status || 500)(req, res)
           }
         }
         setDataValue(
@@ -1726,9 +1780,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         }
 
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions'], undefined)
-        const mpopBaseUrl = config.managePeopleOnProbation.link.replace(/\/$/, '')
-        const redirectUrl = `${mpopBaseUrl}/case/${crn}`
-        return res.redirect(303, redirectUrl)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       } catch (error: any) {
         logger.error(`Failed to assign/delete questions for CRN ${crn}:`, error)
         return renderError(error?.status || 500)(req, res)

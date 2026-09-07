@@ -11,6 +11,7 @@ jest.mock('uuid', () => ({
 
 const manageBase = `/case/${crn}/appointments/check-in/manage/${id}`
 const manageStopCheckinsUrl = `${manageBase}/stop-checkin`
+const setupBaseUrl = `/case/${crn}/appointments/${id}/check-in`
 const reqBase = {
   method: 'POST',
   params: { crn, id },
@@ -109,6 +110,329 @@ describe('Test eSuperVision validation', () => {
       const res = makeRes()
       validation.eSuperVision(req, res, next)
       expect(res.render).toHaveBeenCalled()
+    })
+  })
+
+  describe('Test checkin-settings', () => {
+    const manageSettingsUrl = `${manageBase}/settings`
+
+    it('restores the saved check-in date and interval when the submitted date is invalid', () => {
+      // autoStoreSessionData has already run and stored the invalid submission by the time
+      // validation middleware runs, so the session starts out holding the rejected input.
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              date: '',
+              interval: 'WEEKLY',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageSettingsUrl,
+        body: { esupervision },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({
+        offenderCheckinsByCRNResponse: {
+          firstCheckin: '2026-09-01',
+          checkinInterval: 'FOUR_WEEKS',
+        },
+      })
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        date: '2026-09-01',
+        interval: 'FOUR_WEEKS',
+      })
+    })
+  })
+
+  describe('Test manage-contact', () => {
+    const manageContactUrl = `${manageBase}/contact`
+
+    it('resets the preference radio to the saved contact preference when the new selection has no value on file', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              preferredComs: 'PHONE',
+              checkInMobile: '',
+              checkInEmail: 'name@example.com',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageContactUrl,
+        body: { esupervision, change: 'main' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({ offenderCheckinsByCRNResponse: { contactPreference: 'EMAIL' } })
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].manageCheckin.preferredComs).toBe('EMAIL')
+    })
+
+    it('keeps the new selection when it has a value on file', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              preferredComs: 'PHONE',
+              checkInMobile: '07700 900900',
+              checkInEmail: 'name@example.com',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageContactUrl,
+        body: { esupervision, change: 'main' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({ offenderCheckinsByCRNResponse: { contactPreference: 'EMAIL' } })
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].manageCheckin.preferredComs).toBe('PHONE')
+    })
+
+    it('does not validate the preference when the request is a change button, not the main submit', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              preferredComs: 'PHONE',
+              checkInMobile: '',
+              checkInEmail: 'name@example.com',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageContactUrl,
+        body: { esupervision, change: 'mobile' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({ offenderCheckinsByCRNResponse: { contactPreference: 'EMAIL' } })
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].manageCheckin.preferredComs).toBe('PHONE')
+    })
+  })
+
+  describe('Test edit-contact-preference back link', () => {
+    const editContactPreferenceUrl = `${setupBaseUrl}/edit-contact-preference`
+    const backLinkFor = (previousMobile: string, query: Record<string, string>) => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            checkins: {
+              preferredComs: 'PHONE',
+              editCheckInMobile: 'not-a-mobile-number',
+              editCheckInEmail: 'name@example.com',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: editContactPreferenceUrl,
+        query,
+        body: { esupervision, previousMobile, previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      return renderArgs.backLink
+    }
+
+    it('goes to contact-preference, retaining cya, when there was no value on file before this edit and this is a change-your-answers link', () => {
+      expect(backLinkFor('', { cya: 'true' })).toBe(`${setupBaseUrl}/contact-preference?cya=true`)
+    })
+
+    it('goes to checkin-summary when there was already a value on file before this edit and this is a change-your-answers link', () => {
+      expect(backLinkFor('07700 900900', { cya: 'true' })).toBe(`${setupBaseUrl}/checkin-summary`)
+    })
+
+    it('goes to contact-preference when there was no value on file before this edit and this is not a change-your-answers link', () => {
+      expect(backLinkFor('', {})).toBe(`${setupBaseUrl}/contact-preference`)
+    })
+
+    it('goes to confirm-contact-preference when there was already a value on file before this edit and this is not a change-your-answers link', () => {
+      expect(backLinkFor('07700 900900', {})).toBe(`${setupBaseUrl}/confirm-contact-preference`)
+    })
+  })
+
+  describe('Test manage-edit-contact', () => {
+    const manageEditContactUrl = `${manageBase}/edit-contact`
+
+    // Scenario 1 & 2: whichever method is the person's preferred contact method can never be
+    // cleared - that's true whether or not the other field still has a value, since a stale
+    // preference (set once from NDelius, only changed via the main contact-preference form)
+    // would otherwise let the wrong field be treated as required.
+    it('blocks clearing email when email is the preferred contact method, even if mobile still has a value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '07700 900900',
+              editCheckInEmail: '',
+              preferredComs: 'EMAIL',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
+      })
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        editCheckInMobile: '07700 900900',
+        editCheckInEmail: 'name@example.com',
+        preferredComs: 'EMAIL',
+      })
+    })
+
+    it('keeps the malformed submission on screen instead of redisplaying the saved value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '07700 900900',
+              editCheckInEmail: 'not-an-email',
+              preferredComs: 'EMAIL',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address in the correct format.',
+      })
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        editCheckInMobile: '07700 900900',
+        editCheckInEmail: 'not-an-email',
+        preferredComs: 'EMAIL',
+      })
+    })
+
+    it('blocks clearing mobile when mobile is the preferred contact method, even if email still has a value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '',
+              editCheckInEmail: 'name@example.com',
+              preferredComs: 'PHONE',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInMobile': 'Enter a mobile number',
+      })
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        editCheckInMobile: '07700 900900',
+        editCheckInEmail: 'name@example.com',
+        preferredComs: 'PHONE',
+      })
+    })
+
+    it('blocks clearing the only contact method when it is also the preferred one', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '',
+              editCheckInEmail: '',
+              preferredComs: 'EMAIL',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+      expect(renderArgs.errorMessages).toEqual({
+        'esupervision-X000001-1-manageCheckin-editCheckInEmail': 'Enter an email address',
+      })
+    })
+
+    it('allows clearing the non-preferred field when it still has a value', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '',
+              editCheckInEmail: 'name@example.com',
+              preferredComs: 'EMAIL',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '07700 900900', previousEmail: 'name@example.com' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
+    })
+
+    it('passes when both fields were already empty and remain empty', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              editCheckInMobile: '',
+              editCheckInEmail: '',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageEditContactUrl,
+        body: { esupervision, previousMobile: '', previousEmail: '' },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse()
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
     })
   })
 
