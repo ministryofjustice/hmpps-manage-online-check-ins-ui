@@ -6,6 +6,7 @@ import pdsComponents from '@ministryofjustice/hmpps-probation-frontend-component
 import nunjucksSetup from './utils/nunjucksSetup'
 import errorHandler from './errorHandler'
 import authorisationMiddleware from './middleware/authorisationMiddleware'
+import setUpAlertsCount from './middleware/setUpAlertsCount'
 import setUpAuthentication from './middleware/setUpAuthentication'
 import setUpCsrf from './middleware/setUpCsrf'
 import setUpCurrentUser from './middleware/setUpCurrentUser'
@@ -44,6 +45,7 @@ export default function createApp(services: Services): express.Application {
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
+  app.use(setUpAlertsCount(services.hmppsAuthClient))
   app.use(
     pdsComponents.getPageComponents({
       pdsUrl: config.apis.probationApi.url,

@@ -19,6 +19,7 @@ import {
   EsupervisionUpcomingQuestionItemsResponse,
   OffenderByCRNResponse,
   OffenderHeaderDetails,
+  PractitionerAlertsResponse,
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
@@ -194,5 +195,10 @@ export default class ESupervisionClient extends RestClient {
       handle404: false,
       handle500: false,
     })
+  }
+
+  // GET /v2/practitioners/{username}/alerts — count of alerts for the logged-in practitioner's caseload.
+  async getPractitionerAlerts(username: string): Promise<PractitionerAlertsResponse> {
+    return this.get({ path: `/v2/practitioners/${username}/alerts` })
   }
 }

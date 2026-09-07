@@ -314,3 +314,7 @@ export interface OffenderHeaderDetails {
   tierDetailsLink: string
   overallRisk: string
 }
+
+export interface PractitionerAlertsResponse {
+  count: number
+}
