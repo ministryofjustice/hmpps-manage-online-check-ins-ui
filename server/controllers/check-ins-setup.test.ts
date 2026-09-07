@@ -127,6 +127,15 @@ describe('check-in setup flow', () => {
       )
     })
 
+    it('redirects a partner service link straight to instructions when the flag is on', async () => {
+      config.eligibilityCheckV2Enabled = true
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/instructions`)
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
     it('goes to the accredited programme approval step when on an accredited programme and in Tier A or B', async () => {
       const req = requestFor()
       const res = mockAppResponse()
@@ -140,12 +149,12 @@ describe('check-in setup flow', () => {
       ['accredited programme but not in Tier A or B', { accreditedProgramme: true, tierA: false, tierB: false }],
       ['in Tier A but not on an accredited programme', { accreditedProgramme: false, tierA: true, tierB: false }],
       ['in Tier B but not on an accredited programme', { accreditedProgramme: false, tierA: false, tierB: true }],
-    ])('skips the accredited programme approval step when %s', async (_description, eligibility) => {
+    ])('skips the accredited programme approval step and rationale when %s', async (_description, eligibility) => {
       ;(getOffenderEligibility as jest.Mock).mockResolvedValue(eligibility)
       const req = requestFor()
       const res = mockAppResponse()
       await controllers.checkIns.postInstructionsPage()(req, res)
-      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/rationale`)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
     })
 
     it('renders the accredited programme approval template via the dedicated controller', async () => {
@@ -238,7 +247,7 @@ describe('check-in setup flow', () => {
         expect(renderedLocals.accreditedProgramme).toBe(true)
       })
 
-      it('retraces the instructions page and hides the accredited programme hint when not on the programme', async () => {
+      it('redirects to date frequency instead of rendering when not on the accredited programme', async () => {
         config.eligibilityCheckV2Enabled = true
         const req = httpMocks.createRequest({
           params: { crn, id },
@@ -247,9 +256,57 @@ describe('check-in setup flow', () => {
         })
         const res = mockAppResponse()
         await controllers.checkIns.getRationalePage()(req, res)
-        const renderedLocals = (res.render as jest.Mock).mock.calls[0][1]
-        expect(renderedLocals.backLink).toBe(`/case/${crn}/appointments/${id}/check-in/instructions`)
-        expect(renderedLocals.accreditedProgramme).toBeFalsy()
+        expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+        expect(res.render).not.toHaveBeenCalled()
+      })
+
+      it('still renders when not on the accredited programme but the flag is off', async () => {
+        const req = httpMocks.createRequest({
+          params: { crn, id },
+          query: {},
+          session: { data: { esupervision: { [crn]: { [id]: { checkins: { accreditedProgramme: false } } } } } },
+        })
+        const res = mockAppResponse()
+        await controllers.checkIns.getRationalePage()(req, res)
+        expect(res.render).toHaveBeenCalled()
+        expect(res.redirect).not.toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe('date frequency back link', () => {
+    const backLinkFor = async (checkins: Record<string, unknown>, query: Record<string, string> = {}) => {
+      const req = httpMocks.createRequest({
+        params: { crn, id },
+        query,
+        session: { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
+      })
+      const res = mockAppResponse()
+      await controllers.checkIns.getDateFrequencyPage()(req, res)
+      return (res.render as jest.Mock).mock.calls[0][1].backLink
+    }
+
+    it('retraces rationale when the flag is off', async () => {
+      expect(await backLinkFor({})).toBe(`/case/${crn}/appointments/${id}/check-in/rationale`)
+    })
+
+    describe('with the eligibility check v2 flag on', () => {
+      afterEach(() => {
+        config.eligibilityCheckV2Enabled = false
+      })
+
+      it('retraces rationale when on an accredited programme and in Tier A or B', async () => {
+        config.eligibilityCheckV2Enabled = true
+        expect(await backLinkFor({ accreditedProgramme: true })).toBe(
+          `/case/${crn}/appointments/${id}/check-in/rationale`,
+        )
+      })
+
+      it('retraces instructions - skipping rationale - when not on an accredited programme and in Tier A or B', async () => {
+        config.eligibilityCheckV2Enabled = true
+        expect(await backLinkFor({ accreditedProgramme: false })).toBe(
+          `/case/${crn}/appointments/${id}/check-in/instructions`,
+        )
       })
     })
   })

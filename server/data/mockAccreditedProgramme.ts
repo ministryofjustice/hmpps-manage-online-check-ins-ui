@@ -9,8 +9,8 @@ export interface OffenderEligibility {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getOffenderEligibility(crn: string): Promise<OffenderEligibility> {
   return {
-    accreditedProgramme: true,
-    tierA: true,
-    tierB: true,
+    accreditedProgramme: false,
+    tierA: false,
+    tierB: false,
   }
 }

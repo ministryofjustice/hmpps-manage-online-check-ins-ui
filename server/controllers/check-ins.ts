@@ -148,6 +148,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_START_SETUP', crn, SubjectType.CRN)
+      // ELIGIBILITY_V2_FLAG
       const nextStep = config.eligibilityCheckV2Enabled ? 'instructions' : 'eligibility-check'
       return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/${nextStep}`)
     }
@@ -160,6 +161,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
+      }
+      // ELIGIBILITY_V2_FLAG
+      if (config.eligibilityCheckV2Enabled) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/instructions`)
       }
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupervisionClient = new ESupervisionClient(token)
@@ -239,9 +244,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const accreditedProgramme = isTierAOrBOnAccreditedProgramme(eligibility)
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], accreditedProgramme)
       if (accreditedProgramme) {
+        // redirect to approval step and then rationale step
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+      // Approval and rationale only applies to the accredited-programme/Tier A-B cohort - everyone else skips it.
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
     }
   },
 
@@ -425,12 +432,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'checkins',
         'accreditedProgramme',
       ])
+      // ELIGIBILITY_V2_FLAG
+      if (config.eligibilityCheckV2Enabled && !accreditedProgramme) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+      }
 
       // Back needs to retrace whichever eligibility branch got the user here.
       let backLink: string
       if (cya) {
         backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
       } else if (config.eligibilityCheckV2Enabled) {
+        // ELIGIBILITY_V2_FLAG
         backLink = accreditedProgramme
           ? `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`
           : `/case/${crn}/appointments/${id}/check-in/instructions`
@@ -445,6 +457,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         backLink,
+        // ELIGIBILITY_V2_FLAG
         accreditedProgramme: config.eligibilityCheckV2Enabled ? accreditedProgramme : undefined,
       })
     }
@@ -468,9 +481,24 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const cya = req.query.cya === 'true'
-      const backLink = cya
-        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-        : `/case/${crn}/appointments/${id}/check-in/rationale`
+      const accreditedProgramme = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'checkins',
+        'accreditedProgramme',
+      ])
+      let backLink: string
+      if (cya) {
+        backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      } else if (config.eligibilityCheckV2Enabled) {
+        // ELIGIBILITY_V2_FLAG
+        backLink = accreditedProgramme
+          ? `/case/${crn}/appointments/${id}/check-in/rationale`
+          : `/case/${crn}/appointments/${id}/check-in/instructions`
+      } else {
+        backLink = `/case/${crn}/appointments/${id}/check-in/rationale`
+      }
       return res.render('pages/check-in/date-frequency.njk', {
         crn,
         id,
@@ -909,7 +937,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         photoUploadOption:
           savedUserDetails?.photoUploadOption === 'TAKE_A_PIC' ? 'Take a photo using this device' : 'Upload a photo',
       }
-      return res.render('pages/check-in/checkin-summary.njk', { crn, id, userDetails })
+      return res.render('pages/check-in/checkin-summary.njk', {
+        crn,
+        id,
+        userDetails,
+        // ELIGIBILITY_V2_FLAG
+        eligibilityCheckV2Enabled: config.eligibilityCheckV2Enabled,
+      })
     }
   },
 

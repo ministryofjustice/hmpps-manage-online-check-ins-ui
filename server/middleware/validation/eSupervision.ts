@@ -84,12 +84,14 @@ const eSuperVision: Route<void> = (req, res, next) => {
       const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
       const eligibilityChoice = sessionVal('checkins', 'eligibilityChoice')
       const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
+      // ELIGIBILITY_V2_FLAG
       if (config.eligibilityCheckV2Enabled) {
         localParams.accreditedProgramme = Boolean(accreditedProgramme)
       }
       if (cya === 'true') {
         localParams.backLink = setup('checkin-summary')
       } else if (config.eligibilityCheckV2Enabled) {
+        // ELIGIBILITY_V2_FLAG
         localParams.backLink = accreditedProgramme ? setup('accredited-programme-approval') : setup('instructions')
       } else if (eligibilityChoice === 'REPLACE_F2F') {
         localParams.backLink = setup('spo-approval')
@@ -102,8 +104,15 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
     validateSetupPage('date-frequency', 'date-frequency', 'date-frequency')
     if (baseUrl.includes(setup('date-frequency'))) {
-      // Mirrors getDateFrequencyPage's backLink logic - see note above on rationale.
-      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('rationale')
+      if (cya === 'true') {
+        localParams.backLink = setup('checkin-summary')
+      } else if (config.eligibilityCheckV2Enabled) {
+        // ELIGIBILITY_V2_FLAG
+        const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
+        localParams.backLink = accreditedProgramme ? setup('rationale') : setup('instructions')
+      } else {
+        localParams.backLink = setup('rationale')
+      }
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
