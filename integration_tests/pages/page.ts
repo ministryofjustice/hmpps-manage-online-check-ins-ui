@@ -42,6 +42,8 @@ export default abstract class Page {
 
   getNavigationLink = (index: number): PageElement => cy.get(`.moj-primary-navigation__list li:nth-of-type(${index}) a`)
 
+  getAlertsBadge = (): PageElement => cy.get('.moj-notification-badge')
+
   getTab = (tabName: string): PageElement => cy.get(`[data-qa=${tabName}Tab]`)
 
   getCardHeader = (cardName: string): PageElement =>
