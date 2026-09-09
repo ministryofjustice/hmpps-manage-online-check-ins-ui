@@ -116,7 +116,7 @@
     {% set summaryRows = [] %}
 
     {# ELIGIBILITY_V2_FLAG #}
-    {% if not eligibilityCheckV2Enabled or userDetails.accreditedProgramme %}
+    {% if not flags.eligibilityFeatureToggle or userDetails.accreditedProgramme %}
     {% set _ = summaryRows.push({
         key: {
         html: rationaleLabel

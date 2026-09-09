@@ -4,13 +4,16 @@ export interface OffenderEligibility {
   tierB: boolean
 }
 
-// TODO: backend not ready - replace with a real API call that looks up
-// whether the person is on an accredited programme and which tier they're in
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function getOffenderEligibility(crn: string): Promise<OffenderEligibility> {
+// TODO: backend not ready - replace with a real eligibility API call that looks up
+// whether the person is on an accredited programme and which tier they're in.
+// Until then, mockAccreditedProgrammeTiersABToggle can enable us to test these new routes
+export async function getOffenderEligibility(
+  crn: string,
+  mockAccreditedProgrammeTiersABToggle = false,
+): Promise<OffenderEligibility> {
   return {
-    accreditedProgramme: false,
-    tierA: false,
-    tierB: false,
+    accreditedProgramme: mockAccreditedProgrammeTiersABToggle,
+    tierA: mockAccreditedProgrammeTiersABToggle,
+    tierB: mockAccreditedProgrammeTiersABToggle,
   }
 }

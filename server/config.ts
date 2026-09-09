@@ -58,7 +58,6 @@ export default {
   applicationName: 'Manage online check ins',
   env: get('ENVIRONMENT', 'dev', requiredInProduction) as 'local' | 'dev' | 'test' | 'preprod' | 'prod',
   staticResourceCacheDuration: '1h',
-  eligibilityCheckV2Enabled: get('ELIGIBILITY_CHECK_V2_ENABLED', 'false') === 'true',
   redis: {
     enabled: get('REDIS_ENABLED', 'false', requiredInProduction) === 'true',
     host: get('REDIS_HOST', 'localhost', requiredInProduction),
@@ -156,6 +155,11 @@ export default {
   },
   sqs: {
     audit: auditConfig(),
+  },
+  flipt: {
+    url: get('FLIPT_URL', 'http://localhost:8080', requiredInProduction),
+    namespace: get('FLIPT_NAMESPACE', 'hmpps-esupervision', requiredInProduction),
+    updateInterval: Number(get('FLIPT_UPDATE_INTERVAL', 120)),
   },
   ingressUrl: get('INGRESS_URL', 'http://localhost:3000', requiredInProduction),
   environmentName: get('ENVIRONMENT_NAME', ''),
