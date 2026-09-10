@@ -47,7 +47,7 @@
         crn: headerCRN,
         dob: headerDob | dateWithYear,
         tier: tierScore,
-        historyHref: headerTierLink,
+        historyHref: tierDetailsLink,
         managedBy: practitioner.name.forename + ' ' + practitioner.name.surname if practitioner and not practitioner.unallocated else 'Unallocated',
         riskBadges: riskBadges
     }) }}

@@ -82,8 +82,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.tierScore = headerDetails?.tierScore || ''
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
   res.locals.overallRisk = headerDetails?.overallRisk || ''
-  res.locals.practitioner = practitionerDetails ?? ''
-  res.locals.headerTierLink = headerDetails?.tierDetailsLink
+  res.locals.practitioner = practitionerDetails
 }
 
 export const getPersonalDetails = (
