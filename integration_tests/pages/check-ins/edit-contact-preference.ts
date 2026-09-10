@@ -1,8 +1,8 @@
 import Page, { PageElement } from '../page'
 
 export default class EditContactPreferencePage extends Page {
-  constructor() {
-    super('Edit contact details for Caroline')
+  checkOnPage(): void {
+    cy.get('[data-qa="editContactValue"] label').should('contain.text', 'What is')
   }
 
   getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
@@ -10,4 +10,6 @@ export default class EditContactPreferencePage extends Page {
   getCancelAndGoBckBtn = (): PageElement => cy.get('[data-qa="formAnchorLink"]')
 
   getAlert = (): PageElement => cy.get('[data-qa="updateBanner"]')
+
+  getContactValueInput = (): PageElement => this.getElementInput('editContactValue')
 }
