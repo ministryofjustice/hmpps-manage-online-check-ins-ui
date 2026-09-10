@@ -60,30 +60,29 @@
 
 
                         <p class="govuk-body">
-            <a class="govuk-link" href="{{guidanceUrl}}/practitioner-guidance">Practitioner guidance about online check ins (opens in new tab)</a>, including setting people up and reviewing completed check ins.
+            <a class="govuk-link" href="{{guidanceUrl}}/practitioner-guidance" target="_blank" rel="noreferrer noopener">Practitioner guidance about online check ins (opens in new tab)</a>, including setting people up and reviewing completed check ins.
             </p>
 
             <p class="govuk-body">
-            <a class="govuk-link" href="{{guidanceUrl}}/guidance">Guidance for people on probation about online check ins (opens in new tab)</a>, including how they work and what questions we ask
+            <a class="govuk-link" href="{{guidanceUrl}}/guidance" target="_blank" rel="noreferrer noopener">Guidance for people on probation about online check ins (opens in new tab)</a>, including how they work and what questions we ask.
             </p>
             <h3 class="govuk-heading-m">What you need to do</h3>
-            <p class="govuk-body">When you sign a person up to use online check ins, you will need to:
-              <ul class="govuk-list govuk-list--bullet">
-                {% if accreditedProgramme %}
-                <li>confirm you have spoken to the accredited programme treatment manager</li>
-                {% endif %}
-                <li>take or upload a photo of the person</li>
-                <li>check or update the person’s contact details </li>
-                <li>choose how often you want to send them check ins</li>
-              </ul>
-            </p>
-              <div class="govuk-button-group">
-                {{ govukButton({
-                    text: buttonText,
-                    type: "submit",
-                    attributes: { "data-qa": "submit-btn" }
-                }) }}
-            </div>
+            <p class="govuk-body">When you sign a person up to use online check ins, you will need to:</p>
+            <ul class="govuk-list govuk-list--bullet">
+              {% if accreditedProgramme %}
+              <li>confirm you have spoken to the accredited programme treatment manager</li>
+              {% endif %}
+              <li>take or upload a photo of the person</li>
+              <li>check or update the person’s contact details </li>
+              <li>choose how often you want to send them check ins</li>
+            </ul>
+            <div class="govuk-button-group">
+              {{ govukButton({
+                  text: buttonText,
+                  type: "submit",
+                  attributes: { "data-qa": "submit-btn" }
+              }) }}
+          </div>
         </form>
     </div>
   </div>
