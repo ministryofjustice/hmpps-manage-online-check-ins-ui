@@ -18,6 +18,8 @@ generic-service:
     MANAGE_PEOPLE_ON_PROBATION_LINK: "https://manage-people-on-probation.hmpps.service.justice.gov.uk"
     ESUPERVISION_GUIDANCE_LINK: 'https://probation-check-in.hmpps.service.justice.gov.uk'
     CHAR_COUNT: 12000
+    FLIPT_URL: 'https://feature-toggles.hmpps.service.justice.gov.uk'
+    FLIPT_NAMESPACE: 'hmpps-esupervision'
 
 generic-prometheus-alerts:
   alertSeverity: warning

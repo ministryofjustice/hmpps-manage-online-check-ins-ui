@@ -1,5 +1,6 @@
 import { dataAccess } from '../data'
 import AuditService from './auditService'
+import FeatureFlagService from './featureFlagService'
 
 export const services = () => {
   const { applicationInfo, hmppsAuditClient, hmppsAuthClient, arnsComponents } = dataAccess()
@@ -9,6 +10,7 @@ export const services = () => {
     hmppsAuthClient,
     auditService: new AuditService(hmppsAuditClient),
     arnsComponents,
+    featureFlagService: new FeatureFlagService(),
   }
 }
 

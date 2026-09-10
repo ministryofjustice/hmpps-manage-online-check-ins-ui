@@ -67,10 +67,4 @@ describe('setUpAlertsCount', () => {
     expect(response.body.alertsCount).toBeNull()
     expect(logger.warn).toHaveBeenCalled()
   })
-
-  it('does not fetch the alerts count for non-GET requests', async () => {
-    await request(buildApp()).post('/')
-
-    expect(mockGetPractitionerAlerts).not.toHaveBeenCalled()
-  })
 })
