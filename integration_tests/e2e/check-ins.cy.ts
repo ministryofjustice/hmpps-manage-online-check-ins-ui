@@ -14,9 +14,11 @@ import CheckYourAnswersPage from '../pages/check-ins/check-your-answers'
 import CheckinConfirmationPage from '../pages/check-ins/confirmation.page'
 import ConfirmContactPreferencePage from '../pages/check-ins/confirm-contact-preference'
 import ContactPreferencePage from '../pages/check-ins/contact-preference'
+import AccreditedProgrammeApprovalPage from '../pages/check-ins/accredited-programme-approval'
 import DateFrequencyPage from '../pages/check-ins/date-frequencey'
 import EditContactPreferencePage from '../pages/check-ins/edit-contact-preference'
 import EligibilityCheckPage from '../pages/check-ins/eligibility-check'
+import EligibilityInstructionsPage from '../pages/check-ins/eligibility-instructions'
 import EligibilityDeniedPage from '../pages/check-ins/eligibility-denied'
 import EligibilityFullPage from '../pages/check-ins/eligibility-full'
 import EligibilitySPOApprovalPage from '../pages/check-ins/eligibility-spo-approval'
@@ -32,7 +34,15 @@ import { getCheckinUuid } from '../utils/common'
 
 const loadPage = () => {
   cy.task('resetMocks')
-  cy.task('stubGetQuestionsTemplates')
+  cy.visit(`/case/X000001/appointments/check-in/eligibility-check`)
+}
+
+// specific to the new eligibility page updates
+const loadInstructionsPage = (flags: Record<string, boolean> = {}) => {
+  cy.task('resetMocks')
+  cy.task('stubFeatureFlags', { eligibilityFeatureToggle: true, ...flags })
+  // eslint-disable-next-line cypress/no-unnecessary-waiting
+  cy.wait(2500)
   cy.visit(`/case/X000001/appointments/check-in/eligibility-check`)
 }
 
@@ -162,6 +172,41 @@ context('Appointment check-ins', () => {
     checkPage.getSubmitBtn().click()
     cy.get('.govuk-error-summary').should('be.visible')
     cy.get('.govuk-error-message').should('contain', 'Select if any of these apply')
+  })
+
+  it('should redirect straight to eligibility-check when eligibilityFeatureToggle is disabled', () => {
+    loadPage()
+    const eligibilityCheckPage = new EligibilityCheckPage()
+    eligibilityCheckPage.checkOnPage()
+  })
+
+  context('when eligibilityFeatureToggle is enabled', () => {
+    after(() => {
+      cy.task('stubFeatureFlags', {})
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(2500)
+    })
+
+    it('should show the instructions page and continue to date-frequency', () => {
+      loadInstructionsPage({ eligibilityFeatureToggle: true })
+      const instructionsPage = new EligibilityInstructionsPage()
+      instructionsPage.pageHeading().should('contain', 'About online check ins')
+      cy.contains('You can use online check ins as additional contact with the people you manage.')
+      instructionsPage.getSubmitBtn().click()
+
+      const dateFrequencyPage = new DateFrequencyPage()
+      dateFrequencyPage.checkOnPage()
+    })
+
+    it('should show accredited programme guidance and continue to accredited programme approval when mockAccreditedProgrammeTiersABToggle is also enabled', () => {
+      loadInstructionsPage({ eligibilityFeatureToggle: true, mockAccreditedProgrammeTiersABToggle: true })
+      const instructionsPage = new EligibilityInstructionsPage()
+      cy.contains('How you can use online check ins with people in Tiers A and B')
+      instructionsPage.getSubmitBtn().click()
+
+      const accreditedProgrammeApprovalPage = new AccreditedProgrammeApprovalPage()
+      accreditedProgrammeApprovalPage.checkOnPage()
+    })
   })
 
   it('should be able to submit rationale details', () => {

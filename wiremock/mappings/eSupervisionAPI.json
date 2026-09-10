@@ -471,6 +471,47 @@
           "Content-Type": "application/json;charset=UTF-8"
         }
       }
+    },
+    {
+      "request": {
+        "urlPattern": "/flipt/internal/v1/evaluation/snapshot/namespace/hmpps-esupervision",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "namespace": {
+            "key": "hmpps-esupervision"
+          },
+          "flags": [
+            {
+              "key": "eligibilityFeatureToggle",
+              "name": "eligibilityFeatureToggle",
+              "description": "",
+              "enabled": false,
+              "type": "BOOLEAN_FLAG_TYPE",
+              "createdAt": "2026-09-09T12:00:00.920581Z",
+              "updatedAt": "2026-09-09T12:00:00.920581Z",
+              "rules": [],
+              "rollouts": []
+            },
+            {
+              "key": "mockAccreditedProgrammeTiersABToggle",
+              "name": "mockAccreditedProgrammeTiersABToggle",
+              "description": "",
+              "enabled": false,
+              "type": "BOOLEAN_FLAG_TYPE",
+              "createdAt": "2026-09-09T12:00:00.920581Z",
+              "updatedAt": "2026-09-09T12:00:00.920581Z",
+              "rules": [],
+              "rollouts": []
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
     }
   ]
 }
