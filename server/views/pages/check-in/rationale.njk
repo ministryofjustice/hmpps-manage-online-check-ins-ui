@@ -11,7 +11,11 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set hintText = "For example, low risk of reoffending, stable lifestyle factors."  %}
+{% if accreditedProgramme %}
+  {% set hintText = "Include details of the discussion you’ve had with their accredited programme treatment manager." %}
+{% else %}
+  {% set hintText = "For example, low risk of reoffending, stable lifestyle factors." %}
+{% endif %}
 
 {% block form %}
     <div class="govuk-grid-row">

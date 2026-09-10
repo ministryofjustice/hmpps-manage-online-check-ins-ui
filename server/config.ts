@@ -156,6 +156,11 @@ export default {
   sqs: {
     audit: auditConfig(),
   },
+  flipt: {
+    url: get('FLIPT_URL', 'http://localhost:8080', requiredInProduction),
+    namespace: get('FLIPT_NAMESPACE', 'hmpps-esupervision', requiredInProduction),
+    updateInterval: Number(get('FLIPT_UPDATE_INTERVAL', 120)),
+  },
   ingressUrl: get('INGRESS_URL', 'http://localhost:3000', requiredInProduction),
   environmentName: get('ENVIRONMENT_NAME', ''),
   dateFields: ['date'],

@@ -124,6 +124,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.1101.0",
+    "@flipt-io/flipt-client-js": "0.5.1",
     "@ministryofjustice/frontend": "^11.0.1",
     "@ministryofjustice/hmpps-arns-frontend-components-lib": "3.0.1",
     "@ministryofjustice/hmpps-audit-client": "1.1.3",

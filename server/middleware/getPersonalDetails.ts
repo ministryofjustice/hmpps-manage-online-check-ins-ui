@@ -65,8 +65,6 @@ async function resolveOffenderDetails(
 // Every page renders the person's name/contact details in its heading via res.locals.case.
 function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDetails): void {
   const { offenderDetails, practitionerDetails, headerDetails, riskData } = details
-  console.log('riskData', riskData)
-  console.log('headerDetails', headerDetails)
   res.locals.case = {
     crn,
     name: {

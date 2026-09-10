@@ -57,6 +57,16 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'spo-approval',
       checks: [{ validator: isNotEmpty, msg: 'Select to confirm SPO approval', log: 'SPO approval not confirmed' }],
     },
+    [`[esupervision][${crn}][${id}][checkins][accreditedProgrammeApproval]`]: {
+      optional: page !== 'accredited-programme-approval',
+      checks: [
+        {
+          validator: isNotEmpty,
+          msg: 'Select to confirm you have spoken to the accredited programme treatment manager',
+          log: 'Accredited programme approval not confirmed',
+        },
+      ],
+    },
     [`[esupervision][${crn}][${id}][checkins][rationale]`]: {
       optional: page !== 'rationale',
       checks: [{ validator: isNotEmpty, msg: 'Enter why the person is suitable to use online check ins' }],

@@ -50,6 +50,18 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postEligibilityPage(),
   )
 
+  router.get('/case/:crn/appointments/:id/check-in/instructions', [
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getInstructionsPage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/instructions',
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postInstructionsPage(),
+  )
+
   router.get('/case/:crn/appointments/:id/check-in/denied-eligibility', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getEligibilityDeniedPage(),
@@ -93,6 +105,20 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     autoStoreSessionData(hmppsAuthClient),
     postRedirectWizard(),
     controllers.checkIns.postSPOApprovalPage(),
+  )
+
+  router.get('/case/:crn/appointments/:id/check-in/accredited-programme-approval', [
+    restrictPageAccess({ requiredValues: ['id'] }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getAccreditedProgrammeApprovalPage(),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/accredited-programme-approval',
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
+    postRedirectWizard(),
+    controllers.checkIns.postAccreditedProgrammeApprovalPage(),
   )
 
   router.get('/case/:crn/appointments/:id/check-in/rationale', [
