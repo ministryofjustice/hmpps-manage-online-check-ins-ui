@@ -46,6 +46,50 @@ const stubOffenderSetup422Response = (): SuperAgentRequest =>
     },
   })
 
+const stubUpdatePersonalContact404Response = (): SuperAgentRequest =>
+  superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      urlPathPattern: '/v2/offenders/crn/[^/]+/contact-details',
+      method: 'PUT',
+    },
+    response: {
+      status: 404,
+      jsonBody: {
+        status: 404,
+        errorCode: 'NOT_FOUND',
+        userMessage: '404 NOT_FOUND',
+        developerMessage: '404 NOT_FOUND',
+        moreInfo: null,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  })
+
+const stubUpdatePersonalContact500Response = (): SuperAgentRequest =>
+  superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      urlPathPattern: '/v2/offenders/crn/[^/]+/contact-details',
+      method: 'PUT',
+    },
+    response: {
+      status: 500,
+      jsonBody: {
+        status: 500,
+        errorCode: null,
+        userMessage: '500 internal server error',
+        developerMessage: '500 internal server error',
+        moreInfo: null,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  })
+
 const stubOffenderSetupComplete500Response = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     priority: 1,
@@ -233,10 +277,50 @@ const stubDeleteAssignedQuestionsFromCheckIn = () => {
     },
   })
 }
+const stubFeatureFlags = (flags: Record<string, boolean> = {}): SuperAgentRequest => {
+  const defaults = {
+    eligibilityFeatureToggle: false,
+    mockAccreditedProgrammeTiersABToggle: false,
+  }
+  const merged = { ...defaults, ...flags }
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      urlPattern: '/flipt/internal/v1/evaluation/snapshot/namespace/hmpps-esupervision',
+      method: 'GET',
+    },
+    response: {
+      status: 200,
+      jsonBody: {
+        namespace: {
+          key: 'hmpps-esupervision',
+        },
+        flags: Object.entries(merged).map(([key, enabled]) => ({
+          key,
+          name: key,
+          description: '',
+          enabled,
+          type: 'BOOLEAN_FLAG_TYPE',
+          createdAt: '2026-09-09T12:00:00.920581Z',
+          updatedAt: '2026-09-09T12:00:00.920581Z',
+          rules: [] as unknown[],
+          rollouts: [] as unknown[],
+        })),
+      },
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+      },
+    },
+  })
+}
+
 export default {
+  stubFeatureFlags,
   stubOffenderSetup422Response,
   stubOffenderSetup500Response,
   stubOffenderSetupComplete500Response,
+  stubUpdatePersonalContact404Response,
+  stubUpdatePersonalContact500Response,
   stubGetQuestionsTemplates,
   stubGetOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,
