@@ -46,6 +46,50 @@ const stubOffenderSetup422Response = (): SuperAgentRequest =>
     },
   })
 
+const stubUpdatePersonalContact404Response = (): SuperAgentRequest =>
+  superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      urlPathPattern: '/v2/offenders/crn/[^/]+/contact-details',
+      method: 'PUT',
+    },
+    response: {
+      status: 404,
+      jsonBody: {
+        status: 404,
+        errorCode: 'NOT_FOUND',
+        userMessage: '404 NOT_FOUND',
+        developerMessage: '404 NOT_FOUND',
+        moreInfo: null,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  })
+
+const stubUpdatePersonalContact500Response = (): SuperAgentRequest =>
+  superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: {
+      urlPathPattern: '/v2/offenders/crn/[^/]+/contact-details',
+      method: 'PUT',
+    },
+    response: {
+      status: 500,
+      jsonBody: {
+        status: 500,
+        errorCode: null,
+        userMessage: '500 internal server error',
+        developerMessage: '500 internal server error',
+        moreInfo: null,
+      },
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  })
+
 const stubOffenderSetupComplete500Response = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
     priority: 1,
@@ -237,6 +281,8 @@ export default {
   stubOffenderSetup422Response,
   stubOffenderSetup500Response,
   stubOffenderSetupComplete500Response,
+  stubUpdatePersonalContact404Response,
+  stubUpdatePersonalContact500Response,
   stubGetQuestionsTemplates,
   stubGetOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,
