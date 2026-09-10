@@ -58,4 +58,5 @@ export interface LocalParams {
     prefix: string
     suffix: string
   }
+  accreditedProgramme?: boolean
 }
