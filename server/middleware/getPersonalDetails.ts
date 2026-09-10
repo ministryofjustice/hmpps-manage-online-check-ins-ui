@@ -83,7 +83,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
   res.locals.overallRisk = headerDetails?.overallRisk || ''
   res.locals.practitioner = practitionerDetails ?? ''
-  res.locals.headerTierLink = `${headerDetails?.tierDetailsLink}/${crn}`
+  res.locals.headerTierLink = headerDetails?.tierDetailsLink
 }
 
 export const getPersonalDetails = (
