@@ -47,6 +47,10 @@ export const postCheckInDetails = (
     logger.info('Checkin Registration started')
     try {
       const setup: OffenderSetup = await eSupervisionClient.postOffenderSetup(data)
+      // Setup just created the offender/practitioner records, so any personal-details cache
+      // entry for this CRN (from a pre-setup 404) is now stale - drop it so getPersonalDetails
+      // re-fetches fresh data on the next page (confirmation, manage, etc).
+      delete req.session.data?.personalDetails?.[crn]
       const uploadLocation: UploadLocationResponse = await eSupervisionClient.getProfilePhotoUploadLocation(
         setup,
         'image/jpeg',
