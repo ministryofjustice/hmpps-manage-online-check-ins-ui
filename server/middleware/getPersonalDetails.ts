@@ -28,10 +28,11 @@ async function fetchPersonalDetails(
   arnsComponents: ArnsComponents,
   authOptions: AuthOptions,
   crn: string,
+  includePractitioner: boolean,
 ): Promise<CachedPersonalDetails> {
   const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
-    eSupervisionClient.getProbationPractitioner(crn),
+    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(null),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
@@ -97,7 +98,8 @@ export const getPersonalDetails = (
     let details = readCache(req, crn)
     if (!details) {
       const authOptions = asUser(res.locals.user.token)
-      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn)
+      const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
+      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn, includePractitioner)
       writeCache(req, crn, details)
     }
 
