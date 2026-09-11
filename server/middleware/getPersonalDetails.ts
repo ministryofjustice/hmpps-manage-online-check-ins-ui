@@ -32,7 +32,7 @@ async function fetchPersonalDetails(
 ): Promise<CachedPersonalDetails> {
   const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
-    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(null),
+    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(undefined),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
@@ -83,7 +83,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.tierScore = headerDetails?.tierScore || ''
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
   res.locals.overallRisk = headerDetails?.overallRisk || ''
-  res.locals.practitioner = practitionerDetails
+  res.locals.practitioner = practitionerDetails ?? null
 }
 
 export const getPersonalDetails = (
@@ -95,10 +95,13 @@ export const getPersonalDetails = (
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const eSupervisionClient = new ESupervisionClient(token)
 
+    const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
     let details = readCache(req, crn)
-    if (!details) {
+    // A cache entry written while the flag was off never fetched practitioner details, so it
+    // must be treated as stale once the flag turns on, or allocated cases render as unallocated.
+    const missingPractitioner = includePractitioner && details?.practitionerDetails === undefined
+    if (!details || missingPractitioner) {
       const authOptions = asUser(res.locals.user.token)
-      const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
       details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn, includePractitioner)
       writeCache(req, crn, details)
     }
