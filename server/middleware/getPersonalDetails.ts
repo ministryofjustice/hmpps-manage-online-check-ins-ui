@@ -28,13 +28,15 @@ async function fetchPersonalDetails(
   arnsComponents: ArnsComponents,
   authOptions: AuthOptions,
   crn: string,
+  includePractitioner: boolean,
 ): Promise<CachedPersonalDetails> {
-  const [offenderDetails, headerDetails, riskData] = await Promise.all([
+  const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
+    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(undefined),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
-  return { offenderDetails, headerDetails, riskData }
+  return { offenderDetails, practitionerDetails, headerDetails, riskData }
 }
 
 // An offender record doesn't exist until setup is complete, so a missing record falls back
@@ -63,7 +65,7 @@ async function resolveOffenderDetails(
 
 // Every page renders the person's name/contact details in its heading via res.locals.case.
 function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDetails): void {
-  const { offenderDetails, headerDetails, riskData } = details
+  const { offenderDetails, practitionerDetails, headerDetails, riskData } = details
   res.locals.case = {
     crn,
     name: {
@@ -81,6 +83,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.tierScore = headerDetails?.tierScore || ''
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
   res.locals.overallRisk = headerDetails?.overallRisk || ''
+  res.locals.practitioner = practitionerDetails ?? null
 }
 
 export const getPersonalDetails = (
@@ -92,10 +95,14 @@ export const getPersonalDetails = (
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const eSupervisionClient = new ESupervisionClient(token)
 
+    const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
     let details = readCache(req, crn)
-    if (!details) {
+    // A cache entry written while the flag was off never fetched practitioner details, so it
+    // must be treated as stale once the flag turns on, or allocated cases render as unallocated.
+    const missingPractitioner = includePractitioner && details?.practitionerDetails === undefined
+    if (!details || missingPractitioner) {
       const authOptions = asUser(res.locals.user.token)
-      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn)
+      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn, includePractitioner)
       writeCache(req, crn, details)
     }
 

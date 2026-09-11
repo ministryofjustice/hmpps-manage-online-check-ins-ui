@@ -182,9 +182,9 @@ export default class ESupervisionClient extends RestClient {
   }
 
   // GET /v2/offenders/crn/{crn}/practitioner-details — supplies the practitioner id and the
-  // unallocated flag that allows/denies entry to the setup flow.
-  async getProbationPractitioner(crn: string): Promise<ProbationPractitioner> {
-    return this.get({ path: `/v2/offenders/crn/${crn}/practitioner-details` })
+  // unallocated flag that allows/denies entry to the setup flow. 404s before setup completes.
+  async getProbationPractitioner(crn: string): Promise<ProbationPractitioner | null> {
+    return this.get({ path: `/v2/offenders/crn/${crn}/practitioner-details`, handle404: true })
   }
 
   // PUT /v2/offenders/crn/{crn}/contact-details — writes an edited email/mobile back to the PoP case record.
