@@ -5,7 +5,7 @@ export default abstract class Page {
     return new constructor()
   }
 
-  constructor(private title?: string) {
+  constructor(protected title?: string) {
     if (this.title) {
       this.checkOnPage()
     }
@@ -195,6 +195,10 @@ export default abstract class Page {
       return cy.get(`[data-qa="${summary}"] .govuk-summary-list__row:nth-child(${index})`)
     }
     return cy.get(`.govuk-summary-list__row:nth-child(${index})`)
+  }
+
+  getSummaryListRowByAction = (actionDataQa: string): PageElement => {
+    return cy.get(`[data-qa="${actionDataQa}"]`).closest('.govuk-summary-list__row')
   }
 
   assertRiskTags(ogrs4 = false) {

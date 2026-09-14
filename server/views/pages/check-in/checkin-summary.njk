@@ -142,10 +142,10 @@
     {% set _ = summaryRows.push(
     {
         key: {
-        html: checkInDateLabel
+          html: checkInDateLabel
         },
         value: {
-        html: checkInDateVal
+          html: checkInDateVal
         },
         actions: {
         items: [{
@@ -164,10 +164,10 @@
     {% set _ = summaryRows.push(
     {
         key: {
-        html: dateFrequencyLabel
+          html: dateFrequencyLabel
         },
         value: {
-        html: userDetails.interval
+          html: userDetails.interval
         },
         actions: {
         items: [{
@@ -176,6 +176,24 @@
             visuallyHiddenText: "how often would you like the person to check in",
             attributes: {
             'data-qa': 'intervalAction'
+            }
+        }]
+        }
+    },
+    {
+        key: {
+        html: checkInDateLabel
+        },
+        value: {
+        html: checkInDateVal
+        },
+        actions: {
+        items: [{
+            href: changeDateUrl,
+            text: "Change",
+            visuallyHiddenText: "when would you like the person to start using online check ins",
+            attributes: {
+            'data-qa': 'dateAction'
             }
         }]
         }
