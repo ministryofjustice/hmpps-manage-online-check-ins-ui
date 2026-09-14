@@ -197,6 +197,10 @@ export default abstract class Page {
     return cy.get(`.govuk-summary-list__row:nth-child(${index})`)
   }
 
+  getSummaryListRowByAction = (actionDataQa: string): PageElement => {
+    return cy.get(`[data-qa="${actionDataQa}"]`).closest('.govuk-summary-list__row')
+  }
+
   assertRiskTags(ogrs4 = false) {
     if (ogrs4) {
       cy.get('[data-test-id=nameAndBand')

@@ -647,7 +647,7 @@ context('Appointment check-ins', () => {
 
     // Rationale change
     checkYourAnswersPage
-      .getSummaryListRow(1)
+      .getSummaryListRowByAction('rationaleAction')
       .find('.govuk-summary-list__value')
       .should('contain.text', 'Low risk of reoffending')
     checkYourAnswersPage.getElementData('rationaleAction').click()
@@ -657,7 +657,7 @@ context('Appointment check-ins', () => {
     rationalePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
-      .getSummaryListRow(1)
+      .getSummaryListRowByAction('rationaleAction')
       .find('.govuk-summary-list__value')
       .should('contain.text', 'Hard for them to travel to the office')
 
@@ -666,16 +666,25 @@ context('Appointment check-ins', () => {
     dateFrequencyPage.checkOnPage()
     dateFrequencyPage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRow(3).find('.govuk-summary-list__value').should('contain.text', 'Every week')
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Every week')
     checkYourAnswersPage.getElementData('intervalAction').click()
     dateFrequencyPage.checkOnPage()
     dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(2).find('.govuk-radios__input').click()
     dateFrequencyPage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRow(3).find('.govuk-summary-list__value').should('contain.text', 'Every 4 weeks')
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Every 4 weeks')
 
     // Contact preference change
-    checkYourAnswersPage.getSummaryListRow(4).find('.govuk-summary-list__value').should('contain.text', 'Text message')
+    checkYourAnswersPage
+      .getSummaryListRowByAction('preferredComsAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Text message')
     checkYourAnswersPage.getElementData('preferredComsAction').click()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -687,7 +696,10 @@ context('Appointment check-ins', () => {
     contactPreferencePage.getSubmitBtn().click()
     confirmContactPreference()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRow(4).find('.govuk-summary-list__value').should('contain.text', 'Email')
+    checkYourAnswersPage
+      .getSummaryListRowByAction('preferredComsAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Email')
 
     // Email
     checkYourAnswersPage.getElementData('checkInEmailAction').click()
@@ -702,7 +714,7 @@ context('Appointment check-ins', () => {
 
     // photo options
     checkYourAnswersPage
-      .getSummaryListRow(6)
+      .getSummaryListRowByAction('photoUploadOptionAction')
       .find('.govuk-summary-list__value')
       .should('contain.text', 'Take a photo using this device')
     checkYourAnswersPage.getElementData('photoUploadOptionAction').click()
@@ -718,7 +730,7 @@ context('Appointment check-ins', () => {
     photoRules.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
-      .getSummaryListRow(6)
+      .getSummaryListRowByAction('photoUploadOptionAction')
       .find('.govuk-summary-list__value')
       .should('contain.text', 'Upload a photo')
   })
