@@ -466,4 +466,32 @@ describe('check-in setup flow', () => {
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
     })
   })
+
+  describe('allocation check with the new pop header flag on', () => {
+    it('reuses res.locals.practitioner instead of calling getProbationPractitioner again', async () => {
+      const getProbationPractitioner = jest.fn()
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
+      const req = requestFor()
+      const res = mockAppResponse({
+        flags: { newDesignPopHeader: true },
+        practitioner: { unallocated: false },
+      })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(getProbationPractitioner).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/eligibility-check.njk', expect.objectContaining({ crn }))
+    })
+
+    it('redirects unallocated cases away from the setup flow using res.locals.practitioner', async () => {
+      const getProbationPractitioner = jest.fn()
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
+      const req = requestFor()
+      const res = mockAppResponse({
+        flags: { newDesignPopHeader: true },
+        practitioner: { unallocated: true },
+      })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(getProbationPractitioner).not.toHaveBeenCalled()
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
+    })
+  })
 })
