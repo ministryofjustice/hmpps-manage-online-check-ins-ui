@@ -72,7 +72,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       checks: [{ validator: isNotEmpty, msg: 'Enter why the person is suitable to use online check ins' }],
     },
     [`[esupervision][${crn}][${id}][checkins][date]`]: {
-      optional: page !== 'date-frequency',
+      optional: page !== 'check-in-date',
       checks: [
         { validator: isNotEmpty, msg: 'Enter the date you would like the person to complete their first check in' },
         { validator: isValidDateFormat, msg: 'Enter a date in the correct format, for example 17/5/2024' },
@@ -81,7 +81,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       ],
     },
     [`[esupervision][${crn}][${id}][checkins][interval]`]: {
-      optional: page !== 'date-frequency',
+      optional: page !== 'check-in-frequency',
       checks: [{ validator: isNotEmpty, msg: 'Select how often you would like the person to check in' }],
     },
 
@@ -171,15 +171,20 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       ],
     },
 
-    // checkin-settings — change the next check-in date/frequency
+    // settings-date — change the next check-in date
     [`[esupervision][${crn}][${id}][manageCheckin][date]`]: {
-      optional: page !== 'checkin-settings',
+      optional: page !== 'settings-date',
       checks: [
         { validator: isNotEmpty, msg: 'Enter the date you would like the person to complete their next check in' },
         { validator: isValidDateFormat, msg: 'Enter a date in the correct format, for example 17/5/2024' },
         { validator: isValidDate, msg: 'Enter a date in the correct format, for example 17/5/2024' },
         { validator: isFutureDate, msg: 'The next online check in date must be in the future' },
       ],
+    },
+    // settings — change the check-in frequency
+    [`[esupervision][${crn}][${id}][manageCheckin][interval]`]: {
+      optional: page !== 'settings',
+      checks: [{ validator: isNotEmpty, msg: 'Select how often you would like the person to check in' }],
     },
 
     // manage-contact — contact preference (validated only when submitting the main form)
@@ -224,9 +229,9 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       ],
     },
 
-    // restart-date-frequency
+    // restart-checkin-date
     [`[esupervision][${crn}][${id}][restartCheckin][date]`]: {
-      optional: page !== 'restart-date-frequency',
+      optional: page !== 'restart-checkin-date',
       checks: [
         {
           validator: isNotEmpty,
@@ -237,8 +242,9 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         { validator: isTodayOrLater, msg: 'The next online check in date must be today or in the future' },
       ],
     },
+    // restart-checkin
     [`[esupervision][${crn}][${id}][restartCheckin][interval]`]: {
-      optional: page !== 'restart-date-frequency',
+      optional: page !== 'restart-checkin',
       checks: [{ validator: isNotEmpty, msg: 'Select how often you would like the person to check in' }],
     },
 

@@ -115,16 +115,17 @@ describe('Test eSuperVision validation', () => {
 
   describe('Test checkin-settings', () => {
     const manageSettingsUrl = `${manageBase}/settings`
+    const manageSettingsDateUrl = `${manageBase}/settings-date`
 
-    it('restores the saved check-in date and interval when the submitted date is invalid', () => {
+    it('restores the saved interval when the submitted interval is invalid, leaving date untouched', () => {
       // autoStoreSessionData has already run and stored the invalid submission by the time
       // validation middleware runs, so the session starts out holding the rejected input.
       const esupervision = {
         [crn]: {
           [id]: {
             manageCheckin: {
-              date: '',
-              interval: 'WEEKLY',
+              date: '1/8/2026',
+              interval: '',
             },
           },
         },
@@ -143,8 +144,38 @@ describe('Test eSuperVision validation', () => {
       validation.eSuperVision(req, res, next)
       expect(res.render).toHaveBeenCalled()
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
-        date: '2026-09-01',
+        date: '1/8/2026',
         interval: 'FOUR_WEEKS',
+      })
+    })
+
+    it('restores the saved date when the submitted date is invalid, leaving interval untouched', () => {
+      const esupervision = {
+        [crn]: {
+          [id]: {
+            manageCheckin: {
+              date: '',
+              interval: 'WEEKLY',
+            },
+          },
+        },
+      }
+      const req = makeReq({
+        url: manageSettingsDateUrl,
+        body: { esupervision },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({
+        offenderCheckinsByCRNResponse: {
+          firstCheckin: '2026-09-01',
+          checkinInterval: 'FOUR_WEEKS',
+        },
+      })
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
+        date: '2026-09-01',
+        interval: 'WEEKLY',
       })
     })
   })

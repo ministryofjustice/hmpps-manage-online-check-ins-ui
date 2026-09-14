@@ -1,0 +1,58 @@
+{% extends "../../_form.njk" %}
+{% set pageTitleText = "How often would you like " + case.name.forename + " to check in?" %}}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set backLink =  '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{% set buttonText =  "Save changes" %}
+{% set showAnchorLink = true %}
+{% set formAnchorLink = backLink %}
+{% set formAnchorText = "Cancel and go back" %}
+
+{% block form %}
+    {{ govukRadios({
+        fieldset: {
+            legend: {
+                text: pageTitleText,
+                isPageHeading: true,
+                classes: "govuk-fieldset__legend--l"
+            }
+        },
+        formGroup: {
+            attributes: {
+                'data-qa': 'checkInFrequency'
+            }
+        },
+        items: [
+            {
+                value: "WEEKLY",
+                text: "Every week"
+            },
+            {
+                value: "TWO_WEEKS",
+                text: "Every 2 weeks"
+            },
+            {
+                value: "FOUR_WEEKS",
+                text: "Every 4 weeks"
+            },
+            {
+                value: "EIGHT_WEEKS",
+                text: "Every 8 weeks"
+            },
+            {
+                divider: "or"
+            },
+            {
+                value: "AD_HOC",
+                text: "I'll schedule them one at a time"
+            }
+        ]
+    } | decorateFormAttributes(['esupervision', crn, id, 'manageCheckin', 'interval'])) }}
+{% endblock %}
