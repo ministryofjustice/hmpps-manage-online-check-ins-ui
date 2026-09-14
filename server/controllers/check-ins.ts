@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto'
 import { DateTime } from 'luxon'
+import { Response } from 'express'
 
 import { v4 as uuidv4 } from 'uuid'
 
@@ -11,13 +12,14 @@ import {
   ESupervisionReview,
   ReactivateOffenderRequest,
 } from '../data/model/esupervision'
-import { PersonalDetailsUpdateRequest } from '../data/model/personalDetails'
+import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import ESupervisionClient from '../data/eSupervisionClient'
+import HmppsAuthClient from '../data/hmppsAuthClient'
 import { Controller } from '../@types'
 import { CheckinUserDetails } from '../models/Esupervision'
 import config from '../config'
@@ -38,6 +40,21 @@ const checkinIntervals: { id: string; label: string }[] = [
   { id: 'FOUR_WEEKS', label: 'Every 4 weeks' },
   { id: 'EIGHT_WEEKS', label: 'Every 8 weeks' },
 ]
+
+// getPersonalDetails middleware already fetches practitioner details when the new header flag is
+// on, so reuse res.locals.practitioner instead of making the same request again here.
+const getAllocationPractitioner = async (
+  hmppsAuthClient: HmppsAuthClient,
+  res: Response,
+  crn: string,
+): Promise<ProbationPractitioner | null> => {
+  if (res.locals.flags?.newDesignPopHeader) {
+    return (res.locals.practitioner as ProbationPractitioner | null) ?? null
+  }
+  const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+  const eSupervisionClient = new ESupervisionClient(token)
+  return eSupervisionClient.getProbationPractitioner(crn)
+}
 
 // moj date-picker minDate workaround (https://github.com/ministryofjustice/moj-frontend/issues/923)
 const getMinDate = (): string => {
@@ -166,9 +183,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (res.locals.flags?.eligibilityFeatureToggle) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/instructions`)
       }
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupervisionClient = new ESupervisionClient(token)
-      const practitioner = await eSupervisionClient.getProbationPractitioner(crn)
+      const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
@@ -218,9 +233,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!res.locals.flags?.eligibilityFeatureToggle) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
       }
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupervisionClient = new ESupervisionClient(token)
-      const practitioner = await eSupervisionClient.getProbationPractitioner(crn)
+      const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }

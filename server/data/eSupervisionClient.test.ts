@@ -12,6 +12,7 @@ import {
   EsupervisionUpcomingQuestionsResponse,
   OffenderByCRNResponse,
 } from './model/esupervision'
+import { ProbationPractitioner } from './model/personalDetails'
 
 import ESupervisionClient from './eSupervisionClient'
 import { esupervisionAdditionalQuestions } from '../controllers/mocks/esupervisionAdditionalQuestions'
@@ -132,6 +133,44 @@ describe('ESupervisionClient', () => {
         .reply(404)
 
       const output = await client.getOffenderByCRN(crn)
+
+      expect(output).toBeNull()
+    })
+  })
+
+  describe('getProbationPractitioner', () => {
+    it('should GET practitioner details by CRN', async () => {
+      const crn = 'X000001'
+
+      const response = {
+        code: 'ABC123',
+        name: {
+          forename: 'Joe',
+          surname: 'Bloggs',
+        },
+        unallocated: false,
+        username: 'joe.bloggs',
+      } as ProbationPractitioner
+
+      fakeESupervisionApi
+        .get(`/v2/offenders/crn/${crn}/practitioner-details`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.getProbationPractitioner(crn)
+
+      expect(output).toEqual(response)
+    })
+
+    it('should return null when practitioner details by CRN returns 404', async () => {
+      const crn = 'X000001'
+
+      fakeESupervisionApi
+        .get(`/v2/offenders/crn/${crn}/practitioner-details`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(404)
+
+      const output = await client.getProbationPractitioner(crn)
 
       expect(output).toBeNull()
     })
