@@ -7,7 +7,7 @@ const id = 'dad89a83-3029-488a-ac24-ac2d0cf2e16c'
 
 // Walk the wizard the way a browser does: each POST stores its page, then the next GET's
 // restrictPageAccess must let us through rather than bounce us to eligibility-check.
-it('walks eligibility -> rationale -> date-frequency -> contact -> photo -> summary', async () => {
+it('walks eligibility -> rationale -> check-in-frequency -> check-in-date -> contact -> photo -> summary', async () => {
   const session: any = { data: {} }
   const post = async (body: any, extra: any = {}) => {
     const req = httpMocks.createRequest({ params: { crn, id }, session, body, query: {}, ...extra })
@@ -31,10 +31,13 @@ it('walks eligibility -> rationale -> date-frequency -> contact -> photo -> summ
   expect(await checkAccess(['id'])).toBe('ALLOWED') // rationale page
 
   await post(ck({ rationale: 'Stable and low risk' }))
-  expect(await checkAccess(['id'])).toBe('ALLOWED') // date-frequency  <- the reported bug
+  expect(await checkAccess(['id'])).toBe('ALLOWED') // check-in-frequency  <- the reported bug
 
-  await post(ck({ date: '1/8/2026', interval: 'WEEKLY' }))
-  expect(await checkAccess(['date', 'interval'])).toBe('ALLOWED') // contact-preference
+  await post(ck({ interval: 'WEEKLY' }))
+  expect(await checkAccess(['interval'])).toBe('ALLOWED') // check-in-date
+
+  await post(ck({ date: '1/8/2026' }))
+  expect(await checkAccess(['interval'])).toBe('ALLOWED') // contact-preference
 
   await post(ck({ preferredComs: 'EMAIL', checkInEmail: 'a@b.com' }))
   expect(await checkAccess(['preferredComs'])).toBe('ALLOWED') // photo-options

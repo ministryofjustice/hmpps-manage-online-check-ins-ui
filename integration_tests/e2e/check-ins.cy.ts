@@ -7,7 +7,8 @@ import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 import PreviewFeelingPage from '../pages/check-ins/questions/preview/feeling'
 import PreviewSupportPage from '../pages/check-ins/questions/preview/support'
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
-import RestartDateFrequencyPage from '../pages/check-ins/restart/restart-date-frequency.page'
+import RestartCheckinDatePage from '../pages/check-ins/restart/restart-checkin-date.page'
+import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-checkin-frequency.page'
 import RestartEditContactPreferencePage from '../pages/check-ins/restart/restart-edit-contact-preference.page'
 import StopCheckins from '../pages/check-ins/stop-checkins'
 import CheckYourAnswersPage from '../pages/check-ins/check-your-answers'
@@ -1028,7 +1029,12 @@ context('check-ins overview and manage pages', () => {
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
     cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-checkin`)
-    const restartDatePage = new RestartDateFrequencyPage()
+    const restartFrequencyPage = new RestartCheckinFrequencyPage()
+    restartFrequencyPage.checkOnPage()
+    restartFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
+    restartFrequencyPage.getSubmitBtn().click()
+
+    const restartDatePage = new RestartCheckinDatePage()
     restartDatePage.checkOnPage()
     const now = DateTime.now()
     const future = now.plus({ days: 2 })
@@ -1036,7 +1042,6 @@ context('check-ins overview and manage pages', () => {
       .getDatePickerInput()
       .clear()
       .type(`${future.toFormat('d/M/yyyy')}`)
-    restartDatePage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
     restartDatePage.getSubmitBtn().click()
 
     const restartContactPage = new RestartContactPreferencePage()

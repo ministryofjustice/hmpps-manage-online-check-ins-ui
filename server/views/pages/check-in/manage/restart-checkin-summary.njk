@@ -18,7 +18,8 @@
 {% set sendLinkLabel = "How does " + case.name.forename + " want us to send a link to the service?"  %}
 {% set name = "Image of " + case.name.forename + " added for identification" %}
 {% set confirmEndUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
-{% set changeDateUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin?cya=true' %}
+{% set changeFrequencyUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin?cya=true' %}
+{% set changeDateUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin-date?cya=true' %}
 {% set contactPreUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-contact?cya=true' %}
 
 
@@ -69,8 +70,10 @@
         </h2>
     {% endif %}
     {%  block pageContent %}
-    {{ govukSummaryList({
-        rows: [
+    {% set summaryRows = [] %}
+
+    {% if not userDetails.isAdHoc %}
+    {% set _ = summaryRows.push(
             { key:
                 { html:  checkInDateLabel  },
                 value: { html:  checkInDateVal },
@@ -84,13 +87,17 @@
                     }
                 }
                 ]
-            } },
+            } }
+    ) %}
+    {% endif %}
+
+    {% set _ = summaryRows.push(
             { key:
                 { html:  dateFrequencyLabel  },
                 value: { html: userDetails.interval },
                 actions: {
                 items: [ {
-                    href: changeDateUrl,
+                    href: changeFrequencyUrl,
                     text: "Change",
                     visuallyHiddenText: "how often would you like the person to check in",
                     attributes: {
@@ -141,7 +148,10 @@
                 }
                 ]
             } }
-        ]
+    ) %}
+
+    {{ govukSummaryList({
+        rows: summaryRows
     }) }}
 
     <div class="govuk-!-width-one-half">
