@@ -140,24 +140,6 @@
     {% set _ = summaryRows.push(
     {
         key: {
-        html: checkInDateLabel
-        },
-        value: {
-        html: checkInDateVal
-        },
-        actions: {
-        items: [{
-            href: changeDateUrl,
-            text: "Change",
-            visuallyHiddenText: "when would you like the person to start using online check ins",
-            attributes: {
-            'data-qa': 'dateAction'
-            }
-        }]
-        }
-    },
-    {
-        key: {
         html: dateFrequencyLabel
         },
         value: {
@@ -170,6 +152,24 @@
             visuallyHiddenText: "how often would you like the person to check in",
             attributes: {
             'data-qa': 'intervalAction'
+            }
+        }]
+        }
+    },
+    {
+        key: {
+        html: checkInDateLabel
+        },
+        value: {
+        html: checkInDateVal
+        },
+        actions: {
+        items: [{
+            href: changeDateUrl,
+            text: "Change",
+            visuallyHiddenText: "when would you like the person to start using online check ins",
+            attributes: {
+            'data-qa': 'dateAction'
             }
         }]
         }
