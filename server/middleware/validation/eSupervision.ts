@@ -252,30 +252,59 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  // The ad hoc journey is feature-flagged. The routes guard it too, but these validators render
+  // its views directly on a failed submission, so they must not fire when the flag is off.
+  const adHocCheckInsEnabled = Boolean(res.locals.flags?.enableAdHocCheckIns)
+
+  // Handles both the real /questions/:id/edit flow and the ad hoc /schedule-check-in/questions/:id/edit
+  // flow - each has its own view, differing in session group and validation page key.
   const validateEditQuestion = () => {
-    const questionMatch = baseUrl.match(/\/questions\/([\w-]+)\/edit/)
+    const questionMatch = baseUrl.match(/\/(schedule-check-in\/)?questions\/([\w-]+)\/edit/)
+    if (!questionMatch) {
+      return
+    }
+    const isScheduleCheckIn = Boolean(questionMatch[1])
+    if (isScheduleCheckIn && !adHocCheckInsEnabled) {
+      return
+    }
+    const draftId = questionMatch[2]
+    const templateId = draftId.split('-')[0]
+    render = isScheduleCheckIn
+      ? `pages/check-in/schedule-check-in/edit-question`
+      : `pages/check-in/questions/edit-question`
+    localParams.questionId = draftId
 
-    if (questionMatch) {
-      const draftId = questionMatch[1]
-      const templateId = draftId.split('-')[0]
-      render = `pages/check-in/questions/edit-question`
+    const availableTemplates =
+      getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        isScheduleCheckIn ? 'scheduleCheckIn' : 'manageQuestions',
+        'availableTemplates',
+      ]) || []
+    const questionData = parseQuestionTemplate(availableTemplates, templateId)
+    if (questionData) {
+      localParams.question = questionData
+    }
+    errorMessages = validateWithSpec(
+      req,
+      eSuperVisionValidation({
+        crn,
+        id,
+        page: isScheduleCheckIn ? 'schedule-check-in-edit-question' : 'edit-question',
+      }),
+    )
+  }
 
-      localParams.questionId = draftId
-
-      const availableTemplates =
-        getDataValue(req.session.data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates']) || []
-      const questionData = parseQuestionTemplate(availableTemplates, templateId)
-      if (questionData) {
-        localParams.question = questionData
-      }
-      errorMessages = validateWithSpec(
-        req,
-        eSuperVisionValidation({
-          crn,
-          id,
-          page: 'edit-question',
-        }),
-      )
+  // schedule-check-in - ad hoc check-in flow
+  const validateScheduleCheckInDate = () => {
+    if (!adHocCheckInsEnabled) {
+      return
+    }
+    if (/\/schedule-check-in\/?$/.test(baseUrl)) {
+      render = `pages/check-in/schedule-check-in/date`
+      localParams.id = id
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date' }))
     }
   }
 
@@ -317,6 +346,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
   validateRestartContact()
   validateRestartEditContact()
   validateEditQuestion()
+  validateScheduleCheckInDate()
 
   if (Object.keys(errorMessages).length) {
     const offenderDetails = res.locals.offenderCheckinsByCRNResponse

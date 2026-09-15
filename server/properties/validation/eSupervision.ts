@@ -293,5 +293,29 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
+
+    // schedule-check-in — ad hoc check-in date page (session-only, feature-flagged)
+    [`[esupervision][${crn}][${id}][scheduleCheckIn][date]`]: {
+      optional: page !== 'schedule-check-in-date',
+      checks: [
+        { validator: isNotEmpty, msg: 'Enter the date you would like the person to complete their online check in' },
+        { validator: isValidDateFormat, msg: 'Enter a date in the correct format, for example 17/5/2024' },
+        { validator: isValidDate, msg: 'Enter a date in the correct format, for example 17/5/2024' },
+        { validator: isTodayOrLater, msg: 'The online check in date must be today or in the future' },
+      ],
+    },
+
+    // The ad hoc flow keeps its draft question under its own session group, so it needs its own
+    // entry - the manageQuestions one above only covers the manage flow's page.
+    [`[esupervision][${crn}][${id}][scheduleCheckIn][draftQuestionInput]`]: {
+      optional: page !== 'schedule-check-in-edit-question',
+      checks: [
+        {
+          validator: isNotEmpty,
+          msg: 'Enter what you want to ask the person',
+          log: 'Question text not entered',
+        },
+      ],
+    },
   }
 }
