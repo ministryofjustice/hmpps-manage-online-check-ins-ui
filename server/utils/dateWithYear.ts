@@ -8,7 +8,7 @@ export const dateWithYear = (datetimeString: string, showTime = false): string |
 }
 export const dateToLongDate = (dmyDate: string): string | null => {
   if (!dmyDate || isBlank(dmyDate)) return ''
-  const dt = DateTime.fromFormat(dmyDate, 'dd/MM/yyyy')
+  const dt = DateTime.fromFormat(dmyDate, 'd/M/yyyy')
   if (!dt.isValid) return dmyDate
   return dt.toFormat('d MMMM yyyy')
 }

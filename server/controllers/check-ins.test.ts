@@ -1091,6 +1091,40 @@ describe('checkInsController', () => {
         )
       })
 
+      it('does not add a second question mark when the answer already ends with one', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  questionTemplateAndInputs: { '1-uuid': 'work going?' },
+                  availableTemplates: [
+                    {
+                      id: '1',
+                      template: 'How is {{thing}}?',
+                      responseSpec: { placeholders: ['thing'] },
+                      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        })
+
+        await controllers.checkIns.getAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: '1-uuid', fullText: 'How is work going?' }],
+          }),
+        )
+      })
+
       it('renders 500 error page if fetching upcoming questions fails with non-404', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
@@ -1630,6 +1664,459 @@ describe('checkInsController', () => {
         ).toBeDefined()
         expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
         checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+      })
+    })
+  })
+
+  describe('Ad hoc (schedule) check in journey', () => {
+    const scheduleUrl = `/case/${crn}/appointments/check-in/manage/${uuid}/schedule-check-in`
+    const manageUrl = `/case/${crn}/appointments/check-in/manage/${uuid}`
+
+    const questionTemplates = [
+      {
+        id: 1,
+        template: 'Have you been able to {{text}}?',
+        responseSpec: { placeholders: ['text'] },
+        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      },
+      {
+        id: 2,
+        template: 'How has {{text}} been going recently?',
+        responseSpec: { placeholders: ['text'] },
+        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      },
+    ]
+
+    let getTemplatesSpy: jest.SpyInstance
+
+    beforeEach(() => {
+      res.locals.flags = { enableAdHocCheckIns: true }
+      getTemplatesSpy = jest
+        .spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates')
+        .mockResolvedValue({ templates: questionTemplates } as any)
+    })
+
+    afterEach(() => {
+      res.locals.flags = undefined
+    })
+
+    const sessionWith = (scheduleCheckIn: Record<string, unknown>) => ({
+      esupervision: { [crn]: { [uuid]: { scheduleCheckIn } } },
+    })
+
+    describe('feature flag', () => {
+      // Every ad hoc handler is behind enableAdHocCheckIns, and falls back to the manage page when it is off.
+      const handlers: [string, Record<string, string>][] = [
+        ['getScheduleCheckInDate', {}],
+        ['postScheduleCheckInDate', {}],
+        ['getScheduleCheckInAddQuestions', {}],
+        ['postScheduleCheckInAddQuestions', {}],
+        ['getScheduleCheckInQuestionsList', {}],
+        ['postScheduleCheckInQuestionsList', {}],
+        ['getScheduleCheckInEditQuestion', { questionId: '1-uuid' }],
+        ['postScheduleCheckInEditQuestion', { questionId: '1-uuid' }],
+        ['getScheduleCheckInSelectQuestion', { templateId: '1' }],
+        ['getScheduleCheckInDeleteQuestion', { questionId: '1-uuid' }],
+        ['getScheduleCheckInPreviewFeeling', {}],
+        ['getScheduleCheckInPreviewSupport', {}],
+      ]
+
+      it.each(handlers)('%s redirects to the manage page when the flag is off', async (method, extraParams) => {
+        res.locals.flags = { enableAdHocCheckIns: false }
+
+        const req = baseReq({})
+        Object.assign(req.params, extraParams)
+
+        await (controllers.checkIns as any)[method](hmppsAuthClient)(req, res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+        expect(renderSpy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('getScheduleCheckInDate', () => {
+      it('renders the date page', async () => {
+        const req = baseReq({})
+
+        await controllers.checkIns.getScheduleCheckInDate()(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/date.njk',
+          expect.objectContaining({
+            crn,
+            id: uuid,
+            case: offenderCheckinsByCRNResponse.details,
+            checkInMinDate: expect.any(String),
+          }),
+        )
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DATE', crn, SubjectType.CRN)
+      })
+
+      it('returns 404 when offender details are missing', async () => {
+        res.locals.offenderCheckinsByCRNResponse = undefined
+
+        await controllers.checkIns.getScheduleCheckInDate()(baseReq({}), res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+      })
+    })
+
+    describe('postScheduleCheckInDate', () => {
+      it('continues to the add questions page', async () => {
+        await controllers.checkIns.postScheduleCheckInDate()(baseReq({}), res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+    })
+
+    describe('getScheduleCheckInAddQuestions', () => {
+      it('fetches the CUSTOMISABLE templates and renders the added questions', async () => {
+        const req = baseReq(sessionWith({ date: '1/2/2026', questionTemplateAndInputs: { '2-uuid': 'work' } }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(getTemplatesSpy).toHaveBeenCalledWith('en-GB')
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'availableTemplates'],
+          [questionTemplates[0], questionTemplates[1]],
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            crn,
+            id: uuid,
+            case: offenderCheckinsByCRNResponse.details,
+            addedQuestions: [{ id: '2-uuid', fullText: 'How has work been going recently?' }],
+            expectedCheckinDate: '1/2/2026',
+          }),
+        )
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
+      })
+
+      it('reuses templates already held in the session rather than calling the API again', async () => {
+        const req = baseReq(
+          sessionWith({ availableTemplates: questionTemplates.slice(0, 1), questionTemplateAndInputs: {} }),
+        )
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(getTemplatesSpy).not.toHaveBeenCalled()
+      })
+
+      it('does not add a second question mark when the answer already ends with one', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-uuid': 'call your keyworker?' } }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: '1-uuid', fullText: 'Have you been able to call your keyworker?' }],
+          }),
+        )
+      })
+
+      it('skips blank answers and unknown templates', async () => {
+        const req = baseReq(
+          sessionWith({
+            questionTemplateAndInputs: { '1-uuid': '   ', '2-uuid': 'work', '99-uuid': 'no such template' },
+          }),
+        )
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        const [, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
+        expect(context.addedQuestions).toEqual([{ id: '2-uuid', fullText: 'How has work been going recently?' }])
+      })
+
+      it('returns 404 when offender details are missing', async () => {
+        res.locals.offenderCheckinsByCRNResponse = undefined
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(baseReq({}), res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+      })
+    })
+
+    describe('postScheduleCheckInAddQuestions', () => {
+      it('clears the draft and carries the date over for the manage page banner', async () => {
+        const req = baseReq(sessionWith({ date: '1/2/2026', questionTemplateAndInputs: { '1-uuid': 'work' } }))
+
+        await controllers.checkIns.postScheduleCheckInAddQuestions()(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn'],
+          undefined,
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckInCreated'],
+          '1/2/2026',
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+      })
+    })
+
+    describe('getScheduleCheckInQuestionsList', () => {
+      it('lists every template with its placeholder replaced for display', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
+
+        await controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient)(req, res)
+
+        const [template, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
+        expect(template).toBe('pages/check-in/schedule-check-in/list-questions.njk')
+        expect(context.templatesList.templates.map((t: any) => t.displayTemplate)).toEqual([
+          'Have you been able to [insert text]?',
+          'How has [insert text] been going recently?',
+        ])
+        checkSendAuditMessage(
+          res,
+          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_LIST_QUESTIONS',
+          crn,
+          SubjectType.CRN,
+        )
+      })
+
+      it('saves only the CUSTOMISABLE templates to the session', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
+
+        await controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'availableTemplates'],
+          [questionTemplates[0], questionTemplates[1]],
+        )
+      })
+
+      it('redirects back to add questions once 3 questions have been added', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-a': 'one', '2-b': 'two', '1-c': 'three' } }))
+
+        await controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient)(req, res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+        expect(renderSpy).not.toHaveBeenCalled()
+      })
+
+      it('returns 404 when offender details are missing', async () => {
+        res.locals.offenderCheckinsByCRNResponse = undefined
+
+        await controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient)(baseReq({}), res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+      })
+    })
+
+    describe('postScheduleCheckInQuestionsList', () => {
+      it('returns to the add questions page', async () => {
+        await controllers.checkIns.postScheduleCheckInQuestionsList()(baseReq({}), res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+    })
+
+    describe('getScheduleCheckInEditQuestion', () => {
+      it('renders the question matching the template id embedded in the question id', async () => {
+        const req = baseReq({})
+        req.params.questionId = '2-uuid'
+
+        await controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/edit-question.njk',
+          expect.objectContaining({
+            crn,
+            id: uuid,
+            questionId: '2-uuid',
+            question: expect.objectContaining({
+              id: 2,
+              prefix: 'How has ',
+              suffix: ' been going recently?',
+              placeholderWord: 'text',
+            }),
+          }),
+        )
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_EDIT_QUESTION', crn, SubjectType.CRN)
+      })
+
+      it('returns 404 for a template id that does not exist', async () => {
+        const req = baseReq({})
+        req.params.questionId = '99-uuid'
+
+        await controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient)(req, res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+      })
+
+      it('returns 404 when offender details are missing', async () => {
+        res.locals.offenderCheckinsByCRNResponse = undefined
+        const req = baseReq({})
+        req.params.questionId = '1-uuid'
+
+        await controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient)(req, res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+      })
+    })
+
+    describe('postScheduleCheckInEditQuestion', () => {
+      const editReq = (draftQuestionInput?: string) =>
+        httpMocks.createRequest({
+          params: { crn, id: uuid, questionId: '1-uuid' },
+          session: { data: sessionWith({ draftQuestionInput }) },
+          body: { esupervision: { [crn]: { [uuid]: { scheduleCheckIn: { draftQuestionInput } } } } },
+        })
+
+      it('saves the trimmed answer against the question id', async () => {
+        const req = editReq('  call your keyworker  ')
+
+        await controllers.checkIns.postScheduleCheckInEditQuestion()(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs', '1-uuid'],
+          'call your keyworker',
+        )
+        expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.draftQuestionInput).toBeUndefined()
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+
+      it('saves nothing when the answer is blank', async () => {
+        await controllers.checkIns.postScheduleCheckInEditQuestion()(editReq('   '), res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+    })
+
+    describe('getScheduleCheckInSelectQuestion', () => {
+      it('creates a draft question id and sends the user to edit it', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
+        req.params.templateId = '2'
+
+        await controllers.checkIns.getScheduleCheckInSelectQuestion()(req, res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/2-${uuid}/edit`)
+        checkSendAuditMessage(
+          res,
+          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_SELECT_QUESTION',
+          crn,
+          SubjectType.CRN,
+        )
+      })
+
+      it('refuses to add a fourth question', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-a': 'one', '2-b': 'two', '1-c': 'three' } }))
+        req.params.templateId = '2'
+
+        await controllers.checkIns.getScheduleCheckInSelectQuestion()(req, res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+    })
+
+    describe('getScheduleCheckInDeleteQuestion', () => {
+      it('removes only the chosen question from the session', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-a': 'one', '2-b': 'two' } }))
+        req.params.questionId = '1-a'
+
+        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+
+        const saved = req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs
+        expect(saved['1-a']).toBeUndefined()
+        expect(saved['2-b']).toBe('two')
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+        checkSendAuditMessage(
+          res,
+          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DELETE_QUESTION',
+          crn,
+          SubjectType.CRN,
+        )
+      })
+
+      it('is a no-op when the question is not in the session', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '2-b': 'two' } }))
+        req.params.questionId = '1-a'
+
+        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+
+        expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs['2-b']).toBe('two')
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+    })
+
+    describe('preview pages', () => {
+      it.each([
+        [
+          'getScheduleCheckInPreviewFeeling',
+          'pages/check-in/schedule-check-in/preview/feeling.njk',
+          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_PREVIEW_FEELING_QUESTIONS',
+        ],
+        [
+          'getScheduleCheckInPreviewSupport',
+          'pages/check-in/schedule-check-in/preview/support.njk',
+          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_PREVIEW_SUPPORT_QUESTIONS',
+        ],
+      ])('%s renders its preview', async (method, view, auditAction) => {
+        await (controllers.checkIns as any)[method]()(baseReq({}), res)
+
+        expect(renderSpy).toHaveBeenCalledWith(view, expect.objectContaining({ crn, id: uuid }))
+        checkSendAuditMessage(res, auditAction, crn, SubjectType.CRN)
+      })
+    })
+
+    describe('manage page success banner', () => {
+      const bannerReq = (scheduleCheckInCreated?: string) =>
+        httpMocks.createRequest({
+          params: { crn, id: uuid },
+          session: { data: { esupervision: { [crn]: { [uuid]: { scheduleCheckInCreated } } } } },
+        })
+
+      const renderedBanner = () => {
+        const [, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
+        return context.successMessageHtml as string
+      }
+
+      beforeEach(() => {
+        res.locals.success = undefined
+      })
+
+      it('names the person and the check in date', async () => {
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(bannerReq('1/2/2026'), res)
+
+        expect(res.locals.success).toBe(true)
+        const banner = renderedBanner()
+        expect(banner).toContain('Single online check in for Joe has been created for 1 February 2026')
+        expect(banner).toContain(
+          'Joe will get a notification with a link to complete their online check in on 1 February 2026.',
+        )
+      })
+
+      it('clears the flag so the banner only shows once', async () => {
+        const req = bannerReq('1/2/2026')
+
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckInCreated'],
+          undefined,
+        )
+      })
+
+      it('falls back to the raw value when the date cannot be parsed', async () => {
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(bannerReq('not a date'), res)
+
+        expect(renderedBanner()).toContain('has been created for not a date')
+      })
+
+      it('shows no banner when no ad hoc check in was created', async () => {
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(bannerReq(undefined), res)
+
+        expect(res.locals.success).toBeUndefined()
+        expect(renderedBanner()).toBeUndefined()
       })
     })
   })

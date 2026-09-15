@@ -25,6 +25,7 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'eligibilityFeatureToggle', type: 'boolean' },
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'newDesignPopHeader', type: 'boolean' },
+  { key: 'enableAdHocCheckIns', type: 'boolean' },
 ]
 
 export type FeatureFlags = Record<string, boolean | string | undefined>
