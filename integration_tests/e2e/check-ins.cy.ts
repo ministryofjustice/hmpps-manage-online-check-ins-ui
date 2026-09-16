@@ -201,7 +201,7 @@ context('Appointment check-ins', () => {
       const pilotCheckPage = new PilotCheckPage()
       pilotCheckPage.getSubmitBtn().click()
       pilotCheckPage.checkErrorSummaryBox([
-        'Select yes if you have one or more people who started using online check ins before 1 October 2026',
+        'Select if you have one or more people who started using online check ins before 1 October 2026',
       ])
     })
   })

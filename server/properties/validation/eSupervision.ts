@@ -49,7 +49,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       checks: [
         {
           validator: isNotEmpty,
-          msg: 'Select yes if you have one or more people who started using online check ins before 1 October 2026',
+          msg: 'Select if you have one or more people who started using online check ins before 1 October 2026',
           log: 'Pilot cohort question not answered',
         },
       ],
