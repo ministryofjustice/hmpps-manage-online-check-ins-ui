@@ -43,9 +43,11 @@ const CRN_TIER_C = 'X000002'
 const CRN_TIER_DG = 'X000001'
 const CRN_TIER_UNKNOWN = 'X000009'
 
-const loadPage = (crn: string = CRN_TIER_DG) => {
+// failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
+// treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
+const loadPage = (crn: string = CRN_TIER_DG, failOnStatusCode = true) => {
   cy.task('resetMocks')
-  cy.visit(`/case/${crn}/appointments/check-in/eligibility-check`)
+  cy.visit(`/case/${crn}/appointments/check-in/eligibility-check`, { failOnStatusCode })
 }
 
 // Every setup spec starts here: the eligibility check is the wizard's opening page, and the only
@@ -336,9 +338,10 @@ context('Appointment check-ins', () => {
     })
 
     // Every rule keys off the tier, so an unknown tier is an error rather than a default band.
+    // The page answers 500, which is the point - hence failOnStatusCode: false.
     it('shows an error page when the tier cannot be determined', () => {
-      loadPage(CRN_TIER_UNKNOWN)
-      new ErrorPage().checkOnPage()
+      loadPage(CRN_TIER_UNKNOWN, false)
+      new ErrorPage().checkPageTitle('Sorry, there is a problem with the service')
     })
   })
 

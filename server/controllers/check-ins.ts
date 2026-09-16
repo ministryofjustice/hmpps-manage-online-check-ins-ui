@@ -201,6 +201,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         back,
+        // The shared eligibility-check template renders the Tier A/B-only checkboxes off this.
+        tierBand: band,
         tierScore: res.locals.tierScore,
         guidanceUrl: config.guidance.link,
         data: req.session.data,

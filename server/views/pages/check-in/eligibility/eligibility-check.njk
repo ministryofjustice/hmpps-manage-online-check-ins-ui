@@ -1,4 +1,4 @@
-{% extends "../../../_form.njk" %}
+{% extends "../../_form.njk" %}
 {% from "govuk/components/checkboxes/macro.njk" import govukCheckboxes %}
 
 {% set title = "Check if " + case.name.forename + " is eligible to use online check ins"  %}
@@ -21,6 +21,55 @@
 {% set notStandardForm = true %}
 {% set buttonText = "Continue" %}
 {% set currentEligibility = data.esupervision[crn][id].checkins.eligibility or [] %}
+
+{# The accredited programme, youth sentence and early engagement questions are Tier A/B rules -
+   see nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The
+   four boxes below them apply to every tier. #}
+{% set eligibilityItems = [
+    {
+    value: "supervisionPackage",
+    text: "Is on a supervision package",
+    checked: currentEligibility.includes("supervisionPackage")
+    }
+] %}
+{% if tierBand == 'AB' %}
+    {% set eligibilityItems = (eligibilityItems.push({
+        value: "accreditedProgramme",
+        text: "Is on an accredited programme",
+        checked: currentEligibility.includes("accreditedProgramme")
+    }), eligibilityItems) %}
+{% endif %}
+{% set eligibilityItems = (eligibilityItems.push(
+    {
+    value: "recalled",
+    text: "Recalled to prison",
+    checked: currentEligibility.includes("recalled")
+    },
+    {
+    value: "finalThird",
+    text: "In the final third of their sentence",
+    checked: currentEligibility.includes("finalThird")
+    },
+    {
+    value: "deviceRestriction",
+    text: "Has a sentence restriction that means they can't use a device or the internet",
+    checked: currentEligibility.includes("deviceRestriction")
+    }
+), eligibilityItems) %}
+{% if tierBand == 'AB' %}
+    {% set eligibilityItems = (eligibilityItems.push(
+        {
+        value: "youthSentence",
+        text: "Is on a youth sentence",
+        checked: currentEligibility.includes("youthSentence")
+        },
+        {
+        value: "earlyEngagement",
+        text: "Is in early engagement",
+        checked: currentEligibility.includes("earlyEngagement")
+        }
+    ), eligibilityItems) %}
+{% endif %}
 
 
 {% block primary %}
@@ -75,28 +124,7 @@
                 hint: {
                     text: "Select all that apply."
                 },
-                items: [
-                {
-                value: "supervisionPackage",
-                text: "Is on a supervision package",
-                checked: currentEligibility.includes("supervisionPackage")
-                },
-                {
-                value: "recalled",
-                text: "Recalled to prison",
-                checked: currentEligibility.includes("recalled")
-                },
-                {
-                value: "finalThird",
-                text: "In the final third of their sentence",
-                checked: currentEligibility.includes("finalThird")
-                },
-                {
-                value: "deviceRestriction",
-                text: "Has a sentence restriction that means they can't use a device or the internet",
-                checked: currentEligibility.includes("deviceRestriction")
-                }
-            ]
+                items: eligibilityItems
             }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'eligibility']) }}
               <div class="govuk-button-group">
                 {{ govukButton({

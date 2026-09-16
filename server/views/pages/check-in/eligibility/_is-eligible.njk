@@ -1,4 +1,8 @@
-{% extends "../../../_form.njk" %}
+{# Shared scaffolding for the three is-eligible pages. They differ only in why the person is
+   eligible and where the back link goes, so each variant extends this and overrides the
+   eligibilityReason block; everything else - the discussion checkboxes that gate sign-up, the
+   error summary and the button group - lives here once. #}
+{% extends "../../_form.njk" %}
 {% from "govuk/components/checkboxes/macro.njk" import govukCheckboxes %}
 
 {% set title = case.name.forename + " is eligible to use online check ins"  %}
@@ -17,11 +21,9 @@
 {% set formAnchorLink = "/case/"+  crn %}
 {% set formAnchorText = "Cancel and go back" %}
 {% set back = back if back else '' %}
-{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/pilot-check' %}
 {% set notStandardForm = true %}
 {% set buttonText = "Confirm and sign up" %}
 {% set currentDiscussion = data.esupervision[crn][id].checkins.discussion or [] %}
-
 
 {% block primary %}
   <div class="govuk-grid-row">
@@ -50,11 +52,7 @@
         <form method="post" autocomplete="off" action="{{ paths.current }}">
             <input type="hidden" name="_csrf" value="{{ csrfToken }}">
 
-            {# dynamic #}
-            <p class="govuk-body">This is because they are in Tier {{tierScore}} and you have one or more people who were using online check ins before 1 October 2026</p>
-
-            <p class="govuk-body">We are piloting using online check ins with people in Tiers A to C for all practitioners who have one or more people on their caseload who started using online check ins before 1 October 2026. This pilot will run until March 2027. After this a decision will be made about whether to allow all people in Tiers A to C to use online check ins. </p>
-            <p class="govuk-body">If you think this is wrong you can go back and perform the eligibility check again.</p>
+            {% block eligibilityReason %}{% endblock %}
 
              <h3 class="govuk-heading-m">Before you sign them up to online check ins</h3>
 

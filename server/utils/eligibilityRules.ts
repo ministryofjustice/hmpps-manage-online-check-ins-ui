@@ -82,20 +82,25 @@ export function nextAfterPilotCheck(band: 'AB' | 'C', pilotCheck: string): Eligi
 // One route per page with the band picking the template, so the URLs stay tier-agnostic.
 // Paths are relative to pages/check-in/ and carry no extension, matching how the validation
 // middleware builds its render target.
+//
+// Where two bands are asked the same thing they share a template rather than holding a copy each:
+// eligibility-check varies only by the Tier A/B checkboxes, which it renders off `tierBand`, and
+// A/B and C get the same pilot pages. Only the pages whose wording is band-specific sit in a
+// per-band subfolder.
 export const eligibilityViews: Record<TierBand, Record<string, string>> = {
   AB: {
-    'eligibility-check': 'eligibility/tiers-a-b/eligibility-check',
-    'pilot-check': 'eligibility/tiers-a-b/pilot-check',
-    'is-eligible': 'eligibility/tiers-a-b/pilot-is-eligible',
+    'eligibility-check': 'eligibility/eligibility-check',
+    'pilot-check': 'eligibility/pilot-check',
+    'is-eligible': 'eligibility/pilot-is-eligible',
     'accredited-programme-is-eligible': 'eligibility/tiers-a-b/accredited-programme-is-eligible',
   },
   C: {
-    'eligibility-check': 'eligibility/tier-c/eligibility-check',
-    'pilot-check': 'eligibility/tier-c/pilot-check',
-    'is-eligible': 'eligibility/tier-c/pilot-is-eligible',
+    'eligibility-check': 'eligibility/eligibility-check',
+    'pilot-check': 'eligibility/pilot-check',
+    'is-eligible': 'eligibility/pilot-is-eligible',
   },
   DG: {
-    'eligibility-check': 'eligibility/tiers-d-g/eligibility-check',
+    'eligibility-check': 'eligibility/eligibility-check',
     'is-eligible': 'eligibility/tiers-d-g/is-eligible',
   },
 }

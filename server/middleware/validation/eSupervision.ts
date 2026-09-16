@@ -78,6 +78,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
     // from the URL cannot reach, so each passes its view explicitly.
     const band = getTierBand(res.locals.tierScore as string)
     if (band) {
+      // The shared eligibility-check template renders the Tier A/B-only checkboxes off this, so a
+      // re-render with errors has to pass it or those boxes would disappear.
+      localParams.tierBand = band
       validateSetupPage('eligibility-check', eligibilityViews[band]['eligibility-check'], 'eligibility-check')
       if (band !== 'DG') {
         validateSetupPage('pilot-check', eligibilityViews[band]['pilot-check'], 'pilot-check')

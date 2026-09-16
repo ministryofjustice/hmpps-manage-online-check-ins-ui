@@ -48,14 +48,11 @@ const base: Record<string, unknown> = {
 const views = [
   'eligibility/not-eligible',
   'eligibility/speak-to-pop',
-  'eligibility/tiers-a-b/eligibility-check',
-  'eligibility/tiers-a-b/pilot-check',
-  'eligibility/tiers-a-b/pilot-is-eligible',
+  // Shared across bands - see eligibilityViews in utils/eligibilityRules for which band gets what.
+  'eligibility/eligibility-check',
+  'eligibility/pilot-check',
+  'eligibility/pilot-is-eligible',
   'eligibility/tiers-a-b/accredited-programme-is-eligible',
-  'eligibility/tier-c/eligibility-check',
-  'eligibility/tier-c/pilot-check',
-  'eligibility/tier-c/pilot-is-eligible',
-  'eligibility/tiers-d-g/eligibility-check',
   'eligibility/tiers-d-g/is-eligible',
   'rationale',
   'accredited-programme-approval',
@@ -96,5 +93,34 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+// One eligibility-check template serves every band, rendering the three Tier A/B-only questions
+// off `tierBand`. Asserting on the checkbox values keeps the bands from drifting into each other.
+describe('eligibility/eligibility-check', () => {
+  const valuesIn = (html: string): string[] =>
+    [...html.matchAll(/name="esupervision\[[^"]+\]\[checkins\]\[eligibility\]" type="checkbox" value="([^"]+)"/g)].map(
+      match => match[1],
+    )
+
+  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction']
+
+  it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
+    expect(valuesIn(html)).toEqual([
+      'supervisionPackage',
+      'accreditedProgramme',
+      'recalled',
+      'finalThird',
+      'deviceRestriction',
+      'youthSentence',
+      'earlyEngagement',
+    ])
+  })
+
+  it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(valuesIn(html)).toEqual(allTiers)
   })
 })

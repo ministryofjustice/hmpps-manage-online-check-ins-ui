@@ -92,16 +92,20 @@ describe('check-in setup flow', () => {
   })
 
   describe('eligibility check', () => {
+    // Every band shares one template, which renders the Tier A/B-only questions off `tierBand`.
     it.each([
-      ['A1', 'eligibility/tiers-a-b/eligibility-check.njk'],
-      ['B2', 'eligibility/tiers-a-b/eligibility-check.njk'],
-      ['C1', 'eligibility/tier-c/eligibility-check.njk'],
-      ['E2', 'eligibility/tiers-d-g/eligibility-check.njk'],
-    ])('renders the tier %s template', async (tierScore, view) => {
+      ['A1', 'AB'],
+      ['B2', 'AB'],
+      ['C1', 'C'],
+      ['E2', 'DG'],
+    ])('renders the eligibility check for tier %s with band %s', async (tierScore, tierBand) => {
       const req = requestFor()
       const res = responseForTier(tierScore)
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
-      expect(res.render).toHaveBeenCalledWith(`pages/check-in/${view}`, expect.objectContaining({ crn, id, tierScore }))
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/eligibility-check.njk',
+        expect.objectContaining({ crn, id, tierScore, tierBand }),
+      )
     })
 
     it('errors rather than guessing a band when the tier is unknown', async () => {
@@ -196,14 +200,15 @@ describe('check-in setup flow', () => {
       }
     }
 
-    it.each([
-      ['A1', 'eligibility/tiers-a-b/pilot-check.njk'],
-      ['C1', 'eligibility/tier-c/pilot-check.njk'],
-    ])('renders the tier %s template', async (tierScore, view) => {
+    // A/B and C are asked the same question, so they share one template.
+    it.each(['A1', 'C1'])('renders the pilot check for tier %s', async tierScore => {
       const req = requestFor()
       const res = responseForTier(tierScore)
       await controllers.checkIns.getPilotCheckPage()(req, res)
-      expect(res.render).toHaveBeenCalledWith(`pages/check-in/${view}`, expect.objectContaining({ crn, id, tierScore }))
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/pilot-check.njk',
+        expect.objectContaining({ crn, id, tierScore }),
+      )
     })
 
     // Tiers D-G never reach this page - there is no template for them to fall back on.
@@ -252,8 +257,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([
-      ['A1', { accreditedProgramme: false }, 'eligibility/tiers-a-b/pilot-is-eligible.njk'],
-      ['C1', {}, 'eligibility/tier-c/pilot-is-eligible.njk'],
+      ['A1', { accreditedProgramme: false }, 'eligibility/pilot-is-eligible.njk'],
+      ['C1', {}, 'eligibility/pilot-is-eligible.njk'],
       ['G1', {}, 'eligibility/tiers-d-g/is-eligible.njk'],
     ])('renders the tier %s page otherwise', async (tierScore, checkins, view) => {
       const req = requestFor({}, sessionWith(checkins))
@@ -592,7 +597,7 @@ describe('check-in setup flow', () => {
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(getProbationPractitioner).not.toHaveBeenCalled()
       expect(res.render).toHaveBeenCalledWith(
-        'pages/check-in/eligibility/tiers-a-b/eligibility-check.njk',
+        'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ crn }),
       )
     })
