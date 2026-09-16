@@ -22,7 +22,7 @@ import TiersABEligibilityCheckPage from '../pages/check-ins/eligibility/tiers-a-
 import PilotCheckPage from '../pages/check-ins/eligibility/pilot-check'
 import IsEligiblePage from '../pages/check-ins/eligibility/is-eligible'
 import NotEligiblePage from '../pages/check-ins/eligibility/not-eligible'
-import SpeakToPopPage from '../pages/check-ins/eligibility/speak-to-pop'
+import DiscussBeforeSignupPage from '../pages/check-ins/eligibility/discuss-before-signup'
 import PhotoOptionsPage from '../pages/check-ins/photo-options'
 import PhotoRulesPage from '../pages/check-ins/photo-rules'
 import RationalePage from '../pages/check-ins/rationale'
@@ -324,7 +324,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.getOptional().click()
       isEligiblePage.getSubmitBtn().click()
 
-      new SpeakToPopPage().checkOnPage()
+      new DiscussBeforeSignupPage().checkOnPage()
     })
 
     it('sends the practitioner to speak to the person when no discussion box is ticked', () => {
@@ -334,7 +334,7 @@ context('Appointment check-ins', () => {
 
       new IsEligiblePage().getSubmitBtn().click()
 
-      new SpeakToPopPage().checkOnPage()
+      new DiscussBeforeSignupPage().checkOnPage()
     })
 
     // Every rule keys off the tier, so an unknown tier is an error rather than a default band.

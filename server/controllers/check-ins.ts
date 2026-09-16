@@ -97,8 +97,8 @@ type CheckInRouteName =
   | 'postIsEligiblePage'
   | 'getNotEligiblePage'
   | 'postNotEligiblePage'
-  | 'getSpeakToPopPage'
-  | 'postSpeakToPopPage'
+  | 'getDiscussBeforeSignupPage'
+  | 'postDiscussBeforeSignupPage'
   | 'getAccreditedProgrammeApprovalPage'
   | 'postAccreditedProgrammeApprovalPage'
   | 'getRationalePage'
@@ -365,7 +365,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // Part-ticked discussion boxes mean the conversation still needs to happen.
       const discussion = getDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'])
       if (!hasCompletedDiscussion(discussion)) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/speak-to-pop`)
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/discuss-before-signup`)
       }
       const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'])
       // Approval and rationale only apply to the accredited-programme cohort.
@@ -405,7 +405,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getSpeakToPopPage: () => {
+  getDiscussBeforeSignupPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -413,7 +413,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      return res.render('pages/check-in/eligibility/speak-to-pop.njk', {
+      return res.render('pages/check-in/eligibility/discuss-before-signup.njk', {
         crn,
         id,
         back,
@@ -422,7 +422,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postSpeakToPopPage: () => {
+  postDiscussBeforeSignupPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {

@@ -1,6 +1,6 @@
 import Page, { PageElement } from '../../page'
 
-export default class SpeakToPopPage extends Page {
+export default class DiscussBeforeSignupPage extends Page {
   constructor() {
     super('You should speak to')
   }

@@ -97,11 +97,14 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   ])
   router.post('/case/:crn/appointments/:id/check-in/not-eligible', controllers.checkIns.postNotEligiblePage())
 
-  router.get('/case/:crn/appointments/:id/check-in/speak-to-pop', [
+  router.get('/case/:crn/appointments/:id/check-in/discuss-before-signup', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getSpeakToPopPage(),
+    controllers.checkIns.getDiscussBeforeSignupPage(),
   ])
-  router.post('/case/:crn/appointments/:id/check-in/speak-to-pop', controllers.checkIns.postSpeakToPopPage())
+  router.post(
+    '/case/:crn/appointments/:id/check-in/discuss-before-signup',
+    controllers.checkIns.postDiscussBeforeSignupPage(),
+  )
 
   router.get('/case/:crn/appointments/:id/check-in/accredited-programme-approval', [
     restrictPageAccess({ requiredValues: ['id'] }),

@@ -293,8 +293,10 @@ describe('check-in setup flow', () => {
       ['none ticked', undefined],
       ['one ticked', ['optional']],
       ['all but one ticked', ['optional', 'canStop', 'notEnforceable']],
-    ])('diverts to speak-to-pop when the discussion has %s', async (_description, discussion) => {
-      expect(await postIsEligible({ discussion })).toBe(`/case/${crn}/appointments/${id}/check-in/speak-to-pop`)
+    ])('diverts to discuss-before-signup when the discussion has %s', async (_description, discussion) => {
+      expect(await postIsEligible({ discussion })).toBe(
+        `/case/${crn}/appointments/${id}/check-in/discuss-before-signup`,
+      )
     })
   })
 
@@ -338,13 +340,13 @@ describe('check-in setup flow', () => {
     })
   })
 
-  describe('speak to pop', () => {
+  describe('discuss before signup', () => {
     it('renders the guidance page', async () => {
       const req = requestFor()
       const res = responseForTier('C1')
-      await controllers.checkIns.getSpeakToPopPage()(req, res)
+      await controllers.checkIns.getDiscussBeforeSignupPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
-        'pages/check-in/eligibility/speak-to-pop.njk',
+        'pages/check-in/eligibility/discuss-before-signup.njk',
         expect.objectContaining({ crn, id }),
       )
     })
@@ -352,7 +354,7 @@ describe('check-in setup flow', () => {
     it('returns to the case overview', async () => {
       const req = requestFor()
       const res = responseForTier('C1')
-      await controllers.checkIns.postSpeakToPopPage()(req, res)
+      await controllers.checkIns.postDiscussBeforeSignupPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}`)
     })
   })

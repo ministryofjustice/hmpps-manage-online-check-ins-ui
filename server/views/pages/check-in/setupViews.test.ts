@@ -47,7 +47,7 @@ const base: Record<string, unknown> = {
 
 const views = [
   'eligibility/not-eligible',
-  'eligibility/speak-to-pop',
+  'eligibility/discuss-before-signup',
   // Shared across bands - see eligibilityViews in utils/eligibilityRules for which band gets what.
   'eligibility/eligibility-check',
   'eligibility/pilot-check',
