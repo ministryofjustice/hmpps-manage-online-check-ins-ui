@@ -272,7 +272,7 @@ export interface EsupervisionUpcomingQuestionsResponse {
 }
 
 export type OffenderStatus = 'INITIAL' | 'VERIFIED' | 'INACTIVE'
-export type CheckInterval = 'WEEKLY' | 'TWO_WEEKS' | 'FOUR_WEEKS' | 'EIGHT_WEEKS'
+export type CheckInterval = 'WEEKLY' | 'TWO_WEEKS' | 'FOUR_WEEKS' | 'EIGHT_WEEKS' | 'AD_HOC'
 
 export interface Note {
   id: number

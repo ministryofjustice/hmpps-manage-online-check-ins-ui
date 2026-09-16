@@ -39,6 +39,7 @@ const checkinIntervals: { id: string; label: string }[] = [
   { id: 'TWO_WEEKS', label: 'Every 2 weeks' },
   { id: 'FOUR_WEEKS', label: 'Every 4 weeks' },
   { id: 'EIGHT_WEEKS', label: 'Every 8 weeks' },
+  { id: 'AD_HOC', label: "I'll schedule them one at a time" },
 ]
 
 // getPersonalDetails middleware already fetches practitioner details when the new header flag is
@@ -1091,6 +1092,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         : null
       const canEditQuestions = checkinDate ? today < checkinDate : false
       const showChange = checkinRes?.status === 'VERIFIED'
+      const noCheckinScheduled = checkinRes?.checkinInterval === 'AD_HOC' && !upcomingCheckin
+      const frequencyLabel = checkinIntervals.find(option => option.id === checkinRes?.checkinInterval)?.label
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'preferredComs'], undefined)
       const settingsUpdated = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'])
       if (settingsUpdated) {
@@ -1125,6 +1128,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         upcomingCheckin,
         canEditQuestions,
         successMessageHtml,
+        noCheckinScheduled,
+        frequencyLabel,
       })
     }
   },

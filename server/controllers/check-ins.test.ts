@@ -158,6 +158,61 @@ describe('checkInsController', () => {
       expect(mockRenderError).toHaveBeenCalledWith(404)
       expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
+
+    it('sets noCheckinScheduled to true for AD_HOC interval with no upcoming check in', async () => {
+      res.locals.offenderCheckinsByCRNResponse = {
+        ...offenderCheckinsByCRNResponse,
+        checkinInterval: 'AD_HOC',
+      } as OffenderByCRNResponse
+      ;(ESupervisionClient.prototype.getUpcomingCheckinQuestions as jest.Mock).mockResolvedValueOnce(null)
+
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+      })
+
+      await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+      const [, context] = (renderSpy as jest.Mock).mock.calls.pop()
+      expect(context.noCheckinScheduled).toBe(true)
+      expect(context.frequencyLabel).toBe("I'll schedule them one at a time")
+    })
+
+    it('sets noCheckinScheduled to false for AD_HOC interval with an upcoming check in', async () => {
+      res.locals.offenderCheckinsByCRNResponse = {
+        ...offenderCheckinsByCRNResponse,
+        checkinInterval: 'AD_HOC',
+      } as OffenderByCRNResponse
+      ;(ESupervisionClient.prototype.getUpcomingCheckinQuestions as jest.Mock).mockResolvedValueOnce({
+        expectedCheckinDate: '2026-01-01',
+        questions: [],
+      })
+
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+      })
+
+      await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+      const [, context] = (renderSpy as jest.Mock).mock.calls.pop()
+      expect(context.noCheckinScheduled).toBe(false)
+    })
+
+    it('sets noCheckinScheduled to false for a recurring interval', async () => {
+      res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
+
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+      })
+
+      await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+      const [, context] = (renderSpy as jest.Mock).mock.calls.pop()
+      expect(context.noCheckinScheduled).toBe(false)
+      expect(context.frequencyLabel).toBe('Every week')
+    })
   })
 
   describe('getStopCheckinPage', () => {

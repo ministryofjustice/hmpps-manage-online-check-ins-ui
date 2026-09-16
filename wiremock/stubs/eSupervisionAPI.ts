@@ -281,6 +281,7 @@ const stubFeatureFlags = (flags: Record<string, boolean> = {}): SuperAgentReques
   const defaults = {
     eligibilityFeatureToggle: false,
     mockAccreditedProgrammeTiersABToggle: false,
+    enableAdHocCheckIns: false,
   }
   const merged = { ...defaults, ...flags }
   return superagent.post('http://localhost:9091/__admin/mappings').send({
