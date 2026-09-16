@@ -363,7 +363,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
 
       // Part-ticked discussion boxes mean the conversation still needs to happen.
-      const discussion = getDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'])
+      const discussion = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.discussion)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'], discussion)
       if (!hasCompletedDiscussion(discussion)) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/discuss-before-signup`)
       }

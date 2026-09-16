@@ -269,8 +269,8 @@ describe('check-in setup flow', () => {
 
     const allDiscussionPoints = ['optional', 'canStop', 'notEnforceable', 'moreTime']
 
-    const postIsEligible = async (checkins: Record<string, unknown>) => {
-      const req = requestFor({}, sessionWith(checkins))
+    const postIsEligible = async ({ discussion, ...checkins }: Record<string, unknown>) => {
+      const req = requestFor({ esupervision: { [crn]: { [id]: { checkins: { discussion } } } } }, sessionWith(checkins))
       const res = responseForTier('D1')
       await controllers.checkIns.postIsEligiblePage()(req, res)
       return (res.redirect as jest.Mock).mock.calls[0][0]
