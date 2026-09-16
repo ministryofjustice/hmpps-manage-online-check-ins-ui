@@ -38,24 +38,21 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     change = '',
   } = args
   return {
-    // Setup flow — eligibility through to the photo
-    [`[esupervision][${crn}][${id}][checkins][eligibility]`]: {
-      optional: page !== 'eligibility-check',
+    // Setup flow — eligibility through to the photo.
+    //
+    // The eligibility checkboxes have no spec: leaving them all blank is a valid answer,
+    // meaning none of the criteria apply. Because "is on a supervision package" is one of
+    // the boxes, a blank submission rules the person out rather than erroring - see
+    // nextAfterEligibilityCheck in utils/eligibilityRules.
+    [`[esupervision][${crn}][${id}][checkins][pilotCheck]`]: {
+      optional: page !== 'pilot-check',
       checks: [
         {
           validator: isNotEmpty,
-          msg: 'Select if any of these apply to the person',
-          log: 'Eligibility criteria not selected',
+          msg: 'Select yes if you have one or more people who started using online check ins before 1 October 2026',
+          log: 'Pilot cohort question not answered',
         },
       ],
-    },
-    [`[esupervision][${crn}][${id}][checkins][eligibilityChoice]`]: {
-      optional: page !== 'full-eligibility',
-      checks: [{ validator: isNotEmpty, msg: 'Select how you will use online check ins' }],
-    },
-    [`[esupervision][${crn}][${id}][checkins][eligibilitySPOApproval]`]: {
-      optional: page !== 'spo-approval',
-      checks: [{ validator: isNotEmpty, msg: 'Select to confirm SPO approval', log: 'SPO approval not confirmed' }],
     },
     [`[esupervision][${crn}][${id}][checkins][accreditedProgrammeApproval]`]: {
       optional: page !== 'accredited-programme-approval',

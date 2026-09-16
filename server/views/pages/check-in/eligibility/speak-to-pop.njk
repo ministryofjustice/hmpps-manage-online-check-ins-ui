@@ -1,0 +1,29 @@
+{% extends "../../_form.njk" %}
+{% set title = "You should speak to " + case.name.forename + " about online check ins before you sign them up"  %}
+{% set pageTitleText = "You should speak to the person about online check ins before you sign them up" %}
+{% set pageTitle = makePageTitle({
+  pageHeading: [pageTitleText]
+}) %}
+{% set back = back if back else '' %}
+{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/is-eligible' %}
+{% set buttonText = "Go to " + case.name.forename + "'s overview" %}
+
+
+{% block form %}
+    <h3 class="govuk-heading-m">What you need to know</h3>
+    <p class="govuk-body">Before you sign the person up, you should let them know:</p>
+    <ul class="govuk-list govuk-list--bullet">
+        <li>online check ins are optional and they can decide not to use them</li>
+        <li>they cannot be breached if they decide not to use online check ins, stop using them, or miss a check in</li>
+        <li>they can decide to stop at any time</li>
+        <li>they can ask for information to take away, and for more time to make a decision</li>
+    </ul>
+    <p class="govuk-body">You can learn more about online check ins in our guidance pages.</p>
+    <p class="govuk-body">
+    <a class="govuk-link" href="{{guidanceUrl}}/practitioner-guidance">Practitioner guidance about online check ins</a>, including information you should tell the person, and setting people up and reviewing completed check ins.
+    </p>
+
+    <p class="govuk-body">
+    <a class="govuk-link" href="{{guidanceUrl}}/guidance">Guidance for people on probation about online check ins</a>, including how they work and what questions we ask.
+    </p>
+{% endblock %}

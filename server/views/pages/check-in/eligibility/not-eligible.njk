@@ -1,0 +1,43 @@
+{% extends "../../_form.njk" %}
+{% set title = case.name.forename + " is not eligible to use online check ins"  %}
+{% set pageTitleText = "The person is not eligible to use online check ins" %}
+{% set pageTitle = makePageTitle({
+  pageHeading: [pageTitleText]
+}) %}
+{% set back = back if back else '' %}
+{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{% set buttonText = "Go to " + case.name.forename + "'s overview" %}
+
+
+{# Reasons #}
+{# Tiers A/B #}
+{# is not on a supervision package #}
+{# is in Tier A/B and you do not have one or more people on your caseload who started using online check ins before 1 October 2026 #}
+{# is in Tier A/B and on an accredited programme, but they are in early engagement #}
+{# is in Tier A/B and on an accredited programme, but they are on a youth sentence #}
+{# has been recalled to prison #}
+{# is in the final third of their sentence #}
+{# has restrictions that mean they cannot use a device or the internet #}
+
+
+{# Tiers C #}
+{# is not on a supervision package #}
+{# is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026 #}
+{# has been recalled to prison #}
+{# is in the final third of their sentence #}
+{# has restrictions that mean they cannot use a device or the internet #}
+
+{# Tiers D #}
+{# is not on a supervision package #}
+{# has been recalled to prison #}
+{# is in the final third of their sentence #}
+{# has restrictions that mean they cannot use a device or the internet #}
+
+{% block form %}
+    <p class="govuk-body">This is because {{case.name.forename}} {{reason}}.</p>
+    {# A missing supervision package is a hard requirement, so re-running the check cannot change
+       the outcome - see canRecheck in getNotEligiblePage. #}
+    {% if canRecheck %}
+        <p class="govuk-body">If you think this is wrong you can go back and perform the eligibility check again.</p>
+    {% endif %}
+{% endblock %}

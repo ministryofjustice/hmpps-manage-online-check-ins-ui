@@ -32,7 +32,15 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
-import { getOffenderEligibility, OffenderEligibility } from '../data/mockAccreditedProgramme'
+import getTierBand, { TierBand } from '../utils/getTierBand'
+import {
+  eligibilityViews,
+  hasCompletedDiscussion,
+  nextAfterEligibilityCheck,
+  nextAfterPilotCheck,
+  requiresSupervisionPackage,
+  toSelections,
+} from '../utils/eligibilityRules'
 
 const checkinIntervals: { id: string; label: string }[] = [
   { id: 'WEEKLY', label: 'Every week' },
@@ -64,10 +72,10 @@ const getMinDate = (): string => {
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
 }
 
-// The accredited-programme content/approval step only applies when the person is on an
-// accredited programme AND in Tier A or B - either alone isn't enough.
-function isTierAOrBOnAccreditedProgramme({ accreditedProgramme, tierA, tierB }: OffenderEligibility): boolean {
-  return accreditedProgramme && (tierA || tierB)
+// The header endpoint tolerates 404s and 500s with an empty tier score, and every eligibility
+// rule keys off the tier - so an unknown tier is an error rather than a default band.
+function resolveBand(res: Response): TierBand | null {
+  return getTierBand(res.locals.tierScore as string)
 }
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
@@ -83,14 +91,14 @@ type CheckInRouteName =
   | 'postEligibilityPage'
   | 'getInstructionsPage'
   | 'postInstructionsPage'
-  | 'getEligibilityDeniedPage'
-  | 'postEligibilityDeniedPage'
-  | 'getFullEligibilityPage'
-  | 'postFullEligibilityPage'
-  | 'getSupplementaryEligibilityPage'
-  | 'postSupplementaryEligibilityPage'
-  | 'getSPOApprovalPage'
-  | 'postSPOApprovalPage'
+  | 'getPilotCheckPage'
+  | 'postPilotCheckPage'
+  | 'getIsEligiblePage'
+  | 'postIsEligiblePage'
+  | 'getNotEligiblePage'
+  | 'postNotEligiblePage'
+  | 'getSpeakToPopPage'
+  | 'postSpeakToPopPage'
   | 'getAccreditedProgrammeApprovalPage'
   | 'postAccreditedProgrammeApprovalPage'
   | 'getRationalePage'
@@ -165,9 +173,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_START_SETUP', crn, SubjectType.CRN)
-      // ELIGIBILITY_V2_FLAG
-      const nextStep = res.locals.flags?.eligibilityFeatureToggle ? 'instructions' : 'eligibility-check'
-      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/${nextStep}`)
+      // The wizard opens on the eligibility check. The instructions page and its route are kept
+      // for now in case the guidance is wanted back, but nothing routes into or out of it.
+      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/eligibility-check`)
     }
   },
 
@@ -179,18 +187,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/instructions`)
+      const band = resolveBand(res)
+      if (!band) {
+        return renderError(500)(req, res)
       }
       const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
-      return res.render('pages/check-in/eligibility-check.njk', {
+      req.session.data = req.session.data || {}
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+      return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
         crn,
         id,
         back,
+        tierScore: res.locals.tierScore,
         guidanceUrl: config.guidance.link,
         data: req.session.data,
       })
@@ -203,21 +214,23 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const eligibility = req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility
-      const selections = Array.isArray(eligibility) ? eligibility : [eligibility]
+      const band = resolveBand(res)
+      if (!band) {
+        return renderError(500)(req, res)
+      }
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
-      // The Intensive Supervision Court pilot rules the person out entirely.
-      if (selections.includes('eligibility-9')) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/denied-eligibility`)
+      const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
+      const { target, reason, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
+      // The rationale step and the summary both key off this, so record it either way.
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
+      if (reason) {
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
       }
-      if (selections.includes('eligibility-none')) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/full-eligibility`)
-      }
-      // Any other criterion means check-ins can only supplement face-to-face contact.
-      if (eligibility && eligibility.length > 0) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`)
-      }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
   },
 
@@ -229,22 +242,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (!res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      const band = resolveBand(res)
+      if (!band) {
+        return renderError(500)(req, res)
       }
       const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
-      const eligibility = await getOffenderEligibility(crn, res.locals.flags?.mockAccreditedProgrammeTiersABToggle)
       return res.render('pages/check-in/instructions.njk', {
         crn,
         id,
         back,
         guidanceUrl: config.guidance.link,
         data: req.session.data,
-        accreditedProgramme: isTierAOrBOnAccreditedProgramme(eligibility),
+        // Tier A/B is the only band where the accredited-programme guidance can apply.
+        accreditedProgramme: band === 'AB',
       })
     }
   },
@@ -255,55 +268,56 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (!res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
-      }
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'id'], id)
-      const eligibility = await getOffenderEligibility(crn, res.locals.flags?.mockAccreditedProgrammeTiersABToggle)
-      const accreditedProgramme = isTierAOrBOnAccreditedProgramme(eligibility)
-      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], accreditedProgramme)
-      if (accreditedProgramme) {
-        // redirect to approval step and then rationale step
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
-      }
-      // Approval and rationale only applies to the accredited-programme/Tier A-B cohort - everyone else skips it.
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
   },
 
-  getEligibilityDeniedPage: () => {
+  getPilotCheckPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_NOT_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      const band = resolveBand(res)
+      // Tiers D-G have no pilot question - there is nothing to render for them here.
+      if (!band || band === 'DG') {
+        return renderError(500)(req, res)
       }
-      return res.render('pages/check-in/eligibility-denied.njk', { crn, id, back })
+      return res.render(`pages/check-in/${eligibilityViews[band]['pilot-check']}.njk`, {
+        crn,
+        id,
+        back,
+        tierScore: res.locals.tierScore,
+        data: req.session.data,
+      })
     }
   },
 
-  postEligibilityDeniedPage: () => {
+  postPilotCheckPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      const band = resolveBand(res)
+      if (!band || band === 'DG') {
+        return renderError(500)(req, res)
       }
-      return res.redirect(`/case/${crn}`)
+      req.session.data = req.session.data || {}
+      const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
+      const { target, reason } = nextAfterPilotCheck(band, pilotCheck)
+      if (reason) {
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
   },
 
-  getFullEligibilityPage: () => {
+  getIsEligiblePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -311,110 +325,108 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      const band = resolveBand(res)
+      if (!band) {
+        return renderError(500)(req, res)
       }
-      return res.render('pages/check-in/eligibility-full.njk', { crn, id, back, data: req.session.data })
-    }
-  },
-
-  postFullEligibilityPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
-      }
-      req.session.data = req.session.data || {}
-      const { data } = req.session
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
-      const eligibilityChoice = getDataValue(data, ['esupervision', crn, id, 'checkins', 'eligibilityChoice'])
-
-      // Replacing face-to-face contact needs SPO sign-off first; supplementing it does not.
-      if (eligibilityChoice === 'REPLACE_F2F') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/spo-approval`)
-      }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
-    }
-  },
-
-  getSupplementaryEligibilityPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      const { back } = req.query
-      await sendAuditMessage(
-        res,
-        'VIEW_MANAGE_ONLINE_CHECK_INS_ELIGIBLE_TO_USE_CHECK_IN_AS_EXISTING_F2F_CONTACT',
+      // A/B splits again here: the accredited-programme cohort gets its own page, with its own
+      // explanation of why the person is eligible and for how long.
+      const accreditedProgramme = getDataValue(req.session.data, [
+        'esupervision',
         crn,
-        SubjectType.CRN,
-      )
-      if (!isValidCrn(crn) || !isValidUUID(id)) {
-        return renderError(404)(req, res)
-      }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
-      }
-      return res.render('pages/check-in/eligibility-supplementary.njk', { crn, id, back })
+        id,
+        'checkins',
+        'accreditedProgramme',
+      ])
+      const page = band === 'AB' && accreditedProgramme ? 'accredited-programme-is-eligible' : 'is-eligible'
+      return res.render(`pages/check-in/${eligibilityViews[band][page]}.njk`, {
+        crn,
+        id,
+        back,
+        tierScore: res.locals.tierScore,
+        guidanceUrl: config.guidance.link,
+        data: req.session.data,
+      })
     }
   },
 
-  postSupplementaryEligibilityPage: () => {
+  postIsEligiblePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
-      }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
       }
       req.session.data = req.session.data || {}
       const { data } = req.session
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'eligibilityChoice'], 'SUPPLEMENT_F2F')
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+
+      // Part-ticked discussion boxes mean the conversation still needs to happen.
+      const discussion = getDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'])
+      if (!hasCompletedDiscussion(discussion)) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/speak-to-pop`)
+      }
+      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'])
+      // Approval and rationale only apply to the accredited-programme cohort.
+      const next = accreditedProgramme ? 'accredited-programme-approval' : 'date-frequency'
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${next}`)
     }
   },
 
-  getSPOApprovalPage: () => {
+  getNotEligiblePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SPO_APPROVAL_TO_USE_CHECK_INS', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_NOT_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
-      }
-      const answer = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibilitySPOApproval'])
-      const isApproved = answer === 'spo-approval' || (Array.isArray(answer) && answer.includes('spo-approval'))
-      return res.render('pages/check-in/spo-approval.njk', { crn, id, back, isApproved })
+      const reason = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'])
+      return res.render('pages/check-in/eligibility/not-eligible.njk', {
+        crn,
+        id,
+        back,
+        reason,
+        // Re-running the check cannot change a missing supervision package, so the offer to go
+        // back and do it again is only made for the reasons where it could help.
+        canRecheck: reason !== requiresSupervisionPackage,
+      })
     }
   },
 
-  postSPOApprovalPage: () => {
+  postNotEligiblePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      return res.redirect(`/case/${crn}`)
+    }
+  },
+
+  getSpeakToPopPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
       }
-      req.session.data = req.session.data || {}
-      const approval = req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibilitySPOApproval
-      if (approval) {
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibilitySPOApproval'], approval)
+      return res.render('pages/check-in/eligibility/speak-to-pop.njk', {
+        crn,
+        id,
+        back,
+        guidanceUrl: config.guidance.link,
+      })
+    }
+  },
+
+  postSpeakToPopPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+      return res.redirect(`/case/${crn}`)
     }
   },
 
@@ -468,16 +480,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const cya = req.query.cya === 'true'
-      const eligibility = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibility']) || []
-      const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
-      const eligibilityChoice = getDataValue(req.session.data, [
-        'esupervision',
-        crn,
-        id,
-        'checkins',
-        'eligibilityChoice',
-      ])
-
       const accreditedProgramme = getDataValue(req.session.data, [
         'esupervision',
         crn,
@@ -485,33 +487,18 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'checkins',
         'accreditedProgramme',
       ])
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle && !accreditedProgramme) {
+      // Rationale only applies to the accredited-programme cohort; everyone else skips it.
+      if (!accreditedProgramme) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
       }
-
-      // Back needs to retrace whichever eligibility branch got the user here.
-      let backLink: string
-      if (cya) {
-        backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-      } else if (res.locals.flags?.eligibilityFeatureToggle) {
-        // ELIGIBILITY_V2_FLAG
-        backLink = accreditedProgramme
-          ? `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`
-          : `/case/${crn}/appointments/${id}/check-in/instructions`
-      } else if (eligibilityChoice === 'REPLACE_F2F') {
-        backLink = `/case/${crn}/appointments/${id}/check-in/spo-approval`
-      } else if (eligibilityArray.includes('eligibility-none')) {
-        backLink = `/case/${crn}/appointments/${id}/check-in/full-eligibility`
-      } else {
-        backLink = `/case/${crn}/appointments/${id}/check-in/supplementary-eligibility`
-      }
+      const backLink = cya
+        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+        : `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`
       return res.render('pages/check-in/rationale.njk', {
         crn,
         id,
         backLink,
-        // ELIGIBILITY_V2_FLAG
-        accreditedProgramme: res.locals.flags?.eligibilityFeatureToggle ? accreditedProgramme : undefined,
+        accreditedProgramme,
       })
     }
   },
@@ -544,13 +531,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       let backLink: string
       if (cya) {
         backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-      } else if (res.locals.flags?.eligibilityFeatureToggle) {
-        // ELIGIBILITY_V2_FLAG
+      } else {
+        // Only the accredited-programme cohort passes through rationale on the way here.
         backLink = accreditedProgramme
           ? `/case/${crn}/appointments/${id}/check-in/rationale`
-          : `/case/${crn}/appointments/${id}/check-in/instructions`
-      } else {
-        backLink = `/case/${crn}/appointments/${id}/check-in/rationale`
+          : `/case/${crn}/appointments/${id}/check-in/is-eligible`
       }
       return res.render('pages/check-in/date-frequency.njk', {
         crn,
@@ -994,8 +979,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         userDetails,
-        // ELIGIBILITY_V2_FLAG
-        flags: res.locals.flags,
       })
     }
   },
