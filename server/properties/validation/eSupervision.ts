@@ -70,16 +70,6 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][checkins][pilotCheck]`]: {
-      optional: page !== 'pilot-check',
-      checks: [
-        {
-          validator: isNotEmpty,
-          msg: 'Select if you have one or more people who started using online check ins before 1 October 2026',
-          log: 'Pilot cohort question not answered',
-        },
-      ],
-    },
     [`[esupervision][${crn}][${id}][checkins][accreditedProgrammeApproval]`]: {
       optional: page !== 'accredited-programme-approval',
       checks: [

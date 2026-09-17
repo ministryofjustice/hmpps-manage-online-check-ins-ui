@@ -14,6 +14,7 @@ import postRedirectWizard from '../middleware/checkinCyaRedirect'
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
+import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
@@ -67,11 +68,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/pilot-check', [
     restrictPageAccess({ requiredValues: ['eligibility'] }),
+    restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getPilotCheckPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/pilot-check',
+    restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
@@ -80,11 +83,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/is-eligible', [
     restrictPageAccess({ requiredValues: ['eligibility'] }),
+    restrictEligibilityAccess('is-eligible'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getIsEligiblePage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/is-eligible',
+    restrictEligibilityAccess('is-eligible'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
