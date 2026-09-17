@@ -34,7 +34,20 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('redirects to not-eligible for a Tier A/B pilot-check GET when the stored answers already disqualify the person', async () => {
-    const req = buildReq({ tierBand: 'AB', eligibility: ['recalled'] })
+    const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, eligibility: ['recalled'] })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('pilot-check')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // The ESUP answer is recorded on the eligibility submission rather than fetched again here, so a
+  // case ruled out by it must stay ruled out on every later page.
+  it('redirects to not-eligible when the recorded ESUP answer says no supervision package', async () => {
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: false, eligibility: [] })
     const res = buildRes()
     const next = jest.fn()
 
@@ -45,7 +58,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('lets a Tier C pilot cohort case reach pilot-check', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'] })
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: [] })
     const res = buildRes()
     const next = jest.fn()
 
@@ -56,7 +69,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('blocks is-eligible for a Tier C pilot cohort case that has not answered pilot-check', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'] })
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: [] })
     const res = buildRes()
     const next = jest.fn()
 
@@ -67,7 +80,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('blocks is-eligible (even with a stray pilotCheck answer already in session) when the eligibility answers alone are disqualifying', async () => {
-    const req = buildReq({ tierBand: 'AB', eligibility: ['recalled'], pilotCheck: 'true' })
+    const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, eligibility: ['recalled'], pilotCheck: 'true' })
     const res = buildRes()
     const next = jest.fn()
 
@@ -78,7 +91,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('blocks is-eligible when pilot-check was answered "no"', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'false' })
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: [], pilotCheck: 'false' })
     const res = buildRes()
     const next = jest.fn()
 
@@ -89,7 +102,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('allows is-eligible once pilot-check was answered "yes"', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'true' })
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: [], pilotCheck: 'true' })
     const res = buildRes()
     const next = jest.fn()
 
@@ -100,7 +113,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('allows is-eligible directly for Tier D-G, which has no pilot question', async () => {
-    const req = buildReq({ tierBand: 'DG', eligibility: ['supervisionPackage'] })
+    const req = buildReq({ tierBand: 'DG', onSupervisionPackage: true, eligibility: [] })
     const res = buildRes()
     const next = jest.fn()
 
@@ -111,7 +124,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('allows is-eligible directly for the Tier A/B accredited-programme cohort', async () => {
-    const req = buildReq({ tierBand: 'AB', eligibility: ['supervisionPackage', 'accreditedProgramme'] })
+    const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, eligibility: ['accreditedProgramme'] })
     const res = buildRes()
     const next = jest.fn()
 
@@ -127,7 +140,7 @@ describe('restrictEligibilityAccess', () => {
   const discussion = ['optional', 'canStop', 'notEnforceable', 'moreTime']
 
   it('keeps a not-eligible case out of the setup pages', async () => {
-    const req = buildReq({ tierBand: 'AB', eligibility: ['none'], discussion })
+    const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, eligibility: ['recalled'], discussion })
     const res = buildRes()
     const next = jest.fn()
 
@@ -138,7 +151,7 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('keeps a Tier C case that has not answered the pilot question out of the setup pages', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], discussion })
+    const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: [], discussion })
     const res = buildRes()
     const next = jest.fn()
 
@@ -149,7 +162,13 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it('keeps a Tier C case outside the pilot cohort out of the setup pages', async () => {
-    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'false', discussion })
+    const req = buildReq({
+      tierBand: 'C',
+      onSupervisionPackage: true,
+      eligibility: [],
+      pilotCheck: 'false',
+      discussion,
+    })
     const res = buildRes()
     const next = jest.fn()
 
@@ -164,7 +183,7 @@ describe('restrictEligibilityAccess', () => {
     ['a part-ticked set', ['optional', 'canStop']],
     ['"I have not done all of these"', ['notAll']],
   ])('sends an eligible case back to is-eligible with %s', async (_, answers) => {
-    const req = buildReq({ tierBand: 'DG', eligibility: ['supervisionPackage'], discussion: answers })
+    const req = buildReq({ tierBand: 'DG', onSupervisionPackage: true, eligibility: [], discussion: answers })
     const res = buildRes()
     const next = jest.fn()
 
@@ -175,12 +194,12 @@ describe('restrictEligibilityAccess', () => {
   })
 
   it.each([
-    ['Tier D-G', { tierBand: 'DG', eligibility: ['supervisionPackage'] }],
+    ['Tier D-G', { tierBand: 'DG', onSupervisionPackage: true, eligibility: [] }],
     [
       'the Tier A/B accredited-programme cohort',
-      { tierBand: 'AB', eligibility: ['supervisionPackage', 'accreditedProgramme'] },
+      { tierBand: 'AB', onSupervisionPackage: true, eligibility: ['accreditedProgramme'] },
     ],
-    ['the pilot cohort', { tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'true' }],
+    ['the pilot cohort', { tierBand: 'C', onSupervisionPackage: true, eligibility: [], pilotCheck: 'true' }],
   ])('allows the setup pages for %s once the discussion is confirmed', async (_, checkins) => {
     const req = buildReq({ ...checkins, discussion })
     const res = buildRes()

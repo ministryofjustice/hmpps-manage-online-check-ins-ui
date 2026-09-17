@@ -118,9 +118,11 @@ describe('check-in setup flow', () => {
   })
 
   describe('eligibility branching', () => {
-    const postEligibility = async (tierScore: string, eligibility: string[]) => {
+    // getSupervisionPackageStatus puts the ESUP answer on res.locals, replacing the checkbox the
+    // eligibility rules used to read this from.
+    const postEligibility = async (tierScore: string, eligibility: string[], onSupervisionPackage = true) => {
       const req = requestFor({ esupervision: { [crn]: { [id]: { checkins: { eligibility } } } } })
-      const res = responseForTier(tierScore)
+      const res = responseForTier(tierScore, { supervisionPackageStatus: { onSupervisionPackage } })
       await controllers.checkIns.postEligibilityPage()(req, res)
       return {
         redirect: (res.redirect as jest.Mock).mock.calls[0][0],
@@ -128,23 +130,25 @@ describe('check-in setup flow', () => {
       }
     }
 
-    // The four all-tier disqualifiers, each with the reason not-eligible.njk renders.
+    // The three all-tier disqualifiers, each with the reason not-eligible.njk renders.
     it.each([
-      [[] as string[], 'is not on a supervision package'],
-      [['supervisionPackage', 'recalled'], 'has been recalled to prison'],
-      [['supervisionPackage', 'finalThird'], 'is in the final third of their sentence'],
-      [
-        ['supervisionPackage', 'deviceRestriction'],
-        'has restrictions that mean they cannot use a device or the internet',
-      ],
+      [['recalled'], 'has been recalled to prison'],
+      [['finalThird'], 'is in the final third of their sentence'],
+      [['deviceRestriction'], 'has restrictions that mean they cannot use a device or the internet'],
     ])('rules the person out for %s whatever their tier', async (eligibility, reason) => {
       const { redirect, checkins } = await postEligibility('D1', eligibility)
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe(reason)
     })
 
+    it('rules the person out when the ESUP API says they are not on a supervision package', async () => {
+      const { redirect, checkins } = await postEligibility('D1', [], false)
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    })
+
     it('sends the Tier A/B accredited programme cohort straight to is-eligible', async () => {
-      const { redirect, checkins } = await postEligibility('A1', ['supervisionPackage', 'accreditedProgramme'])
+      const { redirect, checkins } = await postEligibility('A1', ['accreditedProgramme'])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
       expect(checkins.accreditedProgramme).toBe(true)
     })
@@ -154,11 +158,7 @@ describe('check-in setup flow', () => {
     it.each(['earlyEngagement', 'youthSentence'])(
       'rules the Tier A/B programme cohort out when %s applies',
       async exclusion => {
-        const { redirect, checkins } = await postEligibility('B1', [
-          'supervisionPackage',
-          'accreditedProgramme',
-          exclusion,
-        ])
+        const { redirect, checkins } = await postEligibility('B1', ['accreditedProgramme', exclusion])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
         expect(checkins.notEligibleReason).toContain('on an accredited programme, but they are')
         expect(checkins.accreditedProgramme).toBe(false)
@@ -169,21 +169,21 @@ describe('check-in setup flow', () => {
     it.each(['earlyEngagement', 'youthSentence'])(
       'still asks Tier A/B about the pilot when %s applies without a programme',
       async exclusion => {
-        const { redirect } = await postEligibility('B1', ['supervisionPackage', exclusion])
+        const { redirect } = await postEligibility('B1', [exclusion])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
       },
     )
 
     // The pilot answer cannot change the outcome for a disqualified person, so it is not asked.
     it('rules a disqualified Tier A/B person out without asking about the pilot', async () => {
-      const { redirect, checkins } = await postEligibility('A1', ['supervisionPackage', 'recalled'])
+      const { redirect, checkins } = await postEligibility('A1', ['recalled'])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe('has been recalled to prison')
     })
 
     // Several disqualifiers are listed as bullets, so the clause above them is empty.
     it('records every disqualifier that applies', async () => {
-      const { checkins } = await postEligibility('D1', ['supervisionPackage', 'recalled', 'deviceRestriction'])
+      const { checkins } = await postEligibility('D1', ['recalled', 'deviceRestriction'])
       expect(checkins.notEligibleReason).toBe('')
       expect(checkins.notEligibleReasonBullets).toEqual([
         'has been recalled to prison',
@@ -191,28 +191,28 @@ describe('check-in setup flow', () => {
       ])
     })
 
-    // "None of these apply" is exclusive in the browser only.
-    it('rules a person out when "none of these apply" is ticked alongside a package', async () => {
-      const { redirect, checkins } = await postEligibility('D1', ['none', 'supervisionPackage'])
-      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
-      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    // Ticking "None of these apply" is how an eligible person is submitted: validation requires an
+    // answer, and every other box would rule them out.
+    it('lets a person through when "none of these apply" is ticked', async () => {
+      const { redirect } = await postEligibility('D1', ['none'])
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
 
     it.each(['A1', 'C2'])(
       'asks tier %s about the pilot cohort when not on an accredited programme',
       async tierScore => {
-        const { redirect } = await postEligibility(tierScore, ['supervisionPackage'])
+        const { redirect } = await postEligibility(tierScore, [])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
       },
     )
 
     it('skips the pilot check for tiers D to G', async () => {
-      const { redirect } = await postEligibility('F1', ['supervisionPackage'])
+      const { redirect } = await postEligibility('F1', [])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
 
     it('records the resolved band so later pages do not re-derive it', async () => {
-      const { checkins } = await postEligibility('C1', ['supervisionPackage'])
+      const { checkins } = await postEligibility('C1', [])
       expect(checkins.tierBand).toBe('C')
     })
 

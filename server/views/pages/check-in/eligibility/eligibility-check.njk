@@ -24,14 +24,9 @@
 
 {# The accredited programme, youth sentence and early engagement questions are Tier A/B rules -
    see nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The
-   four boxes below them apply to every tier. #}
-{% set eligibilityItems = [
-    {
-    value: "supervisionPackage",
-    text: "Is on a supervision package",
-    checked: currentEligibility.includes("supervisionPackage")
-    }
-] %}
+   three boxes below them apply to every tier. The supervision package is no longer asked about
+   here: it comes from the ESUP API via the getSupervisionPackageStatus middleware. #}
+{% set eligibilityItems = [] %}
 {% if tierBand == 'AB' %}
     {% set eligibilityItems = (eligibilityItems.push({
         value: "accreditedProgramme",
@@ -71,8 +66,10 @@
     ), eligibilityItems) %}
 {% endif %}
 
-{# Exclusivity is a browser behaviour only, so nextAfterEligibilityCheck also treats "none" as
-   overriding every other box - a submission with both cannot be trusted. #}
+{# Every box above rules the person out by being ticked, so this is how an eligible person is
+   submitted - validation requires an answer either way. Exclusivity is a browser behaviour only,
+   but nextAfterEligibilityCheck needs no guard for it: a forged submission pairing this with a
+   disqualifier is still ruled out by that disqualifier. #}
 {% set eligibilityItems = (eligibilityItems.push(
     {
     divider: "or"
