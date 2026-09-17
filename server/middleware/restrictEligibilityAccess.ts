@@ -3,15 +3,24 @@ import getDataValue from '../utils/getDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from './renderError'
-import { nextAfterEligibilityCheck, nextAfterPilotCheck, toSelections } from '../utils/eligibilityRules'
+import {
+  hasCompletedDiscussion,
+  nextAfterEligibilityCheck,
+  nextAfterPilotCheck,
+  toSelections,
+} from '../utils/eligibilityRules'
 
-// pilot-check and is-eligible both depend on the eligibility answers (and, for is-eligible, the
-// pilot-check answer) actually leading there - restrictPageAccess only checks that *some* answer
-// was stored, not what it was, so a direct GET or POST with a session that merely looks complete
-// can otherwise reach either page without having cleared the earlier gates. This re-derives the
+// Every page from pilot-check onwards depends on the eligibility answers (and, where there is one,
+// the pilot-check answer) actually leading there - restrictPageAccess only checks that *some*
+// answer was stored, not what it was, so a direct GET or POST with a session that merely looks
+// complete can otherwise reach a page without having cleared the earlier gates. This re-derives the
 // outcome from the stored answers and sends the practitioner to wherever that outcome actually
 // leads, the same way the eligibility-check and pilot-check posts do.
-const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible'): Route<Promise<void>> => {
+//
+// 'setup' covers the pages after is-eligible, which are only reachable by a person the rules
+// found eligible *and* whose practitioner has confirmed the discussion; without it a not-eligible
+// case could carry on from /date-frequency and complete a setup it was ruled out of.
+const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'): Route<Promise<void>> => {
   return async (req, res, next) => {
     const { crn, id } = req.params as Record<string, string>
     if (!isValidCrn(crn) || !isValidUUID(id)) {
@@ -27,24 +36,28 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible'): Route<P
     }
 
     const eligibility = nextAfterEligibilityCheck(band, toSelections(checkins.eligibility))
+    let outcome = eligibility.target
 
     if (eligibility.target === 'pilot-check') {
       if (page === 'pilot-check') {
         return next()
       }
-      // is-eligible is only reachable once pilot-check has actually been answered.
+      // Anything past pilot-check is only reachable once it has actually been answered.
       if (!checkins.pilotCheck) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
       }
-      const pilotOutcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck))
-      if (pilotOutcome.target !== 'is-eligible') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/${pilotOutcome.target}`)
-      }
-      return next()
+      outcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck)).target
+    } else if (page === 'pilot-check') {
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${eligibility.target}`)
     }
 
-    if (eligibility.target !== page) {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${eligibility.target}`)
+    if (outcome !== 'is-eligible') {
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${outcome}`)
+    }
+    // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
+    // discussion goes back to rather than the discuss-before-signup dead end.
+    if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion)) {
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     }
     return next()
   }

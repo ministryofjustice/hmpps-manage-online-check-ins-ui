@@ -111,13 +111,18 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postDiscussBeforeSignupPage(),
   )
 
+  // From here to the summary the person must actually be eligible and their practitioner must have
+  // confirmed they have had their discussion - restrictPageAccess alone would let a not-eligible case that has an
+  // id in session deep-link past the eligibility gates and complete a setup.
   router.get('/case/:crn/appointments/:id/check-in/accredited-programme-approval', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getAccreditedProgrammeApprovalPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/accredited-programme-approval',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
@@ -127,11 +132,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/rationale', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getRationalePage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/rationale',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
@@ -141,11 +148,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/date-frequency', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getDateFrequencyPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/date-frequency',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),

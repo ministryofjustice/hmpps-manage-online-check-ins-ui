@@ -121,6 +121,77 @@ describe('restrictEligibilityAccess', () => {
     expect(res.redirect).not.toHaveBeenCalled()
   })
 
+  // date-frequency, accredited-programme-approval and rationale all guard with 'setup': the id is
+  // stored on every eligibility submission, so without this a not-eligible case could deep-link
+  // into the rest of the wizard and complete a setup it was ruled out of.
+  const discussion = ['optional', 'canStop', 'notEnforceable', 'moreTime']
+
+  it('keeps a not-eligible case out of the setup pages', async () => {
+    const req = buildReq({ tierBand: 'AB', eligibility: ['none'], discussion })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('keeps a Tier C case that has not answered the pilot question out of the setup pages', async () => {
+    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], discussion })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('keeps a Tier C case outside the pilot cohort out of the setup pages', async () => {
+    const req = buildReq({ tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'false', discussion })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['no discussion answers at all', undefined],
+    ['a part-ticked set', ['optional', 'canStop']],
+    ['"I have not done all of these"', ['notAll']],
+  ])('sends an eligible case back to is-eligible with %s', async (_, answers) => {
+    const req = buildReq({ tierBand: 'DG', eligibility: ['supervisionPackage'], discussion: answers })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Tier D-G', { tierBand: 'DG', eligibility: ['supervisionPackage'] }],
+    [
+      'the Tier A/B accredited-programme cohort',
+      { tierBand: 'AB', eligibility: ['supervisionPackage', 'accreditedProgramme'] },
+    ],
+    ['the pilot cohort', { tierBand: 'C', eligibility: ['supervisionPackage'], pilotCheck: 'true' }],
+  ])('allows the setup pages for %s once the discussion is confirmed', async (_, checkins) => {
+    const req = buildReq({ ...checkins, discussion })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.redirect).not.toHaveBeenCalled()
+  })
+
   it('returns a 404 for an invalid crn or id', async () => {
     const req = httpMocks.createRequest({ params: { crn: 'not-a-crn', id }, session: { data: {} } })
     const res = buildRes()

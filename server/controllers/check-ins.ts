@@ -228,6 +228,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
+      // Going back and unticking accredited programme after already completing approval and/or
+      // rationale must not leave those answers behind - postCheckInDetails sends rationale
+      // unconditionally, so a stale value here would submit for a route the case is no longer on.
+      if (!accreditedProgramme) {
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgrammeApproval'], undefined)
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'rationale'], undefined)
+      }
       // Keyed off the target rather than the reason: the clause is deliberately empty where the
       // facts are listed as bullets instead, and would otherwise be skipped as falsy.
       if (target === 'not-eligible') {
