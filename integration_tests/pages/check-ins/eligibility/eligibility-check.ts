@@ -16,5 +16,7 @@ export default class EligibilityCheckPage extends Page {
 
   getDeviceRestriction = (): PageElement => cy.get('input[value="deviceRestriction"]')
 
+  getNone = (): PageElement => cy.get('input[value="none"]')
+
   getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
 }

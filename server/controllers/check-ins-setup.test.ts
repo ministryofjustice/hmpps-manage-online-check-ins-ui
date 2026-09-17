@@ -149,18 +149,54 @@ describe('check-in setup flow', () => {
       expect(checkins.accreditedProgramme).toBe(true)
     })
 
+    // On the programme branch these rule the person out rather than diverting them to the pilot
+    // route - see nextAfterEligibilityCheck.
     it.each(['earlyEngagement', 'youthSentence'])(
-      'takes the accredited programme route away from Tier A/B when %s applies',
+      'rules the Tier A/B programme cohort out when %s applies',
       async exclusion => {
         const { redirect, checkins } = await postEligibility('B1', [
           'supervisionPackage',
           'accreditedProgramme',
           exclusion,
         ])
-        expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
+        expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+        expect(checkins.notEligibleReason).toContain('on an accredited programme, but they are')
         expect(checkins.accreditedProgramme).toBe(false)
       },
     )
+
+    // Off the programme branch neither has any bearing, so the pilot route is unaffected.
+    it.each(['earlyEngagement', 'youthSentence'])(
+      'still asks Tier A/B about the pilot when %s applies without a programme',
+      async exclusion => {
+        const { redirect } = await postEligibility('B1', ['supervisionPackage', exclusion])
+        expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
+      },
+    )
+
+    // The pilot answer cannot change the outcome for a disqualified person, so it is not asked.
+    it('rules a disqualified Tier A/B person out without asking about the pilot', async () => {
+      const { redirect, checkins } = await postEligibility('A1', ['supervisionPackage', 'recalled'])
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('has been recalled to prison')
+    })
+
+    // Several disqualifiers are listed as bullets, so the clause above them is empty.
+    it('records every disqualifier that applies', async () => {
+      const { checkins } = await postEligibility('D1', ['supervisionPackage', 'recalled', 'deviceRestriction'])
+      expect(checkins.notEligibleReason).toBe('')
+      expect(checkins.notEligibleReasonBullets).toEqual([
+        'has been recalled to prison',
+        'has restrictions that mean they cannot use a device or the internet',
+      ])
+    })
+
+    // "None of these apply" is exclusive in the browser only.
+    it('rules a person out when "none of these apply" is ticked alongside a package', async () => {
+      const { redirect, checkins } = await postEligibility('D1', ['none', 'supervisionPackage'])
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    })
 
     it.each(['A1', 'C2'])(
       'asks tier %s about the pilot cohort when not on an accredited programme',
@@ -225,19 +261,27 @@ describe('check-in setup flow', () => {
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
 
+    // Tier A/B here are outside the cohort and off the programme branch, so both facts are listed;
+    // Tier C has only the one, which reads as a single sentence.
     it.each([
       [
         'B1',
-        'is in Tier A/B and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+        'is in Tier A/B and',
+        [
+          'not on an accredited programme',
+          'you have no people who were signed up to use online check ins before 1 October 2026',
+        ],
       ],
       [
         'C1',
         'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+        [],
       ],
-    ])('rules tier %s out with its own reason when outside the pilot cohort', async (tierScore, reason) => {
+    ])('rules tier %s out with its own reason when outside the pilot cohort', async (tierScore, reason, bullets) => {
       const { redirect, checkins } = await postPilotCheck(tierScore, 'false')
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe(reason)
+      expect(checkins.notEligibleReasonBullets).toEqual(bullets)
     })
   })
 
@@ -318,17 +362,25 @@ describe('check-in setup flow', () => {
       )
     })
 
-    // Re-running the check cannot produce a supervision package, so the page does not offer it.
-    it.each([
-      ['has been recalled to prison', true],
-      ['is not on a supervision package', false],
-    ])('offers a re-check for %s: %s', async (notEligibleReason, canRecheck) => {
-      const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: { notEligibleReason } } } } } })
+    // The bullets are passed through for the reasons that have them, so the page can list the facts
+    // rather than running them into one sentence.
+    it('passes the bullets through when several facts ruled the person out', async () => {
+      const bullets = ['has been recalled to prison', 'is in the final third of their sentence']
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: { [id]: { checkins: { notEligibleReason: '', notEligibleReasonBullets: bullets } } },
+            },
+          },
+        },
+      )
       const res = responseForTier('C1')
       await controllers.checkIns.getNotEligiblePage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/not-eligible.njk',
-        expect.objectContaining({ canRecheck }),
+        expect.objectContaining({ reason: '', reasonBullets: bullets }),
       )
     })
 

@@ -159,12 +159,40 @@ context('Appointment check-ins', () => {
       new DateFrequencyPage().checkOnPage()
     })
 
-    // Early engagement takes the accredited-programme route away, leaving the pilot cohort
-    // question as the only way through.
-    it('asks about the pilot cohort when the person is in early engagement', () => {
+    // On the accredited-programme branch early engagement rules the person out outright - there is
+    // no pilot question left to fall back on.
+    it('rules the programme cohort out when the person is in early engagement', () => {
       const checkPage = startSetupTiersAB()
       checkPage.getSupervisionPackage().click()
       checkPage.getAccreditedProgramme().click()
+      checkPage.getEarlyEngagement().click()
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage()
+        .getReason()
+        .should('contain', 'is in Tier A/B and on an accredited programme, but they are in early engagement')
+    })
+
+    // Both exclusions at once are listed beneath the clause rather than reported one at a time.
+    it('lists both programme exclusions when both apply', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getSupervisionPackage().click()
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getYouthSentence().click()
+      checkPage.getEarlyEngagement().click()
+      checkPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReason().should('contain', 'is in Tier A/B and on an accredited programme, but they are')
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'on a youth sentence')
+      notEligiblePage.getReasonBullets().last().should('contain', 'in early engagement')
+    })
+
+    // Off the programme branch neither exclusion matters, so the pilot cohort still decides.
+    it('ignores early engagement when the person is not on an accredited programme', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getSupervisionPackage().click()
       checkPage.getEarlyEngagement().click()
       checkPage.getSubmitBtn().click()
 
@@ -180,6 +208,8 @@ context('Appointment check-ins', () => {
       new DateFrequencyPage().checkOnPage()
     })
 
+    // Tier A/B reaching the pilot question are off the programme branch too, so both facts that
+    // ruled them out are listed.
     it('rules the person out when they are not in the pilot cohort', () => {
       const checkPage = startSetupTiersAB()
       checkPage.getSupervisionPackage().click()
@@ -190,7 +220,13 @@ context('Appointment check-ins', () => {
       pilotCheckPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A/B and you do not have one or more people')
+      notEligiblePage.getReason().should('contain', 'is in Tier A/B and')
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'not on an accredited programme')
+      notEligiblePage
+        .getReasonBullets()
+        .last()
+        .should('contain', 'no people who were signed up to use online check ins before 1 October 2026')
     })
 
     it('shows a validation error when the pilot cohort question is not answered', () => {
@@ -269,17 +305,23 @@ context('Appointment check-ins', () => {
   })
 
   describe('eligibility, rules that apply to every tier', () => {
+    // "None of these apply" is how the practitioner says the person meets none of the criteria -
+    // including the supervision package they need, so it rules them out.
     it('rules the person out when they are not on a supervision package', () => {
+      const checkPage = startSetup()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+    })
+
+    // Leaving the group untouched is neither an answer nor a way of saying none of them apply -
+    // that is what "None of these apply" is for.
+    it('shows a validation error when nothing is selected', () => {
       const checkPage = startSetup()
       checkPage.getSubmitBtn().click()
 
-      // A blank submission is a valid answer meaning none of the criteria apply - including the
-      // supervision package the person needs - so it rules them out rather than erroring.
-      const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is not on a supervision package')
-
-      // Re-running the check cannot produce a supervision package, so it is not offered here.
-      cy.contains('you can go back and perform the eligibility check again').should('not.exist')
+      checkPage.checkErrorSummaryBox(['Select if any of these apply to the person'])
     })
 
     it('rules the person out when they have been recalled', () => {
@@ -291,8 +333,23 @@ context('Appointment check-ins', () => {
 
       new NotEligiblePage().getReason().should('contain', 'has been recalled to prison')
 
-      // Any other disqualifier could have been mis-answered, so the re-check is offered.
-      cy.contains('you can go back and perform the eligibility check again').should('exist')
+      // A mis-answered box is the likeliest explanation, so the re-check is offered on every screen.
+      cy.contains('you can go back and check eligibility again').should('exist')
+    })
+
+    // Several facts at once are listed beneath "This is because <forename>:" rather than reported
+    // one at a time - the disqualifiers are whole clauses, so there is no stem above them.
+    it('lists every disqualifier when several apply', () => {
+      const checkPage = startSetup()
+      checkPage.getSupervisionPackage().click()
+      checkPage.getRecalled().click()
+      checkPage.getFinalThird().click()
+      checkPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'has been recalled to prison')
+      notEligiblePage.getReasonBullets().last().should('contain', 'is in the final third of their sentence')
     })
 
     it('rules the person out in the final third of their sentence', () => {
@@ -327,14 +384,31 @@ context('Appointment check-ins', () => {
       new DiscussBeforeSignupPage().checkOnPage()
     })
 
-    it('sends the practitioner to speak to the person when no discussion box is ticked', () => {
+    // "I have not done all of these" says outright what a part-filled set implies, and takes the
+    // same route.
+    it('sends the practitioner to speak to the person when they have not done all of these', () => {
       const checkPage = startSetup()
       checkPage.getSupervisionPackage().click()
       checkPage.getSubmitBtn().click()
 
-      new IsEligiblePage().getSubmitBtn().click()
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.getNotAll().click()
+      isEligiblePage.getSubmitBtn().click()
 
       new DiscussBeforeSignupPage().checkOnPage()
+    })
+
+    // Leaving the group untouched says nothing either way, so it is a validation error rather than
+    // an answer.
+    it('shows a validation error when no discussion box is ticked', () => {
+      const checkPage = startSetup()
+      checkPage.getSupervisionPackage().click()
+      checkPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.getSubmitBtn().click()
+
+      isEligiblePage.checkErrorSummaryBox(['Select if you have discussed any of these with the person'])
     })
 
     // Every rule keys off the tier, so an unknown tier is an error rather than a default band.

@@ -52,10 +52,14 @@ describe('utils/eligibilityRules', () => {
         )
       })
 
-      it('reports the first disqualifier when several apply', () => {
-        expect(nextAfterEligibilityCheck('DG', ['supervisionPackage', 'finalThird', 'recalled']).reason).toBe(
-          'has been recalled to prison',
-        )
+      // Several at once are listed as bullets rather than reported one at a time, so the clause
+      // above them is empty - "This is because Joe:".
+      it('lists every disqualifier when several apply', () => {
+        expect(nextAfterEligibilityCheck('DG', ['supervisionPackage', 'finalThird', 'recalled'])).toEqual({
+          target: 'not-eligible',
+          reason: '',
+          bullets: ['has been recalled to prison', 'is in the final third of their sentence'],
+        })
       })
     })
 
@@ -67,10 +71,22 @@ describe('utils/eligibilityRules', () => {
         })
       })
 
-      it.each(['earlyEngagement', 'youthSentence'])('falls back to the pilot check when %s applies', exclusion => {
+      // On the programme branch these rule the person out outright - there is no pilot route left
+      // for them to fall back on. Off the branch neither matters; see the pilot cohort tests below.
+      it.each([
+        ['earlyEngagement', 'is in Tier A/B and on an accredited programme, but they are in early engagement'],
+        ['youthSentence', 'is in Tier A/B and on an accredited programme, but they are on a youth sentence'],
+      ])('rules the programme cohort out when %s applies', (exclusion, reason) => {
         expect(nextAfterEligibilityCheck('AB', ['supervisionPackage', 'accreditedProgramme', exclusion])).toEqual({
-          target: 'pilot-check',
+          target: 'not-eligible',
+          reason,
         })
+      })
+
+      // Only the programme branch cares - the designer's tree marks these as "doesn't matter if
+      // ticked or not" everywhere else, so a person on the pilot route is unaffected.
+      it.each(['earlyEngagement', 'youthSentence'])('ignores %s when not on an accredited programme', exclusion => {
+        expect(nextAfterEligibilityCheck('AB', ['supervisionPackage', exclusion])).toEqual({ target: 'pilot-check' })
       })
 
       it('asks about the pilot cohort when not on an accredited programme', () => {
@@ -108,11 +124,16 @@ describe('utils/eligibilityRules', () => {
       expect(nextAfterPilotCheck(band, 'true')).toEqual({ target: 'is-eligible', accreditedProgramme: false })
     })
 
+    // Tier A/B reaching here are outside the pilot cohort and off the programme branch, so both
+    // facts are listed beneath the clause.
     it('rules a Tier A/B person outside the pilot cohort out, with its own reason', () => {
       expect(nextAfterPilotCheck('AB', 'false')).toEqual({
         target: 'not-eligible',
-        reason:
-          'is in Tier A/B and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+        reason: 'is in Tier A/B and',
+        bullets: [
+          'not on an accredited programme',
+          'you have no people who were signed up to use online check ins before 1 October 2026',
+        ],
       })
     })
 
@@ -141,6 +162,9 @@ describe('utils/eligibilityRules', () => {
       ['an empty list', []],
       ['one point ticked', ['optional']],
       ['all but one ticked', ['optional', 'canStop', 'notEnforceable']],
+      ['"I have not done all of these" ticked', ['notAll']],
+      // Exclusive in the browser only, so a forged submission carrying both cannot be trusted.
+      ['"I have not done all of these" alongside every point', [...allPoints, 'notAll']],
     ])('fails with %s', (_description, discussion) => {
       expect(hasCompletedDiscussion(discussion)).toBe(false)
     })

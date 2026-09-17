@@ -15,6 +15,8 @@ export default class IsEligiblePage extends Page {
 
   getMoreTime = (): PageElement => cy.get('input[value="moreTime"]')
 
+  getNotAll = (): PageElement => cy.get('input[value="notAll"]')
+
   confirmDiscussion = (): void => {
     this.getOptional().click()
     this.getCanStop().click()

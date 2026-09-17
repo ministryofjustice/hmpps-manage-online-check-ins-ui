@@ -38,7 +38,6 @@ import {
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
   nextAfterPilotCheck,
-  requiresSupervisionPackage,
   toSelections,
 } from '../utils/eligibilityRules'
 
@@ -226,11 +225,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
       const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
-      const { target, reason, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
+      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
-      if (reason) {
+      // Keyed off the target rather than the reason: the clause is deliberately empty where the
+      // facts are listed as bullets instead, and would otherwise be skipped as falsy.
+      if (target === 'not-eligible') {
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+        setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -311,9 +313,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
-      const { target, reason } = nextAfterPilotCheck(band, pilotCheck)
-      if (reason) {
+      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck)
+      if (target === 'not-eligible') {
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -383,15 +386,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const reason = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'])
+      const checkins = ['esupervision', crn, id, 'checkins']
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,
         id,
         back,
-        reason,
-        // Re-running the check cannot change a missing supervision package, so the offer to go
-        // back and do it again is only made for the reasons where it could help.
-        canRecheck: reason !== requiresSupervisionPackage,
+        reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
+        // Listed beneath the reason when more than one fact ruled the person out.
+        reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
       })
     }
   },

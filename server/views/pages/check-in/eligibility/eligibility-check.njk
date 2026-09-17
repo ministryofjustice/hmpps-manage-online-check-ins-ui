@@ -71,6 +71,20 @@
     ), eligibilityItems) %}
 {% endif %}
 
+{# Exclusivity is a browser behaviour only, so nextAfterEligibilityCheck also treats "none" as
+   overriding every other box - a submission with both cannot be trusted. #}
+{% set eligibilityItems = (eligibilityItems.push(
+    {
+    divider: "or"
+    },
+    {
+    value: "none",
+    text: "None of these apply",
+    checked: currentEligibility.includes("none"),
+    behaviour: "exclusive"
+    }
+), eligibilityItems) %}
+
 
 {% block primary %}
   <div class="govuk-grid-row">

@@ -94,6 +94,15 @@
                 value: "moreTime",
                 text: "They can ask for more time to make a decision about if they want to use online check ins",
                 checked: currentDiscussion.includes("moreTime")
+                },
+                {
+                divider: "or"
+                },
+                {
+                value: "notAll",
+                text: "I have not done all of these",
+                checked: currentDiscussion.includes("notAll"),
+                behaviour: "exclusive"
                 }
             ]
             }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'discussion']) }}

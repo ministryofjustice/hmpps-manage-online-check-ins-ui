@@ -104,7 +104,8 @@ describe('eligibility/eligibility-check', () => {
       match => match[1],
     )
 
-  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction']
+  // Every band ends with the exclusive "None of these apply".
+  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction', 'none']
 
   it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
@@ -116,11 +117,44 @@ describe('eligibility/eligibility-check', () => {
       'deviceRestriction',
       'youthSentence',
       'earlyEngagement',
+      'none',
     ])
   })
 
   it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
     expect(valuesIn(html)).toEqual(allTiers)
+  })
+
+  it.each(['AB', 'C', 'DG'])('makes "none of these apply" exclusive for tier %s', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(html).toContain('data-behaviour="exclusive"')
+  })
+})
+
+// not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
+// exercised - the list case would otherwise never be rendered by these smoke tests.
+describe('eligibility/not-eligible', () => {
+  it('lists the reasons when more than one ruled the person out', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: '',
+      reasonBullets: ['has been recalled to prison', 'is in the final third of their sentence'],
+    })
+    expect(html).toContain('This is because Bob:')
+    expect(html).toContain('<li>has been recalled to prison</li>')
+    expect(html).toContain('<li>is in the final third of their sentence</li>')
+  })
+
+  it('reads a single reason as one sentence', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
+    expect(html).toContain('This is because Bob has been recalled to prison.')
+    expect(html).not.toContain('reasonBullets')
+  })
+
+  // The offer is made whatever the reason - see getNotEligiblePage.
+  it('always offers to check eligibility again', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    expect(html).toContain('you can go back and check eligibility again')
   })
 })

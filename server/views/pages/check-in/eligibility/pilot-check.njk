@@ -9,9 +9,6 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/"+  crn %}
-{% set formAnchorText = "Cancel and go back to " + case.name.forename + "'s overview" %}
 {% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
 {% set buttonText = "Continue" %}
 {% set radioText = "Do you have one or more people who started using online check ins before 1 October 2026?" %}
@@ -26,7 +23,7 @@
                 fieldset: {
                     legend: {
                         text: radioText,
-                        classes: "govuk-fieldset__legend--m",
+                        classes: "govuk-fieldset__legend--l",
                         isPageHeading: false
                     }
                 },

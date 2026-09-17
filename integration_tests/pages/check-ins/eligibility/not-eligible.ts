@@ -7,5 +7,9 @@ export default class NotEligiblePage extends Page {
 
   getReason = (): PageElement => cy.get('.govuk-body').first()
 
+  // Where more than one fact ruled the person out, the reason introduces a list instead of
+  // completing a sentence.
+  getReasonBullets = (): PageElement => cy.get('[data-qa="reasonBullets"] li')
+
   getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
 }
