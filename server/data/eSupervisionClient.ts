@@ -20,6 +20,7 @@ import {
   OffenderByCRNResponse,
   OffenderHeaderDetails,
   PractitionerAlertsResponse,
+  SupervisionPackageStatus,
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
@@ -200,5 +201,12 @@ export default class ESupervisionClient extends RestClient {
   // GET /v2/practitioners/{username}/alerts — count of alerts for the logged-in practitioner's caseload.
   async getPractitionerAlerts(username: string): Promise<PractitionerAlertsResponse> {
     return this.get({ path: `/v2/practitioners/${username}/alerts` })
+  }
+
+  // PLACEHOLDER — no real ESUP endpoint exists yet. Always returns true so every case flows
+  // through eligibility as before the checkbox was removed. Swap for a real GET call once the
+  // endpoint is available.
+  async getSupervisionPackageStatus(_crn: string): Promise<SupervisionPackageStatus> {
+    return Promise.resolve({ onSupervisionPackage: true })
   }
 }

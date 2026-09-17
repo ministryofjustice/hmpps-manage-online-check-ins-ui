@@ -4,24 +4,19 @@
 import { TierBand } from './getTierBand'
 
 // The eligibility check asks the practitioner about the person's circumstances; these are the
-// answers it can come back with. Four of them rule the person out whatever their tier, and
-// 'none' is the exclusive "None of these apply" box, which overrides all of them.
+// answers it can come back with. Three of them rule the person out whatever their tier. 'none' is
+// the exclusive "None of these apply" box, which asserts that no box below applies - so it carries
+// no weight of its own, and a forged submission pairing it with a disqualifier is still ruled out
+// by that disqualifier.
 export type EligibilitySelection =
-  | 'supervisionPackage'
-  | 'recalled'
-  | 'finalThird'
-  | 'deviceRestriction'
-  | 'accreditedProgramme'
-  | 'youthSentence'
-  | 'earlyEngagement'
-  | 'none'
+  'recalled' | 'finalThird' | 'deviceRestriction' | 'accreditedProgramme' | 'youthSentence' | 'earlyEngagement' | 'none'
 
 // not-eligible.njk renders "This is because <forename> <reason>.", so each disqualifier
 // supplies the clause that completes that sentence. Where more than one fact rules the person out
 // at once the clause ends in a colon and the facts are listed as `bullets` beneath it.
 //
-// A supervision package is the one box that has to be ticked; the rest rule the person out by
-// being ticked.
+// The supervision package comes from the ESUP API rather than a checkbox; the boxes that remain
+// all rule the person out by being ticked.
 export const requiresSupervisionPackage = 'is not on a supervision package'
 
 // The three that rule a person out whatever their tier and whichever route they took. They are
@@ -94,10 +89,19 @@ const disqualifiersIn = (selections: string[]): EligibilityReason | undefined =>
 
 // The rules the eligibility-check post applies, kept free of Express so they can be tested
 // against the decision table directly.
-export function nextAfterEligibilityCheck(band: TierBand, selections: string[]): EligibilityOutcome {
-  // Nobody is eligible without a supervision package, whatever their tier. "None of these apply"
-  // is exclusive in the browser only, so the rules have to treat it as ruling the package out.
-  if (selections.includes('none') || !selections.includes('supervisionPackage')) {
+export function nextAfterEligibilityCheck(
+  band: TierBand,
+  onSupervisionPackage: boolean,
+  selections: string[],
+): EligibilityOutcome {
+  // Nobody is eligible without a supervision package, whatever their tier. This is the only thing
+  // that can rule a person out before their answers are looked at, since the ESUP API decides it
+  // rather than the practitioner.
+  //
+  // "None of these apply" needs no handling of its own: every remaining box rules the person out by
+  // being ticked, so ticking none of them leaves nothing to find below. It used to rule the person
+  // out because the supervision package was one of the boxes it denied.
+  if (!onSupervisionPackage) {
     return { target: 'not-eligible', reason: requiresSupervisionPackage }
   }
   // These rule the person out on every branch, so there is no point asking anything further -

@@ -225,7 +225,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
       const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
-      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
+      // Supplied by getSupervisionPackageStatus, which replaced the checkbox this used to read.
+      // Recorded like tierBand because restrictEligibilityAccess re-derives the outcome from the
+      // session on every later page, where the ESUP answer is no longer on res.locals.
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'], onSupervisionPackage)
+      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
+        band,
+        onSupervisionPackage,
+        selections,
+      )
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
       // Going back and unticking accredited programme after already completing approval and/or
