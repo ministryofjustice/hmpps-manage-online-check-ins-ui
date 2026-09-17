@@ -55,8 +55,8 @@ describe('evaluateFeatureFlags', () => {
 
     await evaluateFeatureFlags(featureFlagService)(req, res, nextSpy)
 
-    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('eligibilityFeatureToggle', 'global')
-    expect(res.locals.flags.eligibilityFeatureToggle).toBe(true)
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('newDesignPopHeader', 'global')
+    expect(res.locals.flags.newDesignPopHeader).toBe(true)
     expect(nextSpy).toHaveBeenCalled()
   })
 })

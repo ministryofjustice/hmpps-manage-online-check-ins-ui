@@ -1,0 +1,123 @@
+{# Shared scaffolding for the three is-eligible pages. They differ only in why the person is
+   eligible and where the back link goes, so each variant extends this and overrides the
+   eligibilityReason block; everything else - the discussion checkboxes that gate sign-up, the
+   error summary and the button group - lives here once. #}
+{% extends "../../_form.njk" %}
+{% from "govuk/components/checkboxes/macro.njk" import govukCheckboxes %}
+
+{% set title = case.name.forename + " is eligible to use online check ins"  %}
+{% set pageTitleText = "The person is eligible to use online check ins" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set checkboxTitle = "Confirm that you've discussed this information about online check ins with " + case.name.forename %}
+{% set showAnchorLink = true %}
+{% set formAnchorLink = "/case/"+  crn %}
+{% set formAnchorText = "Cancel and go back" %}
+{% set back = back if back else '' %}
+{% set notStandardForm = true %}
+{% set buttonText = "Confirm and sign up" %}
+{% set currentDiscussion = data.esupervision[crn][id].checkins.discussion or [] %}
+
+{% block primary %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
+          {{ title }}
+      </h2>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+
+        {% if errorMessages %}
+          {% set errorList = errorMessages | toErrorList %}
+          {% if errorList.length > 0 %}
+            {{ govukErrorSummary({
+                titleText: "There is a problem",
+                classes: 'govuk-!-margin-bottom-6',
+                errorList: errorList,
+                attributes: { "data-qa": "errorList"}
+            }) }}
+          {% endif %}
+        {% endif %}
+
+        <form method="post" autocomplete="off" action="{{ paths.current }}">
+            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+            {% block eligibilityReason %}{% endblock %}
+
+             <h3 class="govuk-heading-m">Before you sign them up to online check ins</h3>
+
+            <p class="govuk-body">We have an information pack to go through with the person and explain how online check ins work. They should understand their rights. </p>
+
+            {{ govukCheckboxes({
+                name: "esupervision[" + crn + "][" + id + "][checkins][discussion]",
+                idPrefix: "esupervision-" + crn + "-" + id + "-checkins-discussion",
+                fieldset: {
+                    legend: {
+                        text: checkboxTitle,
+                        isPageHeading: false,
+                        classes: "govuk-fieldset__legend--m"
+                    }
+                },
+                errorMessage: {
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-checkins-discussion"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-checkins-discussion"],
+                hint: {
+                    text: "Select what you've told the person"
+                },
+                items: [
+                {
+                value: "optional",
+                text: "Online check ins are optional and the person can decide not to use them",
+                checked: currentDiscussion.includes("optional")
+                },
+                {
+                value: "canStop",
+                text: "They can stop using online check ins at any time",
+                checked: currentDiscussion.includes("canStop")
+                },
+                {
+                value: "notEnforceable",
+                text: "They cannot be breached and online check ins are not enforceable",
+                checked: currentDiscussion.includes("notEnforceable")
+                },
+                {
+                value: "moreTime",
+                text: "They can ask for more time to make a decision about if they want to use online check ins",
+                checked: currentDiscussion.includes("moreTime")
+                },
+                {
+                divider: "or"
+                },
+                {
+                value: "notAll",
+                text: "I have not done all of these",
+                checked: currentDiscussion.includes("notAll"),
+                behaviour: "exclusive"
+                }
+            ]
+            }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'discussion']) }}
+              <div class="govuk-button-group">
+                {{ govukButton({
+                    text: buttonText,
+                    type: "submit",
+                    attributes: { "data-qa": "submit-btn" }
+                }) }}
+                <a class="govuk-link" href="{{ formAnchorLink }}" data-qa="formAnchorLink">
+                    {{ formAnchorText }}
+                </a>
+            </div>
+        </form>
+    </div>
+  </div>
+
+{% endblock %}

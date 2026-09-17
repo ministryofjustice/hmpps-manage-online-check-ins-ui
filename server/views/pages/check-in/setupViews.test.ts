@@ -16,7 +16,12 @@ const base: Record<string, unknown> = {
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
   paths: { current: '/current' },
-  data: { esupervision: { [crn]: { [id]: { checkins: { eligibility: [] } } } }, features: {} },
+  data: {
+    esupervision: { [crn]: { [id]: { checkins: { eligibility: [], discussion: [], pilotCheck: 'true' } } } },
+    features: {},
+  },
+  tierScore: 'B1',
+  reason: 'is not on a supervision package',
   preferredComs: 'PHONE',
   contactPreference: 'mobile number',
   contactValue: '07700900000',
@@ -41,12 +46,15 @@ const base: Record<string, unknown> = {
 }
 
 const views = [
-  'eligibility-check',
-  'eligibility-full',
-  'eligibility-supplementary',
-  'eligibility-denied',
+  'eligibility/not-eligible',
+  'eligibility/discuss-before-signup',
+  // Shared across bands - see eligibilityViews in utils/eligibilityRules for which band gets what.
+  'eligibility/eligibility-check',
+  'eligibility/pilot-check',
+  'eligibility/pilot-is-eligible',
+  'eligibility/tiers-a-b/accredited-programme-is-eligible',
+  'eligibility/tiers-d-g/is-eligible',
   'rationale',
-  'spo-approval',
   'accredited-programme-approval',
   'date-frequency',
   'contact-preference',
@@ -85,5 +93,68 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+// One eligibility-check template serves every band, rendering the three Tier A/B-only questions
+// off `tierBand`. Asserting on the checkbox values keeps the bands from drifting into each other.
+describe('eligibility/eligibility-check', () => {
+  const valuesIn = (html: string): string[] =>
+    [...html.matchAll(/name="esupervision\[[^"]+\]\[checkins\]\[eligibility\]" type="checkbox" value="([^"]+)"/g)].map(
+      match => match[1],
+    )
+
+  // Every band ends with the exclusive "None of these apply".
+  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction', 'none']
+
+  it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
+    expect(valuesIn(html)).toEqual([
+      'supervisionPackage',
+      'accreditedProgramme',
+      'recalled',
+      'finalThird',
+      'deviceRestriction',
+      'youthSentence',
+      'earlyEngagement',
+      'none',
+    ])
+  })
+
+  it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(valuesIn(html)).toEqual(allTiers)
+  })
+
+  it.each(['AB', 'C', 'DG'])('makes "none of these apply" exclusive for tier %s', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(html).toContain('data-behaviour="exclusive"')
+  })
+})
+
+// not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
+// exercised - the list case would otherwise never be rendered by these smoke tests.
+describe('eligibility/not-eligible', () => {
+  it('lists the reasons when more than one ruled the person out', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: '',
+      reasonBullets: ['has been recalled to prison', 'is in the final third of their sentence'],
+    })
+    expect(html).toContain('This is because Bob:')
+    expect(html).toContain('<li>has been recalled to prison</li>')
+    expect(html).toContain('<li>is in the final third of their sentence</li>')
+  })
+
+  it('reads a single reason as one sentence', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
+    expect(html).toContain('This is because Bob has been recalled to prison.')
+    expect(html).not.toContain('reasonBullets')
+  })
+
+  // The offer is made whatever the reason - see getNotEligiblePage.
+  it('always offers to check eligibility again', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    expect(html).toContain('you can go back and check eligibility again')
   })
 })

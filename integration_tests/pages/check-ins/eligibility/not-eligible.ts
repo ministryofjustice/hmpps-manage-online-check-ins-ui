@@ -1,0 +1,15 @@
+import Page, { PageElement } from '../../page'
+
+export default class NotEligiblePage extends Page {
+  constructor() {
+    super('is not eligible to use online check ins')
+  }
+
+  getReason = (): PageElement => cy.get('.govuk-body').first()
+
+  // Where more than one fact ruled the person out, the reason introduces a list instead of
+  // completing a sentence.
+  getReasonBullets = (): PageElement => cy.get('[data-qa="reasonBullets"] li')
+
+  getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
+}
