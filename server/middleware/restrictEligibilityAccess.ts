@@ -56,7 +56,8 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     }
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
-    if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion)) {
+    const accreditedProgramme = Boolean(checkins.accreditedProgramme)
+    if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion, { accreditedProgramme })) {
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     }
     return next()

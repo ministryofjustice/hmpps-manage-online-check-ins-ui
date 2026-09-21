@@ -327,8 +327,19 @@ describe('check-in setup flow', () => {
     })
 
     it('routes the accredited programme cohort through approval first', async () => {
+      expect(
+        await postIsEligible({
+          discussion: [...allDiscussionPoints, 'programmeOnly'],
+          accreditedProgramme: true,
+        }),
+      ).toBe(`/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`)
+    })
+
+    // That cohort is shown an extra point - that check ins end with the programme - so the four
+    // everyone else answers leave their discussion unfinished.
+    it('diverts the accredited programme cohort when the programme-only point is unticked', async () => {
       expect(await postIsEligible({ discussion: allDiscussionPoints, accreditedProgramme: true })).toBe(
-        `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`,
+        `/case/${crn}/appointments/${id}/check-in/discuss-before-signup`,
       )
     })
 

@@ -372,13 +372,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
 
-      // Part-ticked discussion boxes mean the conversation still needs to happen.
+      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'])
       const discussion = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.discussion)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'], discussion)
-      if (!hasCompletedDiscussion(discussion)) {
+      if (!hasCompletedDiscussion(discussion, { accreditedProgramme: Boolean(accreditedProgramme) })) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/discuss-before-signup`)
       }
-      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'])
       // Approval and rationale only apply to the accredited-programme cohort.
       const next = accreditedProgramme ? 'accredited-programme-approval' : 'date-frequency'
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${next}`)

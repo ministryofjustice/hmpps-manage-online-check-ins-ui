@@ -23,7 +23,43 @@
 {% set back = back if back else '' %}
 {% set notStandardForm = true %}
 {% set buttonText = "Confirm and sign up" %}
+{# What the practitioner has already ticked. Passed to the macro as `values`, which ticks the matching
+   boxes for us, so the items below are just their wording. #}
 {% set currentDiscussion = data.esupervision[crn][id].checkins.discussion or [] %}
+
+{# The accredited-programme variant sets accreditedProgrammeDiscussion to add the programmeOnly point
+   below, because its eligibility ends with the programme. The macro skips falsy items, so the box can
+   sit in the list in reading order rather than the list being assembled in pieces. #}
+{% set discussionItems = [
+    {
+        value: "optional",
+        text: "Online check ins are optional and the person can decide not to use them"
+    },
+    {
+        value: "canStop",
+        text: "They can stop using online check ins at any time"
+    },
+    {
+        value: "notEnforceable",
+        text: "They cannot be breached and online check ins are not enforceable"
+    },
+    {
+        value: "moreTime",
+        text: "They can ask for more time to make a decision about if they want to use online check ins"
+    },
+    {
+        value: "programmeOnly",
+        text: "They can only use online check ins while they are on an accredited programme, and online check ins must be stopped once they finish"
+    } if accreditedProgrammeDiscussion,
+    {
+        divider: "or"
+    },
+    {
+        value: "notAll",
+        text: "I have not done all of these",
+        behaviour: "exclusive"
+    }
+] %}
 
 {% block primary %}
   <div class="govuk-grid-row">
@@ -74,37 +110,8 @@
                 hint: {
                     text: "Select what you've told the person"
                 },
-                items: [
-                {
-                value: "optional",
-                text: "Online check ins are optional and the person can decide not to use them",
-                checked: currentDiscussion.includes("optional")
-                },
-                {
-                value: "canStop",
-                text: "They can stop using online check ins at any time",
-                checked: currentDiscussion.includes("canStop")
-                },
-                {
-                value: "notEnforceable",
-                text: "They cannot be breached and online check ins are not enforceable",
-                checked: currentDiscussion.includes("notEnforceable")
-                },
-                {
-                value: "moreTime",
-                text: "They can ask for more time to make a decision about if they want to use online check ins",
-                checked: currentDiscussion.includes("moreTime")
-                },
-                {
-                divider: "or"
-                },
-                {
-                value: "notAll",
-                text: "I have not done all of these",
-                checked: currentDiscussion.includes("notAll"),
-                behaviour: "exclusive"
-                }
-            ]
+                items: discussionItems,
+                values: currentDiscussion
             }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'discussion']) }}
               <div class="govuk-button-group">
                 {{ govukButton({

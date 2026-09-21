@@ -173,6 +173,29 @@ describe('utils/eligibilityRules', () => {
     it('handles a single point posted as a string', () => {
       expect(hasCompletedDiscussion('optional')).toBe(false)
     })
+
+    // The accredited-programme cohort is shown a fifth point - that check ins end with the
+    // programme - so only they have to tick it.
+    describe('for the accredited programme cohort', () => {
+      const forCohort = (discussion: string[]) => hasCompletedDiscussion(discussion, { accreditedProgramme: true })
+
+      it('passes once the programme-only point is confirmed alongside the rest', () => {
+        expect(forCohort([...allPoints, 'programmeOnly'])).toBe(true)
+      })
+
+      it('fails while the programme-only point is unticked', () => {
+        expect(forCohort(allPoints)).toBe(false)
+      })
+
+      it('fails with "I have not done all of these" ticked', () => {
+        expect(forCohort([...allPoints, 'programmeOnly', 'notAll'])).toBe(false)
+      })
+    })
+
+    // Everyone else is never shown the point, so a session without it is still complete.
+    it('does not ask for the programme-only point off that cohort', () => {
+      expect(hasCompletedDiscussion(allPoints, { accreditedProgramme: false })).toBe(true)
+    })
   })
 
   describe('toSelections', () => {

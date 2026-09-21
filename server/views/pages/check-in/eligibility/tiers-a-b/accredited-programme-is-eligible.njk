@@ -3,6 +3,8 @@
 {% extends "../_is-eligible.njk" %}
 
 {% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{# Their eligibility ends with the programme, so there is one more thing to have discussed. #}
+{% set accreditedProgrammeDiscussion = true %}
 
 {% block eligibilityReason %}
     <p class="govuk-body">This is because they are in Tier {{tierScore}} and on an accredited programme, and they are not in early engagement or on a youth sentence. They will only be able to use online check ins while they are on their accredited programme. </p>

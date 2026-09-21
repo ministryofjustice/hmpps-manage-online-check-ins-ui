@@ -166,13 +166,18 @@ export const eligibilityViews: Record<TierBand, Record<string, string>> = {
 // is caught by validation instead.
 const discussionPoints = ['optional', 'canStop', 'notEnforceable', 'moreTime']
 
-export function hasCompletedDiscussion(discussion: unknown): boolean {
+// The accredited-programme cohort is only eligible for as long as the programme lasts, so that limit
+// is a fifth point to discuss - shown to them alone, so required of them alone.
+const programmeOnlyPoints = [...discussionPoints, 'programmeOnly']
+
+export function hasCompletedDiscussion(discussion: unknown, { accreditedProgramme = false } = {}): boolean {
   const selections = Array.isArray(discussion) ? discussion : [discussion]
   // Exclusive in the browser only, so a submission carrying both cannot be trusted.
   if (selections.includes('notAll')) {
     return false
   }
-  return discussionPoints.every(point => selections.includes(point))
+  const required = accreditedProgramme ? programmeOnlyPoints : discussionPoints
+  return required.every(point => selections.includes(point))
 }
 
 // Checkbox groups arrive as a string when one box is ticked and an array when several are.

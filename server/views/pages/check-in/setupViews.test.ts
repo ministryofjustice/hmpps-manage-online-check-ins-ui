@@ -132,6 +132,44 @@ describe('eligibility/eligibility-check', () => {
   })
 })
 
+// The three is-eligible pages share their discussion checkboxes, and only the accredited-programme
+// one adds the point about check ins ending with the programme.
+describe('the is-eligible discussion checkboxes', () => {
+  const valuesIn = (html: string): string[] =>
+    [...html.matchAll(/name="esupervision\[[^"]+\]\[checkins\]\[discussion\]" type="checkbox" value="([^"]+)"/g)].map(
+      match => match[1],
+    )
+
+  const sharedPoints = ['optional', 'canStop', 'notEnforceable', 'moreTime']
+
+  it('adds the programme-only point for the accredited-programme cohort', async () => {
+    const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', base)
+    expect(valuesIn(html)).toEqual([...sharedPoints, 'programmeOnly', 'notAll'])
+    expect(html).toContain('They can only use online check ins while they are on an accredited programme')
+  })
+
+  it.each(['eligibility/pilot-is-eligible', 'eligibility/tiers-d-g/is-eligible'])(
+    'asks %s only the shared points',
+    async view => {
+      expect(valuesIn(await render(view, base))).toEqual([...sharedPoints, 'notAll'])
+    },
+  )
+
+  // The boxes are ticked from the stored answers via the macro's `values`, so a practitioner sent
+  // back here does not lose what they had already confirmed.
+  it('ticks the points already stored in the session', async () => {
+    const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', {
+      ...base,
+      data: {
+        esupervision: { [crn]: { [id]: { checkins: { discussion: ['canStop', 'programmeOnly'] } } } },
+        features: {},
+      },
+    })
+    const checked = [...html.matchAll(/value="([^"]+)" checked/g)].map(match => match[1])
+    expect(checked).toEqual(['canStop', 'programmeOnly'])
+  })
+})
+
 // not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
 // exercised - the list case would otherwise never be rendered by these smoke tests.
 describe('eligibility/not-eligible', () => {
