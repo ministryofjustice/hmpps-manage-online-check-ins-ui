@@ -196,6 +196,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+
+      // A blanket failure if not on a supervision package
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(
+        req.session.data,
+        ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'],
+        onSupervisionPackage,
+      )
+      if (!onSupervisionPackage) {
+        const { reason, bullets } = nextAfterEligibilityCheck(band, false, [])
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      }
+
       return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
         crn,
         id,

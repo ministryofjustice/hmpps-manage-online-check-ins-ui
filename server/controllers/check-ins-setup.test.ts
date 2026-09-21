@@ -100,7 +100,7 @@ describe('check-in setup flow', () => {
       ['E2', 'DG'],
     ])('renders the eligibility check for tier %s with band %s', async (tierScore, tierBand) => {
       const req = requestFor()
-      const res = responseForTier(tierScore)
+      const res = responseForTier(tierScore, { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
@@ -110,10 +110,23 @@ describe('check-in setup flow', () => {
 
     it('errors rather than guessing a band when the tier is unknown', async () => {
       const req = requestFor()
-      const res = responseForTier('')
+      const res = responseForTier('', { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // A blanket failure whatever the tier - there is nothing the checkboxes could change, so
+    // this skips the form entirely rather than showing questions that cannot affect the outcome.
+    it('sends the person straight to not-eligible when the ESUP call says no supervision package', async () => {
+      const req = requestFor()
+      const res = responseForTier('D1', { supervisionPackageStatus: { onSupervisionPackage: false } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
+        'is not on a supervision package',
+      )
+      expect(res.render).not.toHaveBeenCalled()
     })
   })
 
@@ -633,7 +646,7 @@ describe('check-in setup flow', () => {
         getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: true }),
       }))
       const req = requestFor()
-      const res = responseForTier('B1')
+      const res = responseForTier('B1', { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
     })
@@ -647,6 +660,7 @@ describe('check-in setup flow', () => {
       const res = responseForTier('B1', {
         flags: { newDesignPopHeader: true },
         practitioner: { unallocated: false },
+        supervisionPackageStatus: { onSupervisionPackage: true },
       })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(getProbationPractitioner).not.toHaveBeenCalled()
