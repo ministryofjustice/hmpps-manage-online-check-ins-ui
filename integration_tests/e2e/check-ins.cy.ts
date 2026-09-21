@@ -91,7 +91,7 @@ const passEligibilityCheckToRationale = () => {
   checkPage.getAccreditedProgramme().click()
   checkPage.getSubmitBtn().click()
   const isEligiblePage = new IsEligiblePage()
-  isEligiblePage.confirmDiscussion()
+  isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
   isEligiblePage.getSubmitBtn().click()
   const approvalPage = new AccreditedProgrammeApprovalPage()
   approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
@@ -126,7 +126,7 @@ context('Appointment check-ins', () => {
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()
-      isEligiblePage.confirmDiscussion()
+      isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
       isEligiblePage.getSubmitBtn().click()
 
       // Only this cohort passes through approval and rationale on the way to date-frequency.

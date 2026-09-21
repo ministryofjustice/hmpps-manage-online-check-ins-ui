@@ -17,11 +17,17 @@ export default class IsEligiblePage extends Page {
 
   getNotAll = (): PageElement => cy.get('input[value="notAll"]')
 
-  confirmDiscussion = (): void => {
+  // Only the accredited-programme variant renders this point, and only it requires it.
+  getProgrammeOnly = (): PageElement => cy.get('input[value="programmeOnly"]')
+
+  confirmDiscussion = ({ accreditedProgramme = false } = {}): void => {
     this.getOptional().click()
     this.getCanStop().click()
     this.getNotEnforceable().click()
     this.getMoreTime().click()
+    if (accreditedProgramme) {
+      this.getProgrammeOnly().click()
+    }
   }
 
   getSubmitBtn = (): PageElement => cy.get('[data-qa="submit-btn"]')
