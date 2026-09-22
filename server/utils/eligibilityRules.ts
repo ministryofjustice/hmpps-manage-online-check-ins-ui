@@ -64,6 +64,16 @@ const pilotReasons: Record<'AB' | 'C', EligibilityReason> = {
 
 export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
 
+// Every rule below keys off the tier band, so a person with no tier cannot be assessed at all - the
+// missing tier is itself the reason they are ruled out. See MISSING_TIER in getTierBand for why that
+// is treated as a fact about the record rather than an error.
+//
+// Unlike the reasons below, not-eligible.njk does not complete "This is because <forename> …" with
+// this one - a missing tier is about the record rather than the person, so the page words it as
+// "they" and follows it with how a Tier comes to be assigned. This is what gets recorded in session,
+// keeping the shape the same as every other reason.
+export const missingTierReason = 'has not been assigned a Tier yet'
+
 // The clause that completes "This is because <forename> …", with the facts to list beneath it when
 // several apply at once.
 interface EligibilityReason {

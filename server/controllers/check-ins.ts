@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { DateTime } from 'luxon'
-import { Response } from 'express'
+import { Request, Response } from 'express'
 
 import { v4 as uuidv4 } from 'uuid'
 
@@ -32,10 +32,11 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
-import getTierBand, { TierBand } from '../utils/getTierBand'
+import getTierBand, { MISSING_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
   hasCompletedDiscussion,
+  missingTierReason,
   nextAfterEligibilityCheck,
   nextAfterPilotCheck,
   toSelections,
@@ -71,10 +72,32 @@ const getMinDate = (): string => {
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
 }
 
-// The header endpoint tolerates 404s and 500s with an empty tier score, and every eligibility
-// rule keys off the tier - so an unknown tier is an error rather than a default band.
-function resolveBand(res: Response): TierBand | null {
-  return getTierBand(res.locals.tierScore as string)
+// Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
+// eligibility rules record theirs.
+function setNotEligibleReason(req: Request, crn: string, id: string, reason: string): void {
+  req.session.data = req.session.data || {}
+  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], [])
+}
+
+// Every eligibility rule keys off the tier, so each page needs a band before it can do anything.
+// This resolves one or answers the request itself, returning null once it has, so all three
+// outcomes are handled the same way everywhere. A missing tier - which the header endpoint returns
+// as an empty score, tolerating 404s and 500s - is a fact about the person, so they are ruled out
+// with a reason the practitioner can act on; a score we cannot read at all is unexpected data, and
+// guessing a band would apply the wrong rules, so that stays a 500.
+function requireBand(req: Request, res: Response, crn: string, id: string): TierBand | null {
+  const band: TierStatus | null = getTierBand(res.locals.tierScore as string)
+  if (band === MISSING_TIER) {
+    setNotEligibleReason(req, crn, id, missingTierReason)
+    res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    return null
+  }
+  if (!band) {
+    renderError(500)(req, res)
+    return null
+  }
+  return band
 }
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
@@ -186,9 +209,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
+      const band = requireBand(req, res, crn, id)
       if (!band) {
-        return renderError(500)(req, res)
+        return undefined
       }
       const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
@@ -215,9 +238,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
+      const band = requireBand(req, res, crn, id)
       if (!band) {
-        return renderError(500)(req, res)
+        return undefined
       }
       req.session.data = req.session.data || {}
       const { data } = req.session
@@ -253,9 +276,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
+      const band = requireBand(req, res, crn, id)
       if (!band) {
-        return renderError(500)(req, res)
+        return undefined
       }
       const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
       if (practitioner?.unallocated) {
@@ -293,9 +316,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
+      const band = requireBand(req, res, crn, id)
+      if (!band) {
+        return undefined
+      }
       // Tiers D-G have no pilot question - there is nothing to render for them here.
-      if (!band || band === 'DG') {
+      if (band === 'DG') {
         return renderError(500)(req, res)
       }
       return res.render(`pages/check-in/${eligibilityViews[band]['pilot-check']}.njk`, {
@@ -314,8 +340,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
-      if (!band || band === 'DG') {
+      const band = requireBand(req, res, crn, id)
+      if (!band) {
+        return undefined
+      }
+      if (band === 'DG') {
         return renderError(500)(req, res)
       }
       req.session.data = req.session.data || {}
@@ -337,9 +366,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = resolveBand(res)
+      const band = requireBand(req, res, crn, id)
       if (!band) {
-        return renderError(500)(req, res)
+        return undefined
       }
       // A/B splits again here: the accredited-programme cohort gets its own page, with its own
       // explanation of why the person is eligible and for how long.
@@ -400,6 +429,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
+        // Every other reason comes from an answer the practitioner gave and can revisit, so the page
+        // offers a way back to the eligibility check. A missing tier is not theirs to change, and
+        // going back would only rule the person out again - so that route is hidden for it.
+        missingTier: getTierBand(res.locals.tierScore as string) === MISSING_TIER,
       })
     }
   },

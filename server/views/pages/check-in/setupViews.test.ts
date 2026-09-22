@@ -195,4 +195,36 @@ describe('eligibility/not-eligible', () => {
     const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
     expect(html).toContain('you can go back and check eligibility again')
   })
+
+  // The reason came from an answer given there, so going back is a real way to revisit it.
+  it('links back to the eligibility check for a reason the practitioner answered', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+
+  // A missing Tier is about the record rather than the person, so it reads "they" and explains how a
+  // Tier comes to be assigned, in place of the named sentence the other reasons complete.
+  it('words a missing tier impersonally and says how a Tier is assigned', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'has not been assigned a Tier yet',
+      missingTier: true,
+    })
+    expect(html).toContain('This is because they have not been assigned a Tier yet.')
+    expect(html).toContain('once their risk scores have been completed and the system has calculated their Tier')
+    expect(html).toContain('You can come back and check eligibility again')
+    expect(html).not.toContain('This is because Bob')
+  })
+
+  // The eligibility check would rule the person out again the moment it loaded, looping straight
+  // back here, so the back link leads to the case overview instead.
+  it('links a missing tier back to the case overview rather than the eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'has not been assigned a Tier yet',
+      missingTier: true,
+    })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('check-in/eligibility-check')
+  })
 })

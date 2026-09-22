@@ -18,9 +18,22 @@ describe('utils/getTierBand', () => {
     expect(getTierBand('b1')).toEqual('AB')
     expect(getTierBand(' c2 ')).toEqual('C')
   })
-  it('should return null when the tier cannot be determined', () => {
-    expect(getTierBand('')).toBeNull()
-    expect(getTierBand(undefined)).toBeNull()
+  // The API says 'MISSING' outright when a person has no tier assigned, which rules them out with a
+  // reason the practitioner can act on rather than being an error.
+  it('should pass a missing tier through as its own status', () => {
+    expect(getTierBand('MISSING')).toEqual('MISSING')
+    expect(getTierBand(' missing ')).toEqual('MISSING')
+  })
+  // getPersonalDetails coerces an absent score to '', so a person with no tier arrives either way.
+  it('should treat an absent score as a missing tier too', () => {
+    expect(getTierBand('')).toEqual('MISSING')
+    expect(getTierBand('   ')).toEqual('MISSING')
+    expect(getTierBand(undefined)).toEqual('MISSING')
+  })
+  it('should return null when a tier is present but cannot be read', () => {
     expect(getTierBand('Z1')).toBeNull()
+    // 'MISSING' is read whole, so a tier that merely starts with M is not mistaken for it - and M
+    // is not a band either.
+    expect(getTierBand('M1')).toBeNull()
   })
 })

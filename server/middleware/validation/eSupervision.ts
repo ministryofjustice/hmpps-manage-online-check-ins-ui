@@ -6,7 +6,7 @@ import setDataValue from '../../utils/setDataValue'
 import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
 import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
-import getTierBand from '../../utils/getTierBand'
+import getTierBand, { MISSING_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
 
 const eSuperVision: Route<void> = (req, res, next) => {
@@ -76,7 +76,10 @@ const eSuperVision: Route<void> = (req, res, next) => {
     validateSetupPage('instructions', 'instructions', 'instructions')
     // The eligibility pages live in per-tier subfolders, which the generic render derivation
     // from the URL cannot reach, so each passes its view explicitly.
-    const band = getTierBand(res.locals.tierScore as string)
+    // A missing tier never reaches these pages - the controller rules the person out first - so
+    // there is no view to re-render for it, the same as for a tier we cannot read at all.
+    const tierStatus = getTierBand(res.locals.tierScore as string)
+    const band = tierStatus === MISSING_TIER ? null : tierStatus
     if (band) {
       // The shared eligibility-check template renders the Tier A/B-only checkboxes off this, so a
       // re-render with errors has to pass it or those boxes would disappear.
