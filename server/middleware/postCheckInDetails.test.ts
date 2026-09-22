@@ -39,7 +39,7 @@ const cachedPersonalDetails = {
 
 const startedAt = '2026-08-01T09:00:00.000Z'
 
-const buildRequest = (checkinOverrides: Record<string, unknown> = {}) =>
+const buildRequest = () =>
   httpMocks.createRequest({
     params: { crn, id },
     body: { contentSha256: 'YWJjMTIz' },
@@ -54,9 +54,8 @@ const buildRequest = (checkinOverrides: Record<string, unknown> = {}) =>
                 preferredComs: 'PHONE',
                 eligibilityChoice: [],
                 rationale: 'Stable and low risk',
-                startedAt,
-                ...checkinOverrides,
               },
+              setupStartedAt: startedAt,
             },
           },
         },
@@ -98,7 +97,10 @@ describe('postCheckInDetails', () => {
   })
 
   it('leaves startedAt unset when the session has no start time', async () => {
-    await postCheckInDetails(hmppsAuthClient)(buildRequest({ startedAt: undefined }), res)
+    const req = buildRequest()
+    delete req.session.data.esupervision[crn][id].setupStartedAt
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
 
     expect(mockPostOffenderSetup.mock.calls[0][0].startedAt).toBeUndefined()
   })

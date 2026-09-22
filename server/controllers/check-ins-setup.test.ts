@@ -76,9 +76,11 @@ describe('check-in setup flow', () => {
 
       const redirect: string = (res.redirect as jest.Mock).mock.calls[0][0]
       const [, , , , setupId] = redirect.split('/')
-      const { startedAt } = req.session.data.esupervision[crn][setupId].checkins
-      expect(Date.parse(startedAt)).toBeGreaterThanOrEqual(before)
-      expect(Date.parse(startedAt)).toBeLessThanOrEqual(Date.now())
+      const { setupStartedAt, checkins } = req.session.data.esupervision[crn][setupId]
+      expect(Date.parse(setupStartedAt)).toBeGreaterThanOrEqual(before)
+      expect(Date.parse(setupStartedAt)).toBeLessThanOrEqual(Date.now())
+      // restrictPageAccess reads any `checkins` data as answers given, so starting must not create it
+      expect(checkins).toBeUndefined()
     })
   })
 
