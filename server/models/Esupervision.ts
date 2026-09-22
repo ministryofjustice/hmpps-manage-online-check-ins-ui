@@ -6,7 +6,10 @@ export interface ESupervisionSession {
   manageCheckin?: CheckinUserDetails
   restartCheckin?: CheckinUserDetails
   manageQuestions?: ManageQuestionsSession
+  // Server-owned: recorded by the controllers, never posted. See SERVER_OWNED_KEYS in
+  // middleware/autoStoreSessionData.
   questionsAdded?: boolean
+  setupStartedAt?: string
 }
 
 export interface CheckinUserDetails {

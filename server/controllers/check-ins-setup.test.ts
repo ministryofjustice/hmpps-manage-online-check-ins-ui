@@ -67,6 +67,23 @@ describe('check-in setup flow', () => {
     })
   })
 
+  describe('starting a setup', () => {
+    it('records when the setup started against the new setup id', async () => {
+      const req = requestFor()
+      const res = mockAppResponse()
+      const before = Date.now()
+      await controllers.checkIns.getStartSetup()(req, res)
+
+      const redirect: string = (res.redirect as jest.Mock).mock.calls[0][0]
+      const [, , , , setupId] = redirect.split('/')
+      const { setupStartedAt, checkins } = req.session.data.esupervision[crn][setupId]
+      expect(Date.parse(setupStartedAt)).toBeGreaterThanOrEqual(before)
+      expect(Date.parse(setupStartedAt)).toBeLessThanOrEqual(Date.now())
+      // restrictPageAccess reads any `checkins` data as answers given, so starting must not create it
+      expect(checkins).toBeUndefined()
+    })
+  })
+
   describe('eligibility check v2 flag', () => {
     it('sends new setups to the instructions page when the flag is on', async () => {
       const req = requestFor()
