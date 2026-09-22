@@ -187,7 +187,9 @@ type CheckInRouteName =
 
 const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // The setup flow keys its session data on a uuid minted here, before the person exists in
-  // eSupervision. That uuid becomes the offender_setup uuid on completion.
+  // eSupervision. That uuid becomes the offender_setup uuid on completion. The start time is
+  // recorded here too, so the API can measure how long the whole setup journey takes. It sits
+  // beside `checkins`, not in it: restrictPageAccess treats any `checkins` data as answers given.
   getStartSetup: () => {
     return async (req, res) => {
       const { crn } = req.params as Record<string, string>
@@ -197,7 +199,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_START_SETUP', crn, SubjectType.CRN)
       // The wizard opens on the eligibility check. The instructions page and its route are kept
       // for now in case the guidance is wanted back, but nothing routes into or out of it.
-      return res.redirect(`/case/${crn}/appointments/${randomUUID()}/check-in/eligibility-check`)
+      const id = randomUUID()
+      req.session.data = req.session.data || {}
+      setDataValue(req.session.data, ['esupervision', crn, id, 'setupStartedAt'], new Date().toISOString())
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
   },
 

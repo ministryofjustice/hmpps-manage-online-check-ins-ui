@@ -298,4 +298,43 @@ describe('/middleware/autoStoreSessionData', () => {
       })
     })
   })
+
+  describe('when a post targets a value the server records itself', () => {
+    const startedAt = '2026-08-01T09:00:00.000Z'
+    const req = httpMocks.createRequest({
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: { setupStartedAt: startedAt, questionsAdded: true },
+            },
+          },
+        },
+      },
+      body: {
+        esupervision: {
+          [crn]: {
+            [id]: {
+              setupStartedAt: '2026-08-01T08:59:59.000Z',
+              questionsAdded: 'false',
+              checkins: { rationale: 'Stable and low risk' },
+            },
+          },
+        },
+      },
+    })
+
+    beforeEach(() => {
+      autoStoreSessionData(hmppsAuthClient)(req, res, nextSpy)
+    })
+
+    it('ignores the posted values and stores the rest of the page', () => {
+      expect(req.session.data.esupervision[crn][id]).toEqual({
+        setupStartedAt: startedAt,
+        questionsAdded: true,
+        checkins: { rationale: 'Stable and low risk' },
+      })
+    })
+  })
 })

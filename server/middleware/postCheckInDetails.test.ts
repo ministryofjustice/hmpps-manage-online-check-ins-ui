@@ -37,6 +37,8 @@ const cachedPersonalDetails = {
   riskData: { assessments: [] },
 } as CachedPersonalDetails
 
+const startedAt = '2026-08-01T09:00:00.000Z'
+
 const buildRequest = () =>
   httpMocks.createRequest({
     params: { crn, id },
@@ -53,6 +55,7 @@ const buildRequest = () =>
                 eligibilityChoice: [],
                 rationale: 'Stable and low risk',
               },
+              setupStartedAt: startedAt,
             },
           },
         },
@@ -85,6 +88,21 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(req, res)
 
     expect(req.session.data.personalDetails[crn]).toBeUndefined()
+  })
+
+  it('sends the time the setup journey started', async () => {
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ startedAt }))
+  })
+
+  it('leaves startedAt unset when the session has no start time', async () => {
+    const req = buildRequest()
+    delete req.session.data.esupervision[crn][id].setupStartedAt
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    expect(mockPostOffenderSetup.mock.calls[0][0].startedAt).toBeUndefined()
   })
 
   it('leaves the cache untouched when setup fails', async () => {
