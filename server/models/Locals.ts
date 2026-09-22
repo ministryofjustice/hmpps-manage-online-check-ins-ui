@@ -48,7 +48,7 @@ export interface AppLocals extends Record<string, unknown> {
   uploadError?: string
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
-  supervisionPackageStatus?: SupervisionPackageStatus
+  supervisionPackageStatus?: SupervisionPackageStatus | null
   flags?: FeatureFlags
 }
 

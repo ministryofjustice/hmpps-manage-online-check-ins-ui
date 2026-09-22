@@ -134,6 +134,37 @@
     },
     {
       "request": {
+        "urlPattern": "/v2/offenders/crn/X000003/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/.*/supervision-package",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
         "urlPattern": "/v2/offenders/crn/.*/practitioner-details",
         "method": "GET"
       },

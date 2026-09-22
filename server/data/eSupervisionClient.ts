@@ -203,10 +203,9 @@ export default class ESupervisionClient extends RestClient {
     return this.get({ path: `/v2/practitioners/${username}/alerts` })
   }
 
-  // PLACEHOLDER — no real ESUP endpoint exists yet. Always returns true so every case flows
-  // through eligibility as before the checkbox was removed. Swap for a real GET call once the
-  // endpoint is available.
-  async getSupervisionPackageStatus(_crn: string): Promise<SupervisionPackageStatus> {
-    return Promise.resolve({ onSupervisionPackage: true })
+  // GET /v2/offenders/crn/{crn}/supervision-package — whether the person is on a supervision
+  // package
+  async getSupervisionPackageStatus(crn: string): Promise<SupervisionPackageStatus | null> {
+    return this.get({ path: `/v2/offenders/crn/${crn}/supervision-package`, handle404: true })
   }
 }

@@ -42,6 +42,8 @@ const CRN_TIER_AB = 'X000004'
 const CRN_TIER_C = 'X000002'
 const CRN_TIER_DG = 'X000001'
 const CRN_TIER_UNKNOWN = 'X000009'
+// Stubbed to answer false for the supervision-package check - see wiremock/mappings/eSupervisionAPI.json.
+const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
 
 // failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
 // treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
@@ -302,12 +304,17 @@ context('Appointment check-ins', () => {
   })
 
   describe('eligibility, rules that apply to every tier', () => {
-    // The supervision package is no longer asked about - the ESUP API answers it. There is no
-    // walkthrough for a person without one while the client-side placeholder always says yes; the
-    // not-eligible outcome it produces is covered in eligibilityRules.test.ts instead.
+    // The supervision package is no longer asked about - the ESUP API answers it
     it('does not ask the practitioner about the supervision package', () => {
       startSetup()
       cy.get('input[value="supervisionPackage"]').should('not.exist')
+    })
+
+    // A blanket failure whatever the tier - the eligibility-check form is skipped entirely since
+    // no checkbox on it could change this outcome. See getEligibilityPage in check-ins.ts.
+    it('sends the person straight to not-eligible when the ESUP API says they are not on a supervision package', () => {
+      loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+      new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
     })
 
     // Every remaining box rules the person out, so this is how an eligible person is submitted.

@@ -128,14 +128,31 @@ describe('check-in setup flow', () => {
       )
       expect(res.render).not.toHaveBeenCalled()
     })
+
+    // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
+    // from ESUP, so the optional chain must fail safe to "not on a package" rather than throwing.
+    it('sends the person straight to not-eligible when the ESUP call 404s', async () => {
+      const req = requestFor()
+      const res = responseForTier('D1', { supervisionPackageStatus: null })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
+        'is not on a supervision package',
+      )
+      expect(res.render).not.toHaveBeenCalled()
+    })
   })
 
   describe('eligibility branching', () => {
     // getSupervisionPackageStatus puts the ESUP answer on res.locals, replacing the checkbox the
     // eligibility rules used to read this from.
-    const postEligibility = async (tierScore: string, eligibility: string[], onSupervisionPackage = true) => {
+    const postEligibility = async (
+      tierScore: string,
+      eligibility: string[],
+      supervisionPackageStatus: { onSupervisionPackage: boolean } | null = { onSupervisionPackage: true },
+    ) => {
       const req = requestFor({ esupervision: { [crn]: { [id]: { checkins: { eligibility } } } } })
-      const res = responseForTier(tierScore, { supervisionPackageStatus: { onSupervisionPackage } })
+      const res = responseForTier(tierScore, { supervisionPackageStatus })
       await controllers.checkIns.postEligibilityPage()(req, res)
       return {
         redirect: (res.redirect as jest.Mock).mock.calls[0][0],
@@ -155,7 +172,15 @@ describe('check-in setup flow', () => {
     })
 
     it('rules the person out when the ESUP API says they are not on a supervision package', async () => {
-      const { redirect, checkins } = await postEligibility('D1', [], false)
+      const { redirect, checkins } = await postEligibility('D1', [], { onSupervisionPackage: false })
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    })
+
+    // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
+    // from ESUP, so this must fail safe to "not on a package" the same as an explicit false.
+    it('rules the person out when the ESUP API 404s', async () => {
+      const { redirect, checkins } = await postEligibility('D1', [], null)
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe('is not on a supervision package')
     })
