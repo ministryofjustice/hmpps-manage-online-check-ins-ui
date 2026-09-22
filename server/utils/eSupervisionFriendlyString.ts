@@ -8,6 +8,7 @@ const definitions: Record<string, string> = {
   TWO_WEEKS: 'Every 2 weeks',
   FOUR_WEEKS: 'Every 4 weeks',
   EIGHT_WEEKS: 'Every 8 weeks',
+  AD_HOC: "I'll schedule them one at a time",
   VERY_WELL: 'Very well',
   WELL: 'Well',
   NOT_GREAT: 'Not great',

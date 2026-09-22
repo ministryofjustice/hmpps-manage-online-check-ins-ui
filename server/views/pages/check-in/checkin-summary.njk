@@ -25,7 +25,8 @@
 {% set photoPersonLabel = "Photo of " + case.name.forename %}
 {% set confirmEndUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/confirm-end' %}
 {% set changeRationaleUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/rationale?cya=true' %}
-{% set changeDateUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/date-frequency?cya=true' %}
+{% set changeFrequencyUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-frequency?cya=true' %}
+{% set changeDateUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-date?cya=true' %}
 {% set contactPreUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/contact-preference?cya=true' %}
 {% set editMobileUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/edit-contact-preference?change=mobile&cya=true' %}
 {% set editEmailUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/edit-contact-preference?change=email&cya=true' %}
@@ -137,17 +138,40 @@
     }) %}
     {% endif %}
 
+    {% if not userDetails.isAdHoc %}
     {% set _ = summaryRows.push(
     {
         key: {
-        html: dateFrequencyLabel
+          html: checkInDateLabel
         },
         value: {
-        html: userDetails.interval
+          html: checkInDateVal
         },
         actions: {
         items: [{
             href: changeDateUrl,
+            text: "Change",
+            visuallyHiddenText: "when would you like the person to start using online check ins",
+            attributes: {
+            'data-qa': 'dateAction'
+            }
+        }]
+        }
+    }
+    ) %}
+    {% endif %}
+
+    {% set _ = summaryRows.push(
+    {
+        key: {
+          html: dateFrequencyLabel
+        },
+        value: {
+          html: userDetails.interval
+        },
+        actions: {
+        items: [{
+            href: changeFrequencyUrl,
             text: "Change",
             visuallyHiddenText: "how often would you like the person to check in",
             attributes: {

@@ -95,18 +95,20 @@
         {% endif %}
     {% set checkin %}
     {% set nextCheckin = offenderCheckinsByCRNResponse %}
+    {% set settingsRows = [] %}
+    {% if checkinText %}
+        {% set _ = settingsRows.push({
+            key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
+            value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'}
+        }) %}
+    {% endif %}
+    {% set _ = settingsRows.push({
+        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
+        value: { html: '<span data-qa="frequencyValue">' + (nextCheckin.checkinInterval | userFriendlyString) + '</span>'}
+    }) %}
     {% set nextCheckinText %}
             {{ govukSummaryList({
-                rows: [
-                    {
-                        key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
-                        value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'}
-                    },
-                    {
-                        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
-                        value: { html: '<span data-qa="frequencyValue">' + nextCheckin.checkinInterval | userFriendlyString + '</span>'}
-                    }
-                ]
+                rows: settingsRows
             }) }}
     {% endset %}
     {% endset %}

@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import Page from '../../page'
 
-export default class RestartDateFrequencyPage extends Page {
+export default class RestartCheckinDatePage extends Page {
   constructor() {
     super('Online check in settings')
   }
@@ -18,9 +18,5 @@ export default class RestartDateFrequencyPage extends Page {
       cy.get('.moj-js-datepicker-next-month').click()
     }
     return cy.get(`[data-testid="${future.toFormat('d/M/yyyy')}"]`)
-  }
-
-  getFrequency = () => {
-    return cy.get(`[data-qa="checkInFrequency"]`)
   }
 }

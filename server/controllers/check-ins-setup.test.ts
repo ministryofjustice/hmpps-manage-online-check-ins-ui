@@ -164,7 +164,7 @@ describe('check-in setup flow', () => {
       const req = requestFor()
       const res = mockAppResponse({ flags: { eligibilityFeatureToggle: true } })
       await controllers.checkIns.postInstructionsPage()(req, res)
-      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
     })
 
     it('renders the accredited programme approval template via the dedicated controller', async () => {
@@ -277,7 +277,7 @@ describe('check-in setup flow', () => {
         })
         const res = mockAppResponse({ flags: { eligibilityFeatureToggle: true } })
         await controllers.checkIns.getRationalePage()(req, res)
-        expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+        expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
         expect(res.render).not.toHaveBeenCalled()
       })
 
@@ -307,7 +307,7 @@ describe('check-in setup flow', () => {
         session: { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
       })
       const res = mockAppResponse(locals)
-      await controllers.checkIns.getDateFrequencyPage()(req, res)
+      await controllers.checkIns.getFrequencyPage()(req, res)
       return (res.render as jest.Mock).mock.calls[0][1].backLink
     }
 
@@ -327,6 +327,44 @@ describe('check-in setup flow', () => {
           await backLinkFor({ accreditedProgramme: false }, {}, { flags: { eligibilityFeatureToggle: true } }),
         ).toBe(`/case/${crn}/appointments/${id}/check-in/instructions`)
       })
+    })
+  })
+
+  describe('ad-hoc frequency skips the date page', () => {
+    const postFrequency = async (interval: string, query: Record<string, string> = {}) => {
+      const session: any = { data: { esupervision: { [crn]: { [id]: { checkins: { interval } } } } } }
+      const req = httpMocks.createRequest({ params: { crn, id }, query, session })
+      const res = mockAppResponse()
+      await controllers.checkIns.postFrequencyPage()(req, res)
+      return { redirectedTo: (res.redirect as jest.Mock).mock.calls[0][0], session }
+    }
+
+    it('goes straight to contact-preference and clears any leftover date', async () => {
+      const { redirectedTo, session } = await postFrequency('AD_HOC')
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/contact-preference`)
+      expect(session.data.esupervision[crn][id].checkins.date).toBeUndefined()
+    })
+
+    it('goes to checkin-summary instead when editing from check-your-answers', async () => {
+      const { redirectedTo } = await postFrequency('AD_HOC', { cya: 'true' })
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+    })
+
+    it('goes to the date page for a standard interval', async () => {
+      const { redirectedTo } = await postFrequency('WEEKLY')
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/check-in-date`)
+    })
+
+    it('bounces back from the date page to frequency if ad-hoc is selected in session', async () => {
+      const req = httpMocks.createRequest({
+        params: { crn, id },
+        query: {},
+        session: { data: { esupervision: { [crn]: { [id]: { checkins: { interval: 'AD_HOC' } } } } } },
+      })
+      const res = mockAppResponse()
+      await controllers.checkIns.getDatePage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+      expect(res.render).not.toHaveBeenCalled()
     })
   })
 
