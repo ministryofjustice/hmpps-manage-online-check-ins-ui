@@ -59,6 +59,16 @@ const pilotReasons: Record<'AB' | 'C', EligibilityReason> = {
 
 export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
 
+// Every rule below keys off the tier band, so a person with no tier cannot be assessed at all - the
+// missing tier is itself the reason they are ruled out. See MISSING_TIER in getTierBand for why that
+// is treated as a fact about the record rather than an error.
+//
+// Unlike the reasons below, not-eligible.njk does not complete "This is because <forename> …" with
+// this one - a missing tier is about the record rather than the person, so the page words it as
+// "they" and follows it with how a Tier comes to be assigned. This is what gets recorded in session,
+// keeping the shape the same as every other reason.
+export const missingTierReason = 'has not been assigned a Tier yet'
+
 // The clause that completes "This is because <forename> …", with the facts to list beneath it when
 // several apply at once.
 interface EligibilityReason {
@@ -170,13 +180,18 @@ export const eligibilityViews: Record<TierBand, Record<string, string>> = {
 // is caught by validation instead.
 const discussionPoints = ['optional', 'canStop', 'notEnforceable', 'moreTime']
 
-export function hasCompletedDiscussion(discussion: unknown): boolean {
+// The accredited-programme cohort is only eligible for as long as the programme lasts, so that limit
+// is a fifth point to discuss - shown to them alone, so required of them alone.
+const programmeOnlyPoints = [...discussionPoints, 'programmeOnly']
+
+export function hasCompletedDiscussion(discussion: unknown, { accreditedProgramme = false } = {}): boolean {
   const selections = Array.isArray(discussion) ? discussion : [discussion]
   // Exclusive in the browser only, so a submission carrying both cannot be trusted.
   if (selections.includes('notAll')) {
     return false
   }
-  return discussionPoints.every(point => selections.includes(point))
+  const required = accreditedProgramme ? programmeOnlyPoints : discussionPoints
+  return required.every(point => selections.includes(point))
 }
 
 // Checkbox groups arrive as a string when one box is ticked and an array when several are.

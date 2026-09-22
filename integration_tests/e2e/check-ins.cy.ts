@@ -41,9 +41,15 @@ import { getCheckinUuid } from '../utils/common'
 const CRN_TIER_AB = 'X000004'
 const CRN_TIER_C = 'X000002'
 const CRN_TIER_DG = 'X000001'
-const CRN_TIER_UNKNOWN = 'X000009'
 // Stubbed to answer false for the supervision-package check - see wiremock/mappings/eSupervisionAPI.json.
 const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
+// The two ways a tier can be unusable. X000010 answers with the score 'MISSING', which is how the
+// API reports a person with no tier assigned; X000009's header endpoint 404s, which getPersonalDetails
+// coerces to an empty score and which means the same thing. X000011 answers with a score that is
+// present but not a tier we recognise - unexpected data, and the only one of the three that errors.
+const CRN_TIER_MISSING = 'X000010'
+const CRN_TIER_MISSING_NO_HEADER = 'X000009'
+const CRN_TIER_UNREADABLE = 'X000011'
 
 // failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
 // treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
@@ -94,7 +100,7 @@ const passEligibilityCheckToRationale = () => {
   checkPage.getAccreditedProgramme().click()
   checkPage.getSubmitBtn().click()
   const isEligiblePage = new IsEligiblePage()
-  isEligiblePage.confirmDiscussion()
+  isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
   isEligiblePage.getSubmitBtn().click()
   const approvalPage = new AccreditedProgrammeApprovalPage()
   approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
@@ -128,7 +134,7 @@ context('Appointment check-ins', () => {
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()
-      isEligiblePage.confirmDiscussion()
+      isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
       isEligiblePage.getSubmitBtn().click()
 
       // Only this cohort passes through approval and rationale on the way to date-frequency.
@@ -420,11 +426,35 @@ context('Appointment check-ins', () => {
       isEligiblePage.checkErrorSummaryBox(['Select if you have discussed any of these with the person'])
     })
 
-    // Every rule keys off the tier, so an unknown tier is an error rather than a default band.
+    // Every rule keys off the tier, so a score we cannot read is an error rather than a default band.
     // The page answers 500, which is the point - hence failOnStatusCode: false.
-    it('shows an error page when the tier cannot be determined', () => {
-      loadPage(CRN_TIER_UNKNOWN, false)
+    it('shows an error page when the tier cannot be read', () => {
+      loadPage(CRN_TIER_UNREADABLE, false)
       new ErrorPage().checkPageTitle('Sorry, there is a problem with the service')
+    })
+
+    // No header at all leaves an empty score, which says the same thing as 'MISSING' - so it rules
+    // the person out with the same reason rather than erroring.
+    it('rules the person out when no header details exist to carry a tier', () => {
+      loadPage(CRN_TIER_MISSING_NO_HEADER)
+      new NotEligiblePage()
+        .getMissingTierGuidance()
+        .should('contain', 'This is because they have not been assigned a Tier yet')
+    })
+
+    // A tier the API reports as 'MISSING' is a fact about the record, not a fault - so the person is
+    // ruled out with a reason, without being asked any of the eligibility questions first. It is
+    // worded impersonally, unlike the reasons that complete "This is because <forename> …".
+    it('rules the person out without asking anything when they have no Tier yet', () => {
+      loadPage(CRN_TIER_MISSING)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getMissingTierGuidance()
+        .should('contain', 'This is because they have not been assigned a Tier yet')
+      notEligiblePage
+        .getGuidance()
+        .should('contain', 'risk scores have been completed')
+        .should('contain', 'You can come back and check eligibility again')
     })
   })
 

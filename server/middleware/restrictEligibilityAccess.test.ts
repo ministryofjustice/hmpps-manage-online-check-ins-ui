@@ -201,7 +201,7 @@ describe('restrictEligibilityAccess', () => {
     ],
     ['the pilot cohort', { tierBand: 'C', onSupervisionPackage: true, eligibility: [], pilotCheck: 'true' }],
   ])('allows the setup pages for %s once the discussion is confirmed', async (_, checkins) => {
-    const req = buildReq({ ...checkins, discussion })
+    const req = buildReq({ discussion, ...checkins })
     const res = buildRes()
     const next = jest.fn()
 
@@ -209,6 +209,23 @@ describe('restrictEligibilityAccess', () => {
 
     expect(next).toHaveBeenCalledTimes(1)
     expect(res.redirect).not.toHaveBeenCalled()
+  })
+
+  it('sends the accredited-programme cohort back when only the shared points are ticked', async () => {
+    const req = buildReq({
+      tierBand: 'AB',
+      onSupervisionPackage: true,
+      eligibility: ['accreditedProgramme'],
+      accreditedProgramme: true,
+      discussion,
+    })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
+    expect(next).not.toHaveBeenCalled()
   })
 
   it('returns a 404 for an invalid crn or id', async () => {

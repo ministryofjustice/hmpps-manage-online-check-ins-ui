@@ -46,7 +46,7 @@
     },
     {
       "request": {
-        "urlPattern": "/v2/offenders/crn/X00000[2-9]/personal-details",
+        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[01])/personal-details",
         "method": "GET"
       },
       "response": {
@@ -112,7 +112,45 @@
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offenders/crn/X00000[2-9]",
+        "urlPathPattern": "/v2/offenders/header/X000010",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000010",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "MISSING",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000011",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000011",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "Z1",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[01])",
         "method": "GET"
       },
       "response": {
