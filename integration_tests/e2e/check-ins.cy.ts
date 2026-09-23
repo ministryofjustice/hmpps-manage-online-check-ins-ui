@@ -41,6 +41,8 @@ import { getCheckinUuid } from '../utils/common'
 const CRN_TIER_AB = 'X000004'
 const CRN_TIER_C = 'X000002'
 const CRN_TIER_DG = 'X000001'
+// Stubbed to answer false for the supervision-package check - see wiremock/mappings/eSupervisionAPI.json.
+const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
 // The two ways a tier can be unusable. X000010 answers with the score 'MISSING', which is how the
 // API reports a person with no tier assigned; X000009's header endpoint 404s, which getPersonalDetails
 // coerces to an empty score and which means the same thing. X000011 answers with a score that is
@@ -70,11 +72,13 @@ const startSetupTiersAB = () => {
   return new TiersABEligibilityCheckPage()
 }
 
-// Tiers D-G are eligible on a supervision package alone and go straight from is-eligible to
-// date-frequency - the shortest route to the pages that follow eligibility.
+// Tiers D-G are eligible on the ESUP supervision-package answer alone and go straight from
+// is-eligible to date-frequency - the shortest route to the pages that follow eligibility.
+// "None of these apply" is how an eligible person is submitted now that every other box is a
+// disqualifier; validation still requires an answer.
 const completeEligibilityCheck = () => {
   const checkPage = new EligibilityCheckPage()
-  checkPage.getSupervisionPackage().click()
+  checkPage.getNone().click()
   checkPage.getSubmitBtn().click()
   const isEligiblePage = new IsEligiblePage()
   isEligiblePage.confirmDiscussion()
@@ -93,7 +97,6 @@ const passEligibilityCheck = (crn: string = CRN_TIER_DG) => {
 // so the rationale specs come through here.
 const passEligibilityCheckToRationale = () => {
   const checkPage = startSetupTiersAB()
-  checkPage.getSupervisionPackage().click()
   checkPage.getAccreditedProgramme().click()
   checkPage.getSubmitBtn().click()
   const isEligiblePage = new IsEligiblePage()
@@ -127,7 +130,6 @@ context('Appointment check-ins', () => {
   describe('eligibility, tiers A and B', () => {
     it('routes the accredited programme cohort through approval and rationale', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
       checkPage.getAccreditedProgramme().click()
       checkPage.getSubmitBtn().click()
 
@@ -151,7 +153,7 @@ context('Appointment check-ins', () => {
     // pilot cohort is the only way through.
     it('asks about the pilot cohort when the person is not on an accredited programme', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -169,7 +171,6 @@ context('Appointment check-ins', () => {
     // no pilot question left to fall back on.
     it('rules the programme cohort out when the person is in early engagement', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
       checkPage.getAccreditedProgramme().click()
       checkPage.getEarlyEngagement().click()
       checkPage.getSubmitBtn().click()
@@ -182,7 +183,6 @@ context('Appointment check-ins', () => {
     // Both exclusions at once are listed beneath the clause rather than reported one at a time.
     it('lists both programme exclusions when both apply', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
       checkPage.getAccreditedProgramme().click()
       checkPage.getYouthSentence().click()
       checkPage.getEarlyEngagement().click()
@@ -198,7 +198,6 @@ context('Appointment check-ins', () => {
     // Off the programme branch neither exclusion matters, so the pilot cohort still decides.
     it('ignores early engagement when the person is not on an accredited programme', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
       checkPage.getEarlyEngagement().click()
       checkPage.getSubmitBtn().click()
 
@@ -218,7 +217,7 @@ context('Appointment check-ins', () => {
     // ruled them out are listed.
     it('rules the person out when they are not in the pilot cohort', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -237,7 +236,7 @@ context('Appointment check-ins', () => {
 
     it('shows a validation error when the pilot cohort question is not answered', () => {
       const checkPage = startSetupTiersAB()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -260,7 +259,7 @@ context('Appointment check-ins', () => {
 
     it('always asks about the pilot cohort', () => {
       const checkPage = startSetup(CRN_TIER_C)
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -276,7 +275,7 @@ context('Appointment check-ins', () => {
 
     it('rules the person out with the tier C pilot reason', () => {
       const checkPage = startSetup(CRN_TIER_C)
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -291,7 +290,7 @@ context('Appointment check-ins', () => {
   describe('eligibility, tiers D to G', () => {
     it('is eligible outright, with no pilot check', () => {
       const checkPage = startSetup(CRN_TIER_DG)
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()
@@ -311,14 +310,28 @@ context('Appointment check-ins', () => {
   })
 
   describe('eligibility, rules that apply to every tier', () => {
-    // "None of these apply" is how the practitioner says the person meets none of the criteria -
-    // including the supervision package they need, so it rules them out.
-    it('rules the person out when they are not on a supervision package', () => {
+    // The supervision package is no longer asked about - the ESUP API answers it
+    it('does not ask the practitioner about the supervision package', () => {
+      startSetup()
+      cy.get('input[value="supervisionPackage"]').should('not.exist')
+    })
+
+    // A blanket failure whatever the tier - the eligibility-check form is skipped entirely since
+    // no checkbox on it could change this outcome. See getEligibilityPage in check-ins.ts.
+    it('sends the person straight to not-eligible when the ESUP API says they are not on a supervision package', () => {
+      loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+      new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+    })
+
+    // Every remaining box rules the person out, so this is how an eligible person is submitted.
+    it('lets the person through when none of the boxes apply', () => {
       const checkPage = startSetup()
       checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
-      new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+      // The Page constructor asserts the heading, so constructing it is the assertion.
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.checkOnPage()
     })
 
     // Leaving the group untouched is neither an answer nor a way of saying none of them apply -
@@ -332,7 +345,6 @@ context('Appointment check-ins', () => {
 
     it('rules the person out when they have been recalled', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
       checkPage.getRecalled().click()
 
       checkPage.getSubmitBtn().click()
@@ -347,7 +359,6 @@ context('Appointment check-ins', () => {
     // one at a time - the disqualifiers are whole clauses, so there is no stem above them.
     it('lists every disqualifier when several apply', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
       checkPage.getRecalled().click()
       checkPage.getFinalThird().click()
       checkPage.getSubmitBtn().click()
@@ -360,7 +371,6 @@ context('Appointment check-ins', () => {
 
     it('rules the person out in the final third of their sentence', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
       checkPage.getFinalThird().click()
       checkPage.getSubmitBtn().click()
 
@@ -369,7 +379,6 @@ context('Appointment check-ins', () => {
 
     it('rules the person out with a device or internet restriction', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
       checkPage.getDeviceRestriction().click()
       checkPage.getSubmitBtn().click()
 
@@ -380,7 +389,7 @@ context('Appointment check-ins', () => {
     // happened yet, which is guidance rather than a validation error.
     it('sends the practitioner to speak to the person when the discussion is incomplete', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()
@@ -394,7 +403,7 @@ context('Appointment check-ins', () => {
     // same route.
     it('sends the practitioner to speak to the person when they have not done all of these', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()
@@ -408,7 +417,7 @@ context('Appointment check-ins', () => {
     // an answer.
     it('shows a validation error when no discussion box is ticked', () => {
       const checkPage = startSetup()
-      checkPage.getSupervisionPackage().click()
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const isEligiblePage = new IsEligiblePage()

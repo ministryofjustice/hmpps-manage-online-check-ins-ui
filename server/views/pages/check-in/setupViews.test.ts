@@ -105,12 +105,11 @@ describe('eligibility/eligibility-check', () => {
     )
 
   // Every band ends with the exclusive "None of these apply".
-  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction', 'none']
+  const allTiers = ['recalled', 'finalThird', 'deviceRestriction', 'none']
 
   it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
     expect(valuesIn(html)).toEqual([
-      'supervisionPackage',
       'accreditedProgramme',
       'recalled',
       'finalThird',
@@ -190,15 +189,9 @@ describe('eligibility/not-eligible', () => {
     expect(html).not.toContain('reasonBullets')
   })
 
-  // The offer is made whatever the reason - see getNotEligiblePage.
-  it('always offers to check eligibility again', async () => {
-    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
-    expect(html).toContain('you can go back and check eligibility again')
-  })
-
   // The reason came from an answer given there, so going back is a real way to revisit it.
   it('links back to the eligibility check for a reason the practitioner answered', async () => {
-    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
 

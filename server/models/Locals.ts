@@ -1,6 +1,6 @@
 import type { Response } from 'express'
 import { Errors } from './Errors'
-import { OffenderByCRNResponse } from '../data/model/esupervision'
+import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface LocalsUser {
   userId?: string
@@ -53,6 +53,7 @@ export interface AppLocals extends Record<string, unknown> {
   uploadError?: string
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
+  supervisionPackageStatus?: SupervisionPackageStatus | null
   flags?: FeatureFlags
 }
 

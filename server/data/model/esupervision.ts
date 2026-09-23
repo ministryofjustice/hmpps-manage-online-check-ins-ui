@@ -318,3 +318,7 @@ export interface OffenderHeaderDetails {
 export interface PractitionerAlertsResponse {
   count: number
 }
+
+export interface SupervisionPackageStatus {
+  onSupervisionPackage: boolean
+}

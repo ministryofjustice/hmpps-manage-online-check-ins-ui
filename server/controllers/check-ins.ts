@@ -224,6 +224,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+
+      // A blanket failure if not on a supervision package
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(
+        req.session.data,
+        ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'],
+        onSupervisionPackage,
+      )
+      if (!onSupervisionPackage) {
+        const { reason, bullets } = nextAfterEligibilityCheck(band, false, [])
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      }
+
       return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
         crn,
         id,
@@ -253,7 +268,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
       const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
-      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
+      // Supplied by getSupervisionPackageStatus, which replaced the checkbox this used to read.
+      // Recorded like tierBand because restrictEligibilityAccess re-derives the outcome from the
+      // session on every later page, where the ESUP answer is no longer on res.locals.
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'], onSupervisionPackage)
+      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
+        band,
+        onSupervisionPackage,
+        selections,
+      )
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
       // Going back and unticking accredited programme after already completing approval and/or
@@ -427,6 +451,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const checkins = ['esupervision', crn, id, 'checkins']
+      const noSupervisionPackage = getDataValue(req.session.data, [...checkins, 'onSupervisionPackage']) === false
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,
         id,
@@ -434,10 +459,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
-        // Every other reason comes from an answer the practitioner gave and can revisit, so the page
-        // offers a way back to the eligibility check. A missing tier is not theirs to change, and
-        // going back would only rule the person out again - so that route is hidden for it.
         missingTier: getTierBand(res.locals.tierScore as string) === MISSING_TIER,
+        noSupervisionPackage,
       })
     }
   },
