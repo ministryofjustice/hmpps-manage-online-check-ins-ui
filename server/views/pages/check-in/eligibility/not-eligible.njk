@@ -6,12 +6,12 @@
 }) %}
 {% set back = back if back else '' %}
 {# Every other reason came from an answer given on the eligibility check, so going back there is a
-   real way to revisit it. A missing Tier is not an answer - the check would rule the person out
-   again the moment it loaded, looping straight back here - so the link leads to the case overview
-   instead. Checking again once a Tier has been assigned means starting the setup afresh.
-   An absent supervision package is not an answer either: it comes from the ESUP API, so going back
-   would loop the same way. #}
-{% set returnToOverviewPage = missingTier or noSupervisionPackage %}
+   real way to revisit it. None of the tier statuses is an answer - the check would rule the person
+   out again the moment it loaded, looping straight back here - so the link leads to the case
+   overview instead. Checking again once a final Tier has been assigned means starting the setup
+   afresh. An absent supervision package is not an answer either: it comes from the ESUP API, so
+   going back would loop the same way. #}
+{% set returnToOverviewPage = missingTier or provisionalTier or notSupervised or noSupervisionPackage %}
 {% set backLink = '/case/' + crn if returnToOverviewPage else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
@@ -23,12 +23,27 @@
    nextAfterPilotCheck. #}
 
 {% block form %}
-    {# A missing Tier is the one reason that is about the record rather than the person, so it reads
-       "they" and explains how a Tier comes to be assigned, in place of both the named sentence
-       above and the standard invitation below. #}
-    {% if missingTier %}
+    {# The tier statuses are the reasons that are about the record rather than the person, so they read
+       "they" and explain what the status means, in place of both the named sentence above and the
+       standard invitation below. A score is either missing or NOT_SUPERVISED, never both, so only
+       their order against `provisionalTier` matters - and both win, as they do in the controller,
+       since a person with no score at all or no supervision has no Tier to call provisional.
+       Not being supervised is the one status that cannot clear, so it offers what might explain it
+       rather than inviting the practitioner to check again. #}
+    {% if notSupervised %}
+        <p class="govuk-body" data-qa="notSupervised">This is because they are not currently being supervised</p>
+        <p class="govuk-body">This could be because they have:</p>
+        <ul class="govuk-list govuk-list--bullet" data-qa="notSupervisedReasons">
+            <li>passed away</li>
+            <li>been recalled to prison</li>
+            <li>have finished their probation</li>
+        </ul>
+    {% elif missingTier %}
         <p class="govuk-body" data-qa="missingTier">This is because they have not been assigned a Tier yet.</p>
         <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their Tier. You can come back and check eligibility again.</p>
+    {% elif provisionalTier %}
+        <p class="govuk-body" data-qa="provisionalTier">This is because they are currently in a provisional Tier.</p>
+        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their final Tier. You can come back and check eligibility again. </p>
     {% elif reasonBullets and reasonBullets | length %}
         <p class="govuk-body">This is because {{case.name.forename}}{{ " " + reason if reason }}:</p>
         <ul class="govuk-list govuk-list--bullet" data-qa="reasonBullets">

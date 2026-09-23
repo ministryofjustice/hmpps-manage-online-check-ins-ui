@@ -22,7 +22,7 @@
 {% set formAnchorText = "Cancel and go back" %}
 {% set back = back if back else '' %}
 {% set notStandardForm = true %}
-{% set buttonText = "Confirm and sign up" %}
+{% set buttonText = "Continue" %}
 {# What the practitioner has already ticked. Passed to the macro as `values`, which ticks the matching
    boxes for us, so the items below are just their wording. #}
 {% set currentDiscussion = data.esupervision[crn][id].checkins.discussion or [] %}

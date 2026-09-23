@@ -46,7 +46,7 @@
     },
     {
       "request": {
-        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[01])/personal-details",
+        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-3])/personal-details",
         "method": "GET"
       },
       "response": {
@@ -150,7 +150,46 @@
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[01])",
+        "urlPathPattern": "/v2/offenders/header/X000012",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000012",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "D1",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM",
+          "tierProvisional": true
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000013",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000013",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "NOT_SUPERVISED",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-3])",
         "method": "GET"
       },
       "response": {

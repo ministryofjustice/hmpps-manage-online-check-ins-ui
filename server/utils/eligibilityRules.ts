@@ -69,6 +69,18 @@ export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
 // keeping the shape the same as every other reason.
 export const missingTierReason = 'has not been assigned a Tier yet'
 
+// A provisional tier is the same kind of fact as a missing one: the score the header reports is not
+// the person's final Tier, so the rules have nothing they can be applied to yet. It is worded
+// impersonally by not-eligible.njk for the same reason, and clears once the risk scores are done -
+// hence the same invitation to come back and check again.
+export const provisionalTierReason = 'is in a provisional Tier'
+
+// 'NOT_SUPERVISED' says the person is no longer on probation, so there is nothing to set check ins
+// up for - a disqualification on its own, like a missing tier. Unlike the other two tier statuses
+// this one cannot clear, so the page offers reasons it might apply rather than inviting the
+// practitioner to check again.
+export const notSupervisedReason = 'is not currently being supervised'
+
 // The clause that completes "This is because <forename> …", with the facts to list beneath it when
 // several apply at once.
 interface EligibilityReason {

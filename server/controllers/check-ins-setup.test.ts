@@ -151,6 +151,49 @@ describe('check-in setup flow', () => {
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
     })
 
+    // No longer being supervised rules the person out outright - there is nothing to set check ins
+    // up for - so like a missing tier it skips the questions entirely.
+    it('rules the person out when they are not currently being supervised', async () => {
+      const req = requestFor()
+      const res = responseForTier('NOT_SUPERVISED', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe(
+        'is not currently being supervised',
+      )
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
+      expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // A provisional tier is a readable score, so the rules would happily apply to it - but it is not
+    // the person's final Tier, so it is ruled out before any question is asked, the same as a
+    // missing one.
+    it('rules the person out when their tier is only provisional', async () => {
+      const req = requestFor()
+      const res = responseForTier('D1', {
+        tierProvisional: true,
+        supervisionPackageStatus: { onSupervisionPackage: true },
+      })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('is in a provisional Tier')
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
+      expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // Only an explicit true rules the person out: getPersonalDetails resolves an absent flag to
+    // false, but a stubbed or older header that omits it must not strand every case on not-eligible.
+    it('lets a settled tier through when the header reports no provisional flag', async () => {
+      const req = requestFor()
+      const res = responseForTier('D1', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/eligibility-check.njk',
+        expect.objectContaining({ tierBand: 'DG' }),
+      )
+      expect(res.redirect).not.toHaveBeenCalled()
+    })
+
     // A blanket failure whatever the tier - there is nothing the checkboxes could change, so
     // this skips the form entirely rather than showing questions that cannot affect the outcome.
     it('sends the person straight to not-eligible when the ESUP call says no supervision package', async () => {
@@ -305,6 +348,33 @@ describe('check-in setup flow', () => {
       await controllers.checkIns.postEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('has not been assigned a Tier yet')
+    })
+
+    it('rules the person out when they are not currently being supervised', async () => {
+      const req = requestFor({
+        esupervision: { [crn]: { [id]: { checkins: { eligibility: ['none'] } } } },
+      })
+      const res = responseForTier('NOT_SUPERVISED', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.postEligibilityPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe(
+        'is not currently being supervised',
+      )
+    })
+
+    // The GET rules a provisional tier out before the form renders, so a post can only arrive by a
+    // direct submission or a flag that turned true mid-journey - either way the answers are ignored.
+    it('rules the person out when their tier is only provisional, whatever they answered', async () => {
+      const req = requestFor({
+        esupervision: { [crn]: { [id]: { checkins: { eligibility: ['none'] } } } },
+      })
+      const res = responseForTier('D1', {
+        tierProvisional: true,
+        supervisionPackageStatus: { onSupervisionPackage: true },
+      })
+      await controllers.checkIns.postEligibilityPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('is in a provisional Tier')
     })
   })
 

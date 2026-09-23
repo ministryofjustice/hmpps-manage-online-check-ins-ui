@@ -30,10 +30,17 @@ describe('utils/getTierBand', () => {
     expect(getTierBand('   ')).toEqual('MISSING')
     expect(getTierBand(undefined)).toEqual('MISSING')
   })
+  // 'NOT_SUPERVISED' says the person is no longer on probation, which rules them out outright rather
+  // than being a tier the rules could be applied to.
+  it('should pass a person who is not supervised through as its own status', () => {
+    expect(getTierBand('NOT_SUPERVISED')).toEqual('NOT_SUPERVISED')
+    expect(getTierBand(' not_supervised ')).toEqual('NOT_SUPERVISED')
+  })
   it('should return null when a tier is present but cannot be read', () => {
     expect(getTierBand('Z1')).toBeNull()
-    // 'MISSING' is read whole, so a tier that merely starts with M is not mistaken for it - and M
-    // is not a band either.
+    // The statuses are read whole, so a tier that merely starts with one of their letters is not
+    // mistaken for them - and neither M nor N is a band.
     expect(getTierBand('M1')).toBeNull()
+    expect(getTierBand('N1')).toBeNull()
   })
 })
