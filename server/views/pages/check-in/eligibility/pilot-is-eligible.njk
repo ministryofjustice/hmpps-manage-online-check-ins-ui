@@ -1,0 +1,12 @@
+{# The pilot-cohort route in, shared by Tiers A/B and C - the wording is the same for both, so
+   eligibilityViews points both bands at this file. #}
+{% extends "./_is-eligible.njk" %}
+
+{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/pilot-check' %}
+
+{% block eligibilityReason %}
+    <p class="govuk-body">This is because they are in Tier {{tierScore}} and you have one or more people who were using online check ins before 1 October 2026</p>
+
+    <p class="govuk-body">We are piloting using online check ins with people in Tiers A to C for all practitioners who have one or more people on their caseload who started using online check ins before 1 October 2026. This pilot will run until March 2027. After this a decision will be made about whether to allow all people in Tiers A to C to use online check ins. </p>
+    <p class="govuk-body">If you think this is wrong you can go back and perform the eligibility check again.</p>
+{% endblock %}

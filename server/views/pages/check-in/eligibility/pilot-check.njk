@@ -1,0 +1,53 @@
+{% extends "../../_form.njk" %}
+{% set pageTitleText = "Do you have one or more people who started using online check ins before 1 October 2026?" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{% set buttonText = "Continue" %}
+{% set radioText = "Do you have one or more people who started using online check ins before 1 October 2026?" %}
+{% set currentChoice = data.esupervision[crn][id].checkins.pilotCheck %}
+
+{% block form %}
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-full">
+
+            {{ govukRadios({
+                name: "esupervision[" + crn + "][" + id + "][checkins][pilotCheck]",
+                fieldset: {
+                    legend: {
+                        text: radioText,
+                        classes: "govuk-fieldset__legend--l",
+                        isPageHeading: false
+                    }
+                },
+                formGroup: {
+                    attributes: {
+                        'data-qa': 'pilot-check'
+                    }
+                },
+                errorMessage: {
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-checkins-pilotCheck"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-checkins-pilotCheck"],
+                items: [
+                    {
+                        value: 'true',
+                        text: "Yes",
+                        checked: currentChoice == 'true'
+                    },
+                    {
+                        value: 'false',
+                        text: "No",
+                        checked: currentChoice == 'false'
+                    }
+                ]
+            } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'pilotCheck'])) }}
+        </div>
+    </div>
+{% endblock %}

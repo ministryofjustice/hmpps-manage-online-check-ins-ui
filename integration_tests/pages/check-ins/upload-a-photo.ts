@@ -2,7 +2,7 @@ import Page, { PageElement } from '../page'
 
 export default class UploadAPhotoPage extends Page {
   constructor() {
-    super('Upload a photo of Caroline')
+    super('Upload a photo of ')
   }
 
   getBackLink = (): PageElement => cy.get('.govuk-back-link')
