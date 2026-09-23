@@ -22,18 +22,16 @@ export interface PersonalDetailsUpdateRequest {
   email?: string
 }
 
+export interface PDU {
+  code: string
+  description?: string
+}
+
 export interface ProbationPractitioner {
   code: string
   name: Name
   unallocated: boolean
   username: string
   email?: string
+  probationDeliveryUnit?: PDU
 }
-
-// export interface HeaderDetails {
-//   crn: string
-//   dateOfBirth: string
-//   tierScore: string
-//   tierDetailsLink: string
-//   overallRisk: string
-// }

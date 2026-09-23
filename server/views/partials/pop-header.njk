@@ -17,39 +17,93 @@
 } %}
 
 {% set riskBadges %}
-    {% if riskData.assessments[0].combinedSeriousReoffendingPredictor.band != "NOT APPLICABLE" %}
-        {{ predictorBadge({
+{% if riskData
+        .assessments[0]
+        .combinedSeriousReoffendingPredictor
+        .band != "NOT APPLICABLE" %}
+
+{{ predictorBadge({
             data: riskData,
             predictor: 'combinedSeriousReoffendingPredictor',
             showScore: true
-        }) }}
-        {% if riskData.assessments[0].rsr.band %}
-            {{ predictorBadge({
+        })}}
+
+{% if riskData
+            .assessments[0]
+            .rsr
+            .band %}
+{{ predictorBadge({
                 data: riskData,
                 predictor: 'rsr',
                 showScore: true
-            }) }}
-        {% endif %}
-        {% if overallRisk and overallRisk !== 'NOT_FOUND' %}
-            {{ predictorBadge({
+            })}}
+{% endif %}
+
+{% if overallRisk and overallRisk !== 'NOT_FOUND' %}
+{{ predictorBadge({
                 data: riskDataRosh,
                 predictor: 'rosh',
                 showScore: false
-            }) }}
-        {% endif %}
+            })}}
+{% endif %}
+{% endif %}
+{% endset %}
+
+{% set personRiskFlags %}
+{% for group in riskBadgeData.groups %}
+{% for risk in group.badges %}
+<a
+        href="/case/{{ headerCRN }}/risk/flag/{{ risk.id }}"
+        class="risk-badge-link"
+        data-qa="risk-badge-{{ risk.id }}"
+>
+    {{ mojBadge({
+                    text: risk.text,
+                    classes: risk.badgeClass
+                }) }}
+</a>
+{% endfor %}
+{% endfor %}
+
+{% if riskBadgeData.remainingCount > 0 %}
+<a
+        href="/case/{{ headerCRN }}/risk"
+        class="govuk-link risk-badge-more"
+        data-qa="risk-badge-more"
+>
+    +{{ riskBadgeData.remainingCount }} active risk flags
+</a>
+{% endif %}
+{% endset %}
+
+
+
+{% set combinedRiskBadges %}
+    {% if riskBadges and (riskBadges | trim) %}
+        <div class="pop-header-risk-badges">
+            {{ riskBadges | safe }}
+        </div>
+    {% endif %}
+    {% if personRiskFlags and (personRiskFlags | trim) %}
+        <div class="pop-header-risk-flags">
+            {{ personRiskFlags | safe }}
+        </div>
     {% endif %}
 {% endset %}
 
 {% if flags.newDesignPopHeader %}
     {{ personHeader({
-        name: headerPersonName.forename + ' ' + headerPersonName.surname,
-        crn: headerCRN,
-        dob: headerDob | dateWithYear,
-        tier: tierScore,
-        historyHref: tierDetailsLink,
-        managedBy: practitioner.name.forename + ' ' + practitioner.name.surname if practitioner and not practitioner.unallocated else 'Unallocated',
-        riskBadges: riskBadges
-    }) }}
+          name: headerPersonName.forename + ' ' + headerPersonName.surname,
+          crn: headerCRN,
+          dob: headerDob | dateWithYear,
+          tier: tierScore or 'Missing',
+          historyHref: tierDetailsLink,
+          managedBy: managedBy.text,
+          managedByHref: managedBy.href,
+          photo: null,
+          riskBadges: combinedRiskBadges,
+          personRiskFlags: combinedRiskBadges
+      }) }}
 {% else %}
     <div class="govuk-flex">
         <div>
