@@ -6,6 +6,8 @@ import setDataValue from '../../utils/setDataValue'
 import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
 import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
+import getTierBand, { MISSING_TIER } from '../../utils/getTierBand'
+import { eligibilityViews } from '../../utils/eligibilityRules'
 
 const eSuperVision: Route<void> = (req, res, next) => {
   const { url, params, body } = req
@@ -71,47 +73,41 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   const validateSetupFlow = () => {
-    validateSetupPage('eligibility-check', 'eligibility-check', 'eligibility-check')
     validateSetupPage('instructions', 'instructions', 'instructions')
-    validateSetupPage('full-eligibility', 'eligibility-full', 'full-eligibility')
-    validateSetupPage('spo-approval', 'spo-approval', 'spo-approval')
+    // The eligibility pages live in per-tier subfolders, which the generic render derivation
+    // from the URL cannot reach, so each passes its view explicitly.
+    // A missing tier never reaches these pages - the controller rules the person out first - so
+    // there is no view to re-render for it, the same as for a tier we cannot read at all.
+    const tierStatus = getTierBand(res.locals.tierScore as string)
+    const band = tierStatus === MISSING_TIER ? null : tierStatus
+    if (band) {
+      // The shared eligibility-check template renders the Tier A/B-only checkboxes off this, so a
+      // re-render with errors has to pass it or those boxes would disappear.
+      localParams.tierBand = band
+      validateSetupPage('eligibility-check', eligibilityViews[band]['eligibility-check'], 'eligibility-check')
+      if (band !== 'DG') {
+        validateSetupPage('pilot-check', eligibilityViews[band]['pilot-check'], 'pilot-check')
+      }
+      const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
+      const isEligibleView = band === 'AB' && accreditedProgramme ? 'accredited-programme-is-eligible' : 'is-eligible'
+      validateSetupPage('is-eligible', eligibilityViews[band][isEligibleView], 'is-eligible')
+    }
     validateSetupPage('accredited-programme-approval', 'accredited-programme-approval', 'accredited-programme-approval')
     validateSetupPage('rationale', 'rationale', 'rationale')
     if (baseUrl.includes(setup('rationale'))) {
       // Mirrors getRationalePage's backLink logic - _form.njk only shows a back link when one
-      // is passed in, and this page's eligibility branch isn't derivable from cya alone.
-      const eligibility = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'eligibility']) || []
-      const eligibilityArray = Array.isArray(eligibility) ? eligibility : [eligibility]
-      const eligibilityChoice = sessionVal('checkins', 'eligibilityChoice')
-      const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
-      // ELIGIBILITY_V2_FLAG
-      if (res.locals.flags?.eligibilityFeatureToggle) {
-        localParams.accreditedProgramme = Boolean(accreditedProgramme)
-      }
-      if (cya === 'true') {
-        localParams.backLink = setup('checkin-summary')
-      } else if (res.locals.flags?.eligibilityFeatureToggle) {
-        // ELIGIBILITY_V2_FLAG
-        localParams.backLink = accreditedProgramme ? setup('accredited-programme-approval') : setup('instructions')
-      } else if (eligibilityChoice === 'REPLACE_F2F') {
-        localParams.backLink = setup('spo-approval')
-      } else if (eligibilityArray.includes('eligibility-none')) {
-        localParams.backLink = setup('full-eligibility')
-      } else {
-        localParams.backLink = setup('supplementary-eligibility')
-      }
+      // is passed in, and rationale is only reached by the accredited-programme cohort.
+      localParams.accreditedProgramme = Boolean(sessionVal('checkins', 'accreditedProgramme'))
+      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('accredited-programme-approval')
     }
 
     validateSetupPage('date-frequency', 'date-frequency', 'date-frequency')
     if (baseUrl.includes(setup('date-frequency'))) {
       if (cya === 'true') {
         localParams.backLink = setup('checkin-summary')
-      } else if (res.locals.flags?.eligibilityFeatureToggle) {
-        // ELIGIBILITY_V2_FLAG
-        const accreditedProgramme = sessionVal('checkins', 'accreditedProgramme')
-        localParams.backLink = accreditedProgramme ? setup('rationale') : setup('instructions')
       } else {
-        localParams.backLink = setup('rationale')
+        // Only the accredited-programme cohort passes through rationale on the way here.
+        localParams.backLink = sessionVal('checkins', 'accreditedProgramme') ? setup('rationale') : setup('is-eligible')
       }
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')

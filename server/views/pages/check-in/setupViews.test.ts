@@ -16,7 +16,12 @@ const base: Record<string, unknown> = {
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
   paths: { current: '/current' },
-  data: { esupervision: { [crn]: { [id]: { checkins: { eligibility: [] } } } }, features: {} },
+  data: {
+    esupervision: { [crn]: { [id]: { checkins: { eligibility: [], discussion: [], pilotCheck: 'true' } } } },
+    features: {},
+  },
+  tierScore: 'B1',
+  reason: 'is not on a supervision package',
   preferredComs: 'PHONE',
   contactPreference: 'mobile number',
   contactValue: '07700900000',
@@ -41,12 +46,15 @@ const base: Record<string, unknown> = {
 }
 
 const views = [
-  'eligibility-check',
-  'eligibility-full',
-  'eligibility-supplementary',
-  'eligibility-denied',
+  'eligibility/not-eligible',
+  'eligibility/discuss-before-signup',
+  // Shared across bands - see eligibilityViews in utils/eligibilityRules for which band gets what.
+  'eligibility/eligibility-check',
+  'eligibility/pilot-check',
+  'eligibility/pilot-is-eligible',
+  'eligibility/tiers-a-b/accredited-programme-is-eligible',
+  'eligibility/tiers-d-g/is-eligible',
   'rationale',
-  'spo-approval',
   'accredited-programme-approval',
   'date-frequency',
   'contact-preference',
@@ -85,5 +93,138 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+// One eligibility-check template serves every band, rendering the three Tier A/B-only questions
+// off `tierBand`. Asserting on the checkbox values keeps the bands from drifting into each other.
+describe('eligibility/eligibility-check', () => {
+  const valuesIn = (html: string): string[] =>
+    [...html.matchAll(/name="esupervision\[[^"]+\]\[checkins\]\[eligibility\]" type="checkbox" value="([^"]+)"/g)].map(
+      match => match[1],
+    )
+
+  // Every band ends with the exclusive "None of these apply".
+  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction', 'none']
+
+  it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
+    expect(valuesIn(html)).toEqual([
+      'supervisionPackage',
+      'accreditedProgramme',
+      'recalled',
+      'finalThird',
+      'deviceRestriction',
+      'youthSentence',
+      'earlyEngagement',
+      'none',
+    ])
+  })
+
+  it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(valuesIn(html)).toEqual(allTiers)
+  })
+
+  it.each(['AB', 'C', 'DG'])('makes "none of these apply" exclusive for tier %s', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(html).toContain('data-behaviour="exclusive"')
+  })
+})
+
+// The three is-eligible pages share their discussion checkboxes, and only the accredited-programme
+// one adds the point about check ins ending with the programme.
+describe('the is-eligible discussion checkboxes', () => {
+  const valuesIn = (html: string): string[] =>
+    [...html.matchAll(/name="esupervision\[[^"]+\]\[checkins\]\[discussion\]" type="checkbox" value="([^"]+)"/g)].map(
+      match => match[1],
+    )
+
+  const sharedPoints = ['optional', 'canStop', 'notEnforceable', 'moreTime']
+
+  it('adds the programme-only point for the accredited-programme cohort', async () => {
+    const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', base)
+    expect(valuesIn(html)).toEqual([...sharedPoints, 'programmeOnly', 'notAll'])
+    expect(html).toContain('They can only use online check ins while they are on an accredited programme')
+  })
+
+  it.each(['eligibility/pilot-is-eligible', 'eligibility/tiers-d-g/is-eligible'])(
+    'asks %s only the shared points',
+    async view => {
+      expect(valuesIn(await render(view, base))).toEqual([...sharedPoints, 'notAll'])
+    },
+  )
+
+  // The boxes are ticked from the stored answers via the macro's `values`, so a practitioner sent
+  // back here does not lose what they had already confirmed.
+  it('ticks the points already stored in the session', async () => {
+    const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', {
+      ...base,
+      data: {
+        esupervision: { [crn]: { [id]: { checkins: { discussion: ['canStop', 'programmeOnly'] } } } },
+        features: {},
+      },
+    })
+    const checked = [...html.matchAll(/value="([^"]+)" checked/g)].map(match => match[1])
+    expect(checked).toEqual(['canStop', 'programmeOnly'])
+  })
+})
+
+// not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
+// exercised - the list case would otherwise never be rendered by these smoke tests.
+describe('eligibility/not-eligible', () => {
+  it('lists the reasons when more than one ruled the person out', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: '',
+      reasonBullets: ['has been recalled to prison', 'is in the final third of their sentence'],
+    })
+    expect(html).toContain('This is because Bob:')
+    expect(html).toContain('<li>has been recalled to prison</li>')
+    expect(html).toContain('<li>is in the final third of their sentence</li>')
+  })
+
+  it('reads a single reason as one sentence', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
+    expect(html).toContain('This is because Bob has been recalled to prison.')
+    expect(html).not.toContain('reasonBullets')
+  })
+
+  // The offer is made whatever the reason - see getNotEligiblePage.
+  it('always offers to check eligibility again', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    expect(html).toContain('you can go back and check eligibility again')
+  })
+
+  // The reason came from an answer given there, so going back is a real way to revisit it.
+  it('links back to the eligibility check for a reason the practitioner answered', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+
+  // A missing Tier is about the record rather than the person, so it reads "they" and explains how a
+  // Tier comes to be assigned, in place of the named sentence the other reasons complete.
+  it('words a missing tier impersonally and says how a Tier is assigned', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'has not been assigned a Tier yet',
+      missingTier: true,
+    })
+    expect(html).toContain('This is because they have not been assigned a Tier yet.')
+    expect(html).toContain('once their risk scores have been completed and the system has calculated their Tier')
+    expect(html).toContain('You can come back and check eligibility again')
+    expect(html).not.toContain('This is because Bob')
+  })
+
+  // The eligibility check would rule the person out again the moment it loaded, looping straight
+  // back here, so the back link leads to the case overview instead.
+  it('links a missing tier back to the case overview rather than the eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'has not been assigned a Tier yet',
+      missingTier: true,
+    })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('check-in/eligibility-check')
   })
 })

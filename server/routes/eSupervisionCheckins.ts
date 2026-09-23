@@ -14,6 +14,7 @@ import postRedirectWizard from '../middleware/checkinCyaRedirect'
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
+import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
@@ -38,18 +39,6 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   // getPersonalDetails supplies res.locals.case, which every page renders in its heading.
   router.get('/case/:crn/appointments/check-in/eligibility-check', [controllers.checkIns.getStartSetup()])
 
-  router.get('/case/:crn/appointments/:id/check-in/eligibility-check', [
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getEligibilityPage(hmppsAuthClient),
-  ])
-  router.post(
-    '/case/:crn/appointments/:id/check-in/eligibility-check',
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    validate.eSuperVision,
-    autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postEligibilityPage(),
-  )
-
   router.get('/case/:crn/appointments/:id/check-in/instructions', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getInstructionsPage(hmppsAuthClient),
@@ -62,58 +51,78 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postInstructionsPage(),
   )
 
-  router.get('/case/:crn/appointments/:id/check-in/denied-eligibility', [
+  // The eligibility pages are one route each rather than one per tier - the controller picks
+  // the template for the person's tier band, so the URLs stay stable across tiers and back
+  // links, ?cya= links and restrictPageAccess don't need to know about bands.
+  router.get('/case/:crn/appointments/:id/check-in/eligibility-check', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getEligibilityDeniedPage(),
+    controllers.checkIns.getEligibilityPage(hmppsAuthClient),
   ])
   router.post(
-    '/case/:crn/appointments/:id/check-in/denied-eligibility',
-    controllers.checkIns.postEligibilityDeniedPage(),
-  )
-
-  router.get('/case/:crn/appointments/:id/check-in/full-eligibility', [
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getFullEligibilityPage(),
-  ])
-  router.post(
-    '/case/:crn/appointments/:id/check-in/full-eligibility',
+    '/case/:crn/appointments/:id/check-in/eligibility-check',
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postFullEligibilityPage(),
+    controllers.checkIns.postEligibilityPage(),
   )
 
-  router.get('/case/:crn/appointments/:id/check-in/supplementary-eligibility', [
+  router.get('/case/:crn/appointments/:id/check-in/pilot-check', [
+    restrictPageAccess({ requiredValues: ['eligibility'] }),
+    restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getSupplementaryEligibilityPage(),
+    controllers.checkIns.getPilotCheckPage(),
   ])
   router.post(
-    '/case/:crn/appointments/:id/check-in/supplementary-eligibility',
-    autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postSupplementaryEligibilityPage(),
-  )
-
-  router.get('/case/:crn/appointments/:id/check-in/spo-approval', [
-    restrictPageAccess({ requiredValues: ['eligibility', 'eligibilityChoice'] }),
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getSPOApprovalPage(),
-  ])
-  router.post(
-    '/case/:crn/appointments/:id/check-in/spo-approval',
+    '/case/:crn/appointments/:id/check-in/pilot-check',
+    restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
-    postRedirectWizard(),
-    controllers.checkIns.postSPOApprovalPage(),
+    controllers.checkIns.postPilotCheckPage(),
   )
 
+  router.get('/case/:crn/appointments/:id/check-in/is-eligible', [
+    restrictPageAccess({ requiredValues: ['eligibility'] }),
+    restrictEligibilityAccess('is-eligible'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getIsEligiblePage(),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/is-eligible',
+    restrictEligibilityAccess('is-eligible'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postIsEligiblePage(),
+  )
+
+  router.get('/case/:crn/appointments/:id/check-in/not-eligible', [
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getNotEligiblePage(),
+  ])
+  router.post('/case/:crn/appointments/:id/check-in/not-eligible', controllers.checkIns.postNotEligiblePage())
+
+  router.get('/case/:crn/appointments/:id/check-in/discuss-before-signup', [
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getDiscussBeforeSignupPage(),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/discuss-before-signup',
+    controllers.checkIns.postDiscussBeforeSignupPage(),
+  )
+
+  // From here to the summary the person must actually be eligible and their practitioner must have
+  // confirmed they have had their discussion - restrictPageAccess alone would let a not-eligible case that has an
+  // id in session deep-link past the eligibility gates and complete a setup.
   router.get('/case/:crn/appointments/:id/check-in/accredited-programme-approval', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getAccreditedProgrammeApprovalPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/accredited-programme-approval',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
@@ -123,11 +132,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/rationale', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getRationalePage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/rationale',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
@@ -137,11 +148,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/:id/check-in/date-frequency', [
     restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getDateFrequencyPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/date-frequency',
+    restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
