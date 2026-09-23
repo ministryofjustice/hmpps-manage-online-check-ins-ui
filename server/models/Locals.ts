@@ -21,7 +21,12 @@ export interface FeatureFlagDescriptor {
 }
 
 // Add Flipt flags here with their type
-export const featureFlags: FeatureFlagDescriptor[] = [{ key: 'newDesignPopHeader', type: 'boolean' }]
+export const featureFlags: FeatureFlagDescriptor[] = [
+  { key: 'eligibilityFeatureToggle', type: 'boolean' },
+  { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
+  { key: 'newDesignPopHeader', type: 'boolean' },
+  { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
+]
 
 export type FeatureFlags = Record<string, boolean | string | undefined>
 

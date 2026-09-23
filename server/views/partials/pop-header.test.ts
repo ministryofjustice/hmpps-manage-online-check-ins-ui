@@ -38,7 +38,12 @@ describe('pop-header', () => {
   })
 
   describe('new header (flags.newDesignPopHeader on)', () => {
-    it('shows the practitioner name and hands off risk badges when allocated', async () => {
+    const managedBy = {
+      text: 'Jane Doe (London PDU)',
+      href: 'https://mpop/case/X000001/personal-details/staff-contacts',
+    }
+
+    it('shows the managed-by link and hands off risk badges', async () => {
       const html = await render({
         flags: { newDesignPopHeader: true },
         overallRisk: 'HIGH',
@@ -54,34 +59,38 @@ describe('pop-header', () => {
             },
           ],
         },
-        practitioner: { name: { forename: 'Jane', surname: 'Doe' }, unallocated: false },
+        managedBy,
       })
 
       expect(html).toContain('person-header')
       expect(html).not.toContain('govuk-flex')
-      expect(html).toContain('Jane Doe')
-      expect(html).not.toContain('Unallocated')
+      expect(html).toContain('Jane Doe (London PDU)')
+      expect(html).toContain(`href='${managedBy.href}'`)
       expect(html).toContain('data-badge-base="OSP/C HIGH"')
       expect(html).toContain('data-badge-base="RISK OF SERIOUS HARM HIGH"')
     })
 
-    it('falls back to Unallocated when the practitioner is flagged unallocated', async () => {
+    it('renders whatever managed-by text it is given, such as Unallocated', async () => {
       const html = await render({
         flags: { newDesignPopHeader: true },
-        practitioner: { name: { forename: 'Jane', surname: 'Doe' }, unallocated: true },
+        managedBy: { ...managedBy, text: 'Unallocated' },
       })
 
       expect(html).toContain('Unallocated')
       expect(html).not.toContain('Jane Doe')
     })
 
-    it('falls back to Unallocated when the practitioner is missing', async () => {
-      const html = await render({
-        flags: { newDesignPopHeader: true },
-        practitioner: null,
-      })
+    it('shows the tier score when present', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy })
 
-      expect(html).toContain('Unallocated')
+      expect(html).toContain('>B1<')
+      expect(html).not.toContain('Missing')
+    })
+
+    it('shows Missing when the tier score is absent', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy, tierScore: '' })
+
+      expect(html).toContain('>Missing<')
     })
   })
 })
