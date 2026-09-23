@@ -59,7 +59,11 @@
           },
           "unallocated": false,
           "username": "TestPractitioner",
-          "email": "test.practitioner@example.com"
+          "email": "test.practitioner@example.com",
+          "probationDeliveryUnit": {
+            "code": "PDU001",
+            "description": "London Probation Delivery Unit"
+          }
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"

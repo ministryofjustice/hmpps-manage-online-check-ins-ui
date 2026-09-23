@@ -7,11 +7,12 @@ import { CachedPersonalDetails } from '../data/Data'
 import ESupervisionClient from '../data/eSupervisionClient'
 import renderError from './renderError'
 import { OffenderByCRNResponse } from '../data/model/esupervision'
+import { getManagedByDetails } from '../utils/getManagedByDetails'
+import config from '../config'
 
 type PartialOffenderByCRNResponse = Partial<OffenderByCRNResponse>
 
-// Local dev sessions are long-lived, so a stale cache entry can hide API changes being worked on.
-const shouldBypassCache = () => process.env.NODE_ENV === 'development'
+const shouldBypassCache = () => !config.production
 
 function readCache(req: Request, crn: string): CachedPersonalDetails | undefined {
   return shouldBypassCache() ? undefined : req.session.data?.personalDetails?.[crn]
@@ -39,8 +40,6 @@ async function fetchPersonalDetails(
   return { offenderDetails, practitionerDetails, headerDetails, riskData }
 }
 
-// An offender record doesn't exist until setup is complete, so a missing record falls back
-// to the personal-details-only endpoint rather than being treated as a 404 outright.
 async function resolveOffenderDetails(
   eSupervisionClient: ESupervisionClient,
   crn: string,
@@ -84,6 +83,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
   res.locals.overallRisk = headerDetails?.overallRisk || ''
   res.locals.practitioner = practitionerDetails ?? null
+  res.locals.managedBy = getManagedByDetails(crn, practitionerDetails)
 }
 
 export const getPersonalDetails = (
