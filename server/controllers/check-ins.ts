@@ -451,6 +451,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const checkins = ['esupervision', crn, id, 'checkins']
+      const noSupervisionPackage = getDataValue(req.session.data, [...checkins, 'onSupervisionPackage']) === false
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,
         id,
@@ -458,10 +459,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
-        // Every other reason comes from an answer the practitioner gave and can revisit, so the page
-        // offers a way back to the eligibility check. A missing tier is not theirs to change, and
-        // going back would only rule the person out again - so that route is hidden for it.
         missingTier: getTierBand(res.locals.tierScore as string) === MISSING_TIER,
+        noSupervisionPackage,
       })
     }
   },

@@ -8,8 +8,11 @@
 {# Every other reason came from an answer given on the eligibility check, so going back there is a
    real way to revisit it. A missing Tier is not an answer - the check would rule the person out
    again the moment it loaded, looping straight back here - so the link leads to the case overview
-   instead. Checking again once a Tier has been assigned means starting the setup afresh. #}
-{% set backLink = '/case/' + crn if missingTier else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+   instead. Checking again once a Tier has been assigned means starting the setup afresh.
+   An absent supervision package is not an answer either: it comes from the ESUP API, so going back
+   would loop the same way. #}
+{% set returnToOverviewPage = missingTier or noSupervisionPackage %}
+{% set backLink = '/case/' + crn if returnToOverviewPage else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
 

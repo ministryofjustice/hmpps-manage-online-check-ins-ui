@@ -35,6 +35,10 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 
+    if (!toSelections(checkins.eligibility).length) {
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+
     // Recorded by postEligibilityPage from the ESUP call, since that answer is not fetched again on
     // the later pages this guards.
     const eligibility = nextAfterEligibilityCheck(
