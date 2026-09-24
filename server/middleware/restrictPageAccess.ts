@@ -22,7 +22,7 @@ const restrictPageAccess = ({ requiredValues = [] }: { requiredValues?: (string 
     const { data } = req.session
 
     if (getDataValue(data, dataPath) === undefined) {
-      return res.redirect(`/case/${crn}/appointments/check-in/eligibility-check`)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 
     if (!req.query?.cya) {

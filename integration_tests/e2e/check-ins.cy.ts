@@ -182,7 +182,7 @@ context('Appointment check-ins', () => {
 
       new NotEligiblePage()
         .getReason()
-        .should('contain', 'is in Tier A/B and on an accredited programme, but they are in early engagement')
+        .should('contain', 'is in Tier A and on an accredited programme, but they are in early engagement')
     })
 
     // Both exclusions at once are listed beneath the clause rather than reported one at a time.
@@ -194,7 +194,7 @@ context('Appointment check-ins', () => {
       checkPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A/B and on an accredited programme, but they are')
+      notEligiblePage.getReason().should('contain', 'is in Tier A and on an accredited programme, but they are')
       notEligiblePage.getReasonBullets().should('have.length', 2)
       notEligiblePage.getReasonBullets().first().should('contain', 'on a youth sentence')
       notEligiblePage.getReasonBullets().last().should('contain', 'in early engagement')
@@ -230,7 +230,7 @@ context('Appointment check-ins', () => {
       pilotCheckPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A/B and')
+      notEligiblePage.getReason().should('contain', 'is in Tier A and')
       notEligiblePage.getReasonBullets().should('have.length', 2)
       notEligiblePage.getReasonBullets().first().should('contain', 'not on an accredited programme')
       notEligiblePage

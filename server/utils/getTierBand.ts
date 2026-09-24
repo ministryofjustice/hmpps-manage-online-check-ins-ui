@@ -1,5 +1,5 @@
 // Eligibility rules are grouped into three tier bands, each with its own set of questions.
-// The tier score from the offender header endpoint looks like 'B1' - only the letter matters.
+// The tier score from the offender header endpoint is a single letter, A to G.
 export type TierBand = 'AB' | 'C' | 'DG'
 
 // The header endpoint reports a person with no tier assigned as the score 'MISSING' rather than by

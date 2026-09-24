@@ -252,7 +252,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         onSupervisionPackage,
       )
       if (!onSupervisionPackage) {
-        const { reason, bullets } = nextAfterEligibilityCheck(band, false, [])
+        const { reason, bullets } = nextAfterEligibilityCheck(band, false, [], res.locals.tierScore as string)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
@@ -296,6 +296,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         band,
         onSupervisionPackage,
         selections,
+        res.locals.tierScore as string,
       )
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
@@ -397,7 +398,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
-      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck)
+      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck, res.locals.tierScore as string)
       if (target === 'not-eligible') {
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])

@@ -41,6 +41,10 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
 
     // Recorded by postEligibilityPage from the ESUP call, since that answer is not fetched again on
     // the later pages this guards.
+    //
+    // No tier score is passed: this runs ahead of getPersonalDetails, so there is none on res.locals.
+    // Only `target` is read below - the reason is never rendered from here, so the band label the
+    // rules fall back to does not reach the practitioner.
     const eligibility = nextAfterEligibilityCheck(
       band,
       Boolean(checkins.onSupervisionPackage),
