@@ -26,6 +26,11 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
+  // The ESUP supervision-package answers, recorded by the eligibility-check pages so that
+  // restrictEligibilityAccess can re-derive the outcome without fetching them again.
+  onSupervisionPackage?: boolean
+  inFinalThird?: boolean
+  inEarlyEngagement?: boolean
   eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   eligibilitySPOApproval?: any
   rationale?: string

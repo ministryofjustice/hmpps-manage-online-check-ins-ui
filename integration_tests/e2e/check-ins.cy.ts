@@ -41,8 +41,20 @@ import { getCheckinUuid } from '../utils/common'
 const CRN_TIER_AB = 'X000004'
 const CRN_TIER_C = 'X000002'
 const CRN_TIER_DG = 'X000001'
-// Stubbed to answer false for the supervision-package check - see wiremock/mappings/eSupervisionAPI.json.
+// The three facts the supervision-package check answers, one fixture each - see
+// wiremock/mappings/eSupervisionAPI.json. X000003 answers false for the package; X000005 (tier E, so
+// band D-G) is in the final third, which is blanket and so needs no particular band; X000008 is in
+// early engagement and is tier A, since that fact only bites on the Tier A/B programme branch.
 const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
+const CRN_IN_FINAL_THIRD = 'X000005'
+const CRN_IN_EARLY_ENGAGEMENT = 'X000008'
+// The final third is blanket, so it has to hold on every band rather than just the D-G fixture above.
+// X000014 is tier A, which is the band that could hide a regression: if the rule were ever moved into
+// the Tier A/B programme exclusions it would still pass on C and D-G. X000007 is tier C.
+const CRN_IN_FINAL_THIRD_TIER_A = 'X000014'
+const CRN_IN_FINAL_THIRD_TIER_C = 'X000007'
+// Both facts at once (tier G), for the precedence between them - the package is reported first.
+const CRN_NO_PACKAGE_AND_FINAL_THIRD = 'X000006'
 // The two ways a tier can be unusable. X000010 answers with the score 'MISSING', which is how the
 // API reports a person with no tier assigned; X000009's header endpoint 404s, which getPersonalDetails
 // coerces to an empty score and which means the same thing. X000011 answers with a score that is
@@ -70,10 +82,11 @@ const startSetup = (crn: string = CRN_TIER_DG) => {
   return new EligibilityCheckPage()
 }
 
-// Tiers A and B are asked about the accredited programme, youth sentences and early engagement
-// on top of the boxes every tier gets, so their specs need the wider page object.
-const startSetupTiersAB = () => {
-  loadPage(CRN_TIER_AB)
+// Tiers A and B are asked about the accredited programme and youth sentences on top of the boxes
+// every tier gets, so their specs need the wider page object. The CRN is a parameter so the early
+// engagement fixture, which is tier A too, can be walked through the same branch.
+const startSetupTiersAB = (crn: string = CRN_TIER_AB) => {
+  loadPage(crn)
   return new TiersABEligibilityCheckPage()
 }
 
@@ -133,6 +146,14 @@ context('Appointment check-ins', () => {
   // The tier band decides which eligibility rules apply and which template renders, so there is
   // one walkthrough per band. Each uses a CRN whose stubbed tier puts it in that band.
   describe('eligibility, tiers A and B', () => {
+    // Early engagement was the one box that rendered here and nowhere else; it is an API fact now, so
+    // the widest template offers no box for it either.
+    it('does not ask about early engagement, the one box this template used to add', () => {
+      startSetupTiersAB()
+      cy.get('input[value="accreditedProgramme"]').should('exist')
+      cy.get('input[value="earlyEngagement"]').should('not.exist')
+    })
+
     it('routes the accredited programme cohort through approval and rationale', () => {
       const checkPage = startSetupTiersAB()
       checkPage.getAccreditedProgramme().click()
@@ -172,12 +193,13 @@ context('Appointment check-ins', () => {
       new DateFrequencyPage().checkOnPage()
     })
 
-    // On the accredited-programme branch early engagement rules the person out outright - there is
-    // no pilot question left to fall back on.
-    it('rules the programme cohort out when the person is in early engagement', () => {
-      const checkPage = startSetupTiersAB()
+    // Early engagement comes from the ESUP API rather than a box, but it is still decided on the
+    // submission: only the accredited-programme answer, which the form has yet to collect, makes it
+    // bite. On that branch it rules the person out outright - there is no pilot question to fall
+    // back on.
+    it('rules the programme cohort out when the ESUP API says the person is in early engagement', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
       checkPage.getAccreditedProgramme().click()
-      checkPage.getEarlyEngagement().click()
       checkPage.getSubmitBtn().click()
 
       new NotEligiblePage()
@@ -185,12 +207,24 @@ context('Appointment check-ins', () => {
         .should('contain', 'is in Tier A and on an accredited programme, but they are in early engagement')
     })
 
-    // Both exclusions at once are listed beneath the clause rather than reported one at a time.
+    // Unticking the accredited programme is a real way to change this outcome, so unlike the final
+    // third the page keeps the eligibility-check back link rather than sending the practitioner to
+    // the case overview.
+    it('offers the re-check when the programme cohort is ruled out for early engagement', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getSubmitBtn().click()
+
+      // The URL carries the generated setup id, so this matches the tail rather than the whole href.
+      new NotEligiblePage().getBackLink().should('have.attr', 'href').and('contain', 'check-in/eligibility-check')
+    })
+
+    // Both exclusions at once are listed beneath the clause rather than reported one at a time. The
+    // fixture supplies the early engagement, the practitioner still ticks the youth sentence.
     it('lists both programme exclusions when both apply', () => {
-      const checkPage = startSetupTiersAB()
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
       checkPage.getAccreditedProgramme().click()
       checkPage.getYouthSentence().click()
-      checkPage.getEarlyEngagement().click()
       checkPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
@@ -200,10 +234,11 @@ context('Appointment check-ins', () => {
       notEligiblePage.getReasonBullets().last().should('contain', 'in early engagement')
     })
 
-    // Off the programme branch neither exclusion matters, so the pilot cohort still decides.
+    // Off the programme branch neither exclusion matters, so the pilot cohort still decides. This is
+    // why early engagement cannot be settled before the form is answered, the way the final third is.
     it('ignores early engagement when the person is not on an accredited programme', () => {
-      const checkPage = startSetupTiersAB()
-      checkPage.getEarlyEngagement().click()
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getNone().click()
       checkPage.getSubmitBtn().click()
 
       const pilotCheckPage = new PilotCheckPage()
@@ -253,13 +288,12 @@ context('Appointment check-ins', () => {
   })
 
   describe('eligibility, tier C', () => {
-    // The accredited programme, youth sentence and early engagement boxes are Tier A/B rules, so
-    // the tier C template does not offer them at all.
+    // The accredited programme and youth sentence boxes are Tier A/B rules, so the tier C template
+    // does not offer them at all.
     it('does not ask about the accredited programme', () => {
       startSetup(CRN_TIER_C)
       cy.get('input[value="accreditedProgramme"]').should('not.exist')
       cy.get('input[value="youthSentence"]').should('not.exist')
-      cy.get('input[value="earlyEngagement"]').should('not.exist')
     })
 
     it('always asks about the pilot cohort', () => {
@@ -310,15 +344,17 @@ context('Appointment check-ins', () => {
       startSetup(CRN_TIER_DG)
       cy.get('input[value="accreditedProgramme"]').should('not.exist')
       cy.get('input[value="youthSentence"]').should('not.exist')
-      cy.get('input[value="earlyEngagement"]').should('not.exist')
     })
   })
 
   describe('eligibility, rules that apply to every tier', () => {
-    // The supervision package is no longer asked about - the ESUP API answers it
-    it('does not ask the practitioner about the supervision package', () => {
+    // None of the three facts the supervision-package call answers are asked about - the API supplies
+    // them, so a box would only let the practitioner contradict it.
+    it('does not ask the practitioner about the facts the ESUP API supplies', () => {
       startSetup()
       cy.get('input[value="supervisionPackage"]').should('not.exist')
+      cy.get('input[value="finalThird"]').should('not.exist')
+      cy.get('input[value="earlyEngagement"]').should('not.exist')
     })
 
     // A blanket failure whatever the tier - the eligibility-check form is skipped entirely since
@@ -361,25 +397,19 @@ context('Appointment check-ins', () => {
     })
 
     // Several facts at once are listed beneath "This is because <forename>:" rather than reported
-    // one at a time - the disqualifiers are whole clauses, so there is no stem above them.
+    // one at a time - the disqualifiers are whole clauses, so there is no stem above them. These are
+    // the two remaining boxes that can be submitted together: the final third is an API fact now, and
+    // a person it applies to never reaches the form to tick anything alongside it.
     it('lists every disqualifier when several apply', () => {
       const checkPage = startSetup()
       checkPage.getRecalled().click()
-      checkPage.getFinalThird().click()
+      checkPage.getDeviceRestriction().click()
       checkPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
       notEligiblePage.getReasonBullets().should('have.length', 2)
       notEligiblePage.getReasonBullets().first().should('contain', 'has been recalled to prison')
-      notEligiblePage.getReasonBullets().last().should('contain', 'is in the final third of their sentence')
-    })
-
-    it('rules the person out in the final third of their sentence', () => {
-      const checkPage = startSetup()
-      checkPage.getFinalThird().click()
-      checkPage.getSubmitBtn().click()
-
-      new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+      notEligiblePage.getReasonBullets().last().should('contain', 'cannot use a device or the internet')
     })
 
     it('rules the person out with a device or internet restriction', () => {
@@ -497,6 +527,105 @@ context('Appointment check-ins', () => {
         })
       notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_NOT_SUPERVISED}`)
       notEligiblePage.getSubmitBtn().should('contain', "Go to Tier's overview")
+    })
+  })
+
+  // The three facts the ESUP supervision-package call supplies, in place of the checkboxes that used
+  // to ask the practitioner for them. The rules themselves are covered exhaustively by the decision
+  // table in server/utils/eligibilityDecisionTable.test.ts - what these specs prove is the wiring the
+  // unit tests cannot see: which page the practitioner lands on, what the back link does, and that the
+  // outcome survives being re-derived from session on the pages that follow.
+  describe('eligibility, the facts the ESUP API supplies', () => {
+    // Both of these are blanket and unconditional, so the form is skipped entirely - no box on it
+    // could change the outcome, and the practitioner is never asked. Early engagement is the
+    // exception and is covered in the tiers A and B block, since it needs an answer first.
+    describe('settled before the form renders', () => {
+      it('reports no supervision package without rendering the form', () => {
+        loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+
+        new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+      })
+
+      it('reports the final third without rendering the form', () => {
+        loadPage(CRN_IN_FINAL_THIRD)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+      })
+
+      // Neither is an answer, so going back to the check would load it and be redirected straight back
+      // here. Both the back link and the button lead to the case overview instead.
+      it('sends a no-package ruling to the case overview rather than the check', () => {
+        loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+
+        const notEligiblePage = new NotEligiblePage()
+        notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_NOT_ON_SUPERVISION_PACKAGE}`)
+        notEligiblePage.getSubmitBtn().should('contain', 'overview')
+      })
+
+      it('sends a final-third ruling to the case overview rather than the check', () => {
+        loadPage(CRN_IN_FINAL_THIRD)
+
+        const notEligiblePage = new NotEligiblePage()
+        notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_IN_FINAL_THIRD}`)
+        notEligiblePage.getSubmitBtn().should('contain', 'overview')
+      })
+    })
+
+    // The final third sits in the shared disqualifiers rather than the Tier A/B programme exclusions,
+    // so it has to rule a person out on every band. Tier A is the band that would catch a regression:
+    // were the rule ever moved onto the programme branch, C and D-G would still pass.
+    describe('the final third applies to every band', () => {
+      // Tier A has the most ways through - the accredited programme branch and the pilot route - and
+      // this beats both, so the form is never even offered.
+      it('rules a tier A person out ahead of the accredited programme branch', () => {
+        loadPage(CRN_IN_FINAL_THIRD_TIER_A)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+        cy.get('input[value="accreditedProgramme"]').should('not.exist')
+      })
+
+      it('rules a tier C person out ahead of the pilot question', () => {
+        loadPage(CRN_IN_FINAL_THIRD_TIER_C)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+      })
+    })
+
+    // Both facts arrive on the same call, so something has to settle which is reported. The package
+    // wins, on the GET and the POST alike - the rules decide, so the two cannot disagree.
+    it('reports a missing package ahead of the final third when both apply', () => {
+      loadPage(CRN_NO_PACKAGE_AND_FINAL_THIRD)
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReason().should('contain', 'is not on a supervision package')
+      notEligiblePage.getReason().should('not.contain', 'final third')
+    })
+
+    // The facts are recorded in session by the eligibility pages, because restrictEligibilityAccess
+    // re-derives the outcome on every later page and no longer has the ESUP answers to hand. Skipping
+    // ahead by URL therefore has to land back on not-eligible rather than on the page asked for.
+    describe('the outcome survives a skip forward by URL', () => {
+      // Tier C would otherwise be asked the pilot question and Tier D-G would go straight to
+      // is-eligible, so each jumps to the page its band would have reached next.
+      const skips = [
+        ['pilot-check', CRN_IN_FINAL_THIRD_TIER_C],
+        ['is-eligible', CRN_IN_FINAL_THIRD],
+      ] as const
+
+      skips.forEach(([page, crn]) => {
+        it(`bounces a final-third case that jumps straight to ${page}`, () => {
+          // The ruling has to be reached first, since that is what records the facts in session.
+          loadPage(crn)
+          new NotEligiblePage().checkOnPage()
+
+          cy.url().then(url => {
+            const id = url.split('/appointments/')[1].split('/')[0]
+            cy.visit(`/case/${crn}/appointments/${id}/check-in/${page}`)
+          })
+
+          new NotEligiblePage().checkOnPage()
+        })
+      })
     })
   })
 

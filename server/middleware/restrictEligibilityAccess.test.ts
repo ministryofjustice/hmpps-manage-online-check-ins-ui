@@ -87,6 +87,52 @@ describe('restrictEligibilityAccess', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
+  // A blanket disqualifier like the missing package, so it rules the person out whatever band they
+  // are in and whatever the recorded selections say.
+  it.each(['AB', 'C', 'DG'] as const)(
+    'redirects to not-eligible when the recorded ESUP answer says a %s person is in the final third',
+    async tierBand => {
+      const req = buildReq({ tierBand, onSupervisionPackage: true, inFinalThird: true, eligibility: ['none'] })
+      const res = buildRes()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('pilot-check')(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(next).not.toHaveBeenCalled()
+    },
+  )
+
+  // Early engagement only disqualifies alongside the accredited programme box, so the guard has to
+  // re-derive it from both the ESUP answer and the recorded selection rather than either alone.
+  it('redirects to not-eligible for a Tier A/B programme case recorded as in early engagement', async () => {
+    const req = buildReq({
+      tierBand: 'AB',
+      onSupervisionPackage: true,
+      inEarlyEngagement: true,
+      eligibility: ['accreditedProgramme'],
+    })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('is-eligible')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // Off the programme branch it has no bearing, so the pilot route is still the one to follow.
+  it('lets a Tier A/B case recorded as in early engagement reach pilot-check without a programme', async () => {
+    const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, inEarlyEngagement: true, eligibility: ['none'] })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('pilot-check')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.redirect).not.toHaveBeenCalled()
+  })
+
   it('lets a Tier C pilot cohort case reach pilot-check', async () => {
     const req = buildReq({ tierBand: 'C', onSupervisionPackage: true, eligibility: ['none'] })
     const res = buildRes()

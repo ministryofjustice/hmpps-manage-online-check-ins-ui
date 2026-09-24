@@ -1,4 +1,5 @@
 import {
+  EligibilityStatus,
   eligibilityViews,
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
@@ -9,32 +10,52 @@ import { TierBand } from './getTierBand'
 
 const bands: TierBand[] = ['AB', 'C', 'DG']
 
+// The ESUP answers for a person nothing is wrong with, so each test below names only the fact it is
+// about. See EligibilityStatus - all three come from the supervision-package call.
+const ELIGIBLE_STATUS: EligibilityStatus = {
+  onSupervisionPackage: true,
+  inFinalThird: false,
+  inEarlyEngagement: false,
+}
+
+const status = (overrides: Partial<EligibilityStatus> = {}): EligibilityStatus => ({ ...ELIGIBLE_STATUS, ...overrides })
+
 describe('utils/eligibilityRules', () => {
   describe('nextAfterEligibilityCheck', () => {
     describe('disqualifiers that apply to every tier', () => {
       it.each(bands)('rules a %s person out when they are not on a supervision package', band => {
-        expect(nextAfterEligibilityCheck(band, false, [])).toEqual({
+        expect(nextAfterEligibilityCheck(band, status({ onSupervisionPackage: false }), [])).toEqual({
           target: 'not-eligible',
           reason: 'is not on a supervision package',
         })
       })
 
       it.each(bands)('rules a %s person out when they have been recalled', band => {
-        expect(nextAfterEligibilityCheck(band, true, ['recalled'])).toEqual({
+        expect(nextAfterEligibilityCheck(band, status(), ['recalled'])).toEqual({
           target: 'not-eligible',
           reason: 'has been recalled to prison',
         })
       })
 
+      // From the ESUP call rather than a box, so it applies whatever the practitioner answered.
       it.each(bands)('rules a %s person out in the final third of their sentence', band => {
-        expect(nextAfterEligibilityCheck(band, true, ['finalThird'])).toEqual({
+        expect(nextAfterEligibilityCheck(band, status({ inFinalThird: true }), ['none'])).toEqual({
+          target: 'not-eligible',
+          reason: 'is in the final third of their sentence',
+        })
+      })
+
+      // Unlike early engagement, this is not a programme-branch rule - it rules the Tier A/B
+      // programme cohort out too, ahead of any exclusion that branch would have reported.
+      it('rules the Tier A/B programme cohort out in the final third', () => {
+        expect(nextAfterEligibilityCheck('AB', status({ inFinalThird: true }), ['accreditedProgramme'], 'B')).toEqual({
           target: 'not-eligible',
           reason: 'is in the final third of their sentence',
         })
       })
 
       it.each(bands)('rules a %s person out with a device or internet restriction', band => {
-        expect(nextAfterEligibilityCheck(band, true, ['deviceRestriction'])).toEqual({
+        expect(nextAfterEligibilityCheck(band, status(), ['deviceRestriction'])).toEqual({
           target: 'not-eligible',
           reason: 'has restrictions that mean they cannot use a device or the internet',
         })
@@ -44,28 +65,29 @@ describe('utils/eligibilityRules', () => {
       // there is nothing to find - it no longer rules anyone out, as it did when the supervision
       // package was one of the boxes it denied.
       it.each(bands)('treats "none of these apply" as no disqualifiers for a %s person', band => {
-        expect(nextAfterEligibilityCheck(band, true, ['none']).target).not.toBe('not-eligible')
+        expect(nextAfterEligibilityCheck(band, status(), ['none']).target).not.toBe('not-eligible')
       })
 
       // Exclusive in the browser only, so a forged submission can pair it with a disqualifier. The
       // disqualifier still decides the outcome.
       it.each(bands)('still rules a %s person out for a disqualifier sent alongside it', band => {
-        expect(nextAfterEligibilityCheck(band, true, ['none', 'recalled'])).toEqual({
+        expect(nextAfterEligibilityCheck(band, status(), ['none', 'recalled'])).toEqual({
           target: 'not-eligible',
           reason: 'has been recalled to prison',
         })
       })
 
       it('reports the missing supervision package ahead of any other disqualifier', () => {
-        expect(nextAfterEligibilityCheck('DG', false, ['recalled', 'finalThird']).reason).toBe(
-          'is not on a supervision package',
-        )
+        expect(
+          nextAfterEligibilityCheck('DG', status({ onSupervisionPackage: false, inFinalThird: true }), ['recalled'])
+            .reason,
+        ).toBe('is not on a supervision package')
       })
 
       // Several at once are listed as bullets rather than reported one at a time, so the clause
       // above them is empty - "This is because Joe:".
       it('lists every disqualifier when several apply', () => {
-        expect(nextAfterEligibilityCheck('DG', true, ['finalThird', 'recalled'])).toEqual({
+        expect(nextAfterEligibilityCheck('DG', status({ inFinalThird: true }), ['recalled'])).toEqual({
           target: 'not-eligible',
           reason: '',
           bullets: ['has been recalled to prison', 'is in the final third of their sentence'],
@@ -75,7 +97,7 @@ describe('utils/eligibilityRules', () => {
 
     describe('tiers A and B', () => {
       it('sends the accredited programme cohort to the is-eligible page', () => {
-        expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme'])).toEqual({
+        expect(nextAfterEligibilityCheck('AB', status(), ['accreditedProgramme'])).toEqual({
           target: 'is-eligible',
           accreditedProgramme: true,
         })
@@ -83,30 +105,51 @@ describe('utils/eligibilityRules', () => {
 
       // On the programme branch these rule the person out outright - there is no pilot route left
       // for them to fall back on. Off the branch neither matters; see the pilot cohort tests below.
-      it.each([
-        ['earlyEngagement', 'is in Tier B and on an accredited programme, but they are in early engagement'],
-        ['youthSentence', 'is in Tier B and on an accredited programme, but they are on a youth sentence'],
-      ])('rules the programme cohort out when %s applies', (exclusion, reason) => {
-        expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', exclusion], 'B')).toEqual({
+      // Early engagement comes from the ESUP call, the youth sentence is still a box.
+      it('rules the programme cohort out when early engagement applies', () => {
+        expect(
+          nextAfterEligibilityCheck('AB', status({ inEarlyEngagement: true }), ['accreditedProgramme'], 'B'),
+        ).toEqual({
           target: 'not-eligible',
-          reason,
+          reason: 'is in Tier B and on an accredited programme, but they are in early engagement',
+        })
+      })
+
+      it('rules the programme cohort out when a youth sentence applies', () => {
+        expect(nextAfterEligibilityCheck('AB', status(), ['accreditedProgramme', 'youthSentence'], 'B')).toEqual({
+          target: 'not-eligible',
+          reason: 'is in Tier B and on an accredited programme, but they are on a youth sentence',
         })
       })
 
       // Only the programme branch cares - the designer's tree marks these as "doesn't matter if
-      // ticked or not" everywhere else, so a person on the pilot route is unaffected.
-      it.each(['earlyEngagement', 'youthSentence'])('ignores %s when not on an accredited programme', exclusion => {
-        expect(nextAfterEligibilityCheck('AB', true, [exclusion])).toEqual({ target: 'pilot-check' })
+      // ticked or not" everywhere else, so a person on the pilot route is unaffected. This is why
+      // early engagement cannot be settled before the form is answered.
+      it('ignores early engagement when not on an accredited programme', () => {
+        expect(nextAfterEligibilityCheck('AB', status({ inEarlyEngagement: true }), ['none'])).toEqual({
+          target: 'pilot-check',
+        })
+      })
+
+      it('ignores a youth sentence when not on an accredited programme', () => {
+        expect(nextAfterEligibilityCheck('AB', status(), ['youthSentence'])).toEqual({ target: 'pilot-check' })
       })
 
       it('asks about the pilot cohort when not on an accredited programme', () => {
-        expect(nextAfterEligibilityCheck('AB', true, [])).toEqual({ target: 'pilot-check' })
+        expect(nextAfterEligibilityCheck('AB', status(), [])).toEqual({ target: 'pilot-check' })
       })
     })
 
     describe('tier C', () => {
       it('always asks about the pilot cohort, even on an accredited programme', () => {
-        expect(nextAfterEligibilityCheck('C', true, ['accreditedProgramme'])).toEqual({
+        expect(nextAfterEligibilityCheck('C', status(), ['accreditedProgramme'])).toEqual({
+          target: 'pilot-check',
+        })
+      })
+
+      // The programme branch is a Tier A/B rule, so its exclusions never apply here.
+      it('ignores early engagement', () => {
+        expect(nextAfterEligibilityCheck('C', status({ inEarlyEngagement: true }), ['accreditedProgramme'])).toEqual({
           target: 'pilot-check',
         })
       })
@@ -114,7 +157,7 @@ describe('utils/eligibilityRules', () => {
 
     describe('tiers D to G', () => {
       it('is eligible outright, with no pilot check', () => {
-        expect(nextAfterEligibilityCheck('DG', true, [])).toEqual({
+        expect(nextAfterEligibilityCheck('DG', status(), [])).toEqual({
           target: 'is-eligible',
           accreditedProgramme: false,
         })
@@ -122,7 +165,14 @@ describe('utils/eligibilityRules', () => {
 
       // The accredited-programme route is a Tier A/B rule only.
       it('does not take the accredited programme route', () => {
-        expect(nextAfterEligibilityCheck('DG', true, ['accreditedProgramme']).accreditedProgramme).toBe(false)
+        expect(nextAfterEligibilityCheck('DG', status(), ['accreditedProgramme']).accreditedProgramme).toBe(false)
+      })
+
+      it('ignores early engagement', () => {
+        expect(nextAfterEligibilityCheck('DG', status({ inEarlyEngagement: true }), ['none'])).toEqual({
+          target: 'is-eligible',
+          accreditedProgramme: false,
+        })
       })
     })
   })
@@ -212,7 +262,7 @@ describe('utils/eligibilityRules', () => {
     })
 
     it('passes an array through', () => {
-      expect(toSelections(['recalled', 'finalThird'])).toEqual(['recalled', 'finalThird'])
+      expect(toSelections(['recalled', 'deviceRestriction'])).toEqual(['recalled', 'deviceRestriction'])
     })
 
     it.each([undefined, null])('returns an empty list for %s', value => {

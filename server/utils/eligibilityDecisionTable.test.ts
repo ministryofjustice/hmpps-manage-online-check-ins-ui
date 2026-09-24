@@ -1,25 +1,50 @@
-// Exhaustive coverage of the eligibility decision tree: every combination of the six checkboxes,
-// against every tier band, both answers from the ESUP supervision-package call, and - where the flow
-// reaches it - both answers to the pilot question.
+// Exhaustive coverage of the eligibility decision tree: every combination of the remaining
+// checkboxes, against every tier band, all eight combinations of the three answers the ESUP
+// supervision-package call gives, and - where the flow reaches it - both answers to the pilot
+// question.
 //
 // The expectation is not a fixture of what the code currently returns. It is an independent oracle
 // written from the designer's tree, structured the way the tree is drawn rather than the way
 // nextAfterEligibilityCheck is written: supervision package, then the programme branch with its own
 // exclusions, then the pilot branch, with the shared disqualifiers repeated at the foot of each.
 // The code settles those up front instead - the same verdict by a shorter route. Two implementations
-// of the same rules that disagree on any of the 320 cases fail the test - which is the point, since
+// of the same rules that disagree on any of the 384 cases fail the test - which is the point, since
 // the rules are the requirement and the code is only one expression of them.
 //
 // Cases where the rules are the same for every band are covered once here rather than three times;
 // eligibilityRules.test.ts keeps the readable per-rule tests that name each behaviour.
-import { nextAfterEligibilityCheck, nextAfterPilotCheck, EligibilityOutcome } from './eligibilityRules'
+import {
+  nextAfterEligibilityCheck,
+  nextAfterPilotCheck,
+  EligibilityOutcome,
+  EligibilityStatus,
+} from './eligibilityRules'
 import { TierBand } from './getTierBand'
 
 // Only ever ticked on Tiers A and B - the boxes are not rendered for other bands.
-const tierABOnly = ['accreditedProgramme', 'youthSentence', 'earlyEngagement'] as const
-const allTiers = ['recalled', 'finalThird', 'deviceRestriction'] as const
+const tierABOnly = ['accreditedProgramme', 'youthSentence'] as const
+const allTiers = ['recalled', 'deviceRestriction'] as const
 
 const bands: TierBand[] = ['AB', 'C', 'DG']
+
+// All eight answers the supervision-package call can give. The final third and early engagement used
+// to be boxes in the lists above; the tree is unchanged by where the facts come from, so they are
+// swept here in place of being ticked.
+const statuses: EligibilityStatus[] = [true, false].flatMap(onSupervisionPackage =>
+  [true, false].flatMap(inFinalThird =>
+    [true, false].map(inEarlyEngagement => ({ onSupervisionPackage, inFinalThird, inEarlyEngagement })),
+  ),
+)
+
+const describeStatus = ({ onSupervisionPackage, inFinalThird, inEarlyEngagement }: EligibilityStatus): string =>
+  `package ${onSupervisionPackage ? 'yes' : 'no'}, final third ${inFinalThird ? 'yes' : 'no'}, early engagement ${
+    inEarlyEngagement ? 'yes' : 'no'
+  }`
+
+// A person the ESUP call finds nothing wrong with, for the reason-precedence tests below, which name
+// the one fact they are about.
+const ON_PACKAGE: EligibilityStatus = { onSupervisionPackage: true, inFinalThird: false, inEarlyEngagement: false }
+const withStatus = (overrides: Partial<EligibilityStatus> = {}): EligibilityStatus => ({ ...ON_PACKAGE, ...overrides })
 
 // What not-eligible.njk renders after "This is because <forename>". One fact reads as a single
 // sentence; several are listed as bullets under a stem, so most reasons have both forms.
@@ -73,7 +98,7 @@ type ExpectedOutcome = { eligible: false } | { eligible: true; accreditedProgram
 
 const expectedOutcome = (
   band: TierBand,
-  onSupervisionPackage: boolean,
+  status: EligibilityStatus,
   ticked: string[],
   pilot: boolean,
 ): ExpectedOutcome => {
@@ -82,19 +107,20 @@ const expectedOutcome = (
 
   // A supervision package is a hard requirement on every branch of the tree. The ESUP API answers
   // this now rather than the practitioner ticking a box.
-  if (!onSupervisionPackage) {
+  if (!status.onSupervisionPackage) {
     return notEligible
   }
 
   // The three shared disqualifiers sit at the foot of every branch, so whichever route the person
-  // took, ticking one of them rules them out. Written as its own step because the tree draws it
+  // took, one of them rules them out. Written as its own step because the tree draws it
   // once per branch, though the code can settle it up front - the verdict is the same either way.
-  const disqualified = has('recalled') || has('finalThird') || has('deviceRestriction')
+  // The final third is the ESUP answer now rather than a box, but it sits in the same place.
+  const disqualified = has('recalled') || status.inFinalThird || has('deviceRestriction')
 
   // Tiers A/B split on the accredited programme. On that branch a youth sentence or early
   // engagement rules the person out; off it, neither matters at all.
   if (band === 'AB' && has('accreditedProgramme')) {
-    if (has('youthSentence') || has('earlyEngagement')) {
+    if (has('youthSentence') || status.inEarlyEngagement) {
       return notEligible
     }
     return disqualified ? notEligible : { eligible: true, accreditedProgramme: true }
@@ -123,11 +149,11 @@ const asExpected = (outcome: EligibilityOutcome): ExpectedOutcome =>
 // there so that both sides describe the end of the flow rather than one step of it.
 const actualOutcome = (
   band: TierBand,
-  onSupervisionPackage: boolean,
+  status: EligibilityStatus,
   ticked: string[],
   pilot: boolean,
 ): EligibilityOutcome => {
-  const outcome = nextAfterEligibilityCheck(band, onSupervisionPackage, ticked)
+  const outcome = nextAfterEligibilityCheck(band, status, ticked)
   if (outcome.target !== 'pilot-check') {
     return outcome
   }
@@ -139,13 +165,13 @@ describe('eligibility decision table', () => {
   // that produced it.
   const cases = bands.flatMap(band =>
     combinationsFor(band).flatMap(ticked =>
-      [true, false].flatMap(onSupervisionPackage =>
+      statuses.flatMap(status =>
         [true, false].map(pilot => ({
-          name: `${band}: ${ticked.join(' + ') || 'nothing ticked'} (package ${
-            onSupervisionPackage ? 'yes' : 'no'
-          }, pilot ${pilot ? 'yes' : 'no'})`,
+          name: `${band}: ${ticked.join(' + ') || 'nothing ticked'} (${describeStatus(status)}, pilot ${
+            pilot ? 'yes' : 'no'
+          })`,
           band,
-          onSupervisionPackage,
+          status,
           ticked,
           pilot,
         })),
@@ -154,21 +180,19 @@ describe('eligibility decision table', () => {
   )
 
   it('covers every combination of the boxes each band is shown', () => {
-    // 2^6 A/B + 2^3 C + 2^3 D-G, each with both package answers and both pilot answers.
-    expect(cases).toHaveLength((2 ** 6 + 2 ** 3 + 2 ** 3) * 4)
+    // 2^4 A/B + 2^2 C + 2^2 D-G, each with all eight ESUP answers and both pilot answers.
+    expect(cases).toHaveLength((2 ** 4 + 2 ** 2 + 2 ** 2) * 8 * 2)
   })
 
-  it.each(cases)('$name', ({ band, onSupervisionPackage, ticked, pilot }) => {
-    expect(asExpected(actualOutcome(band, onSupervisionPackage, ticked, pilot))).toEqual(
-      expectedOutcome(band, onSupervisionPackage, ticked, pilot),
-    )
+  it.each(cases)('$name', ({ band, status, ticked, pilot }) => {
+    expect(asExpected(actualOutcome(band, status, ticked, pilot))).toEqual(expectedOutcome(band, status, ticked, pilot))
   })
 
   // Every ruled-out person gets something to show, and it has to be one of the real reasons - not
   // undefined, which not-eligible.njk would render as "This is because Joe .". A reason with bullets
   // carries the facts there instead, and its clause may be empty by design.
-  it.each(cases)('$name gives a usable reason when ruled out', ({ band, onSupervisionPackage, ticked, pilot }) => {
-    const outcome = actualOutcome(band, onSupervisionPackage, ticked, pilot)
+  it.each(cases)('$name gives a usable reason when ruled out', ({ band, status, ticked, pilot }) => {
+    const outcome = actualOutcome(band, status, ticked, pilot)
     if (outcome.target === 'not-eligible') {
       if (outcome.bullets?.length) {
         expect(Object.values(STEMS)).toContain(outcome.reason)
@@ -184,31 +208,34 @@ describe('eligibility decision table', () => {
   // specific facts about the person, and every fact that applies is reported rather than just the
   // first - as a bullet list once there is more than one.
   describe('reasons when several apply', () => {
+    // Both come from the same ESUP call, so the wording has to settle which is reported.
     it('reports the missing supervision package ahead of everything else', () => {
-      expect(nextAfterEligibilityCheck('AB', false, ['recalled', 'accreditedProgramme', 'youthSentence']).reason).toBe(
-        REASONS.supervisionPackage,
-      )
+      expect(
+        nextAfterEligibilityCheck('AB', withStatus({ onSupervisionPackage: false, inFinalThird: true }), [
+          'recalled',
+          'accreditedProgramme',
+          'youthSentence',
+        ]).reason,
+      ).toBe(REASONS.supervisionPackage)
     })
 
     it('reads a single shared disqualifier as one sentence', () => {
-      expect(nextAfterEligibilityCheck('DG', true, ['finalThird'])).toEqual({
+      expect(nextAfterEligibilityCheck('DG', withStatus({ inFinalThird: true }), ['none'])).toEqual({
         target: 'not-eligible',
         reason: REASONS.finalThird,
       })
     })
 
-    // Listed under "This is because Joe:" - the facts are whole clauses, so there is no stem.
+    // Listed under "This is because Joe:" - the facts are whole clauses, so there is no stem. The
+    // final third keeps its place among them now it comes from the ESUP call rather than a box.
     it.each([
+      [['deviceRestriction'], [BULLETS.finalThird, BULLETS.deviceRestriction]],
       [
-        ['finalThird', 'deviceRestriction'],
-        [BULLETS.finalThird, BULLETS.deviceRestriction],
-      ],
-      [
-        ['recalled', 'finalThird', 'deviceRestriction'],
+        ['recalled', 'deviceRestriction'],
         [BULLETS.recalled, BULLETS.finalThird, BULLETS.deviceRestriction],
       ],
-    ])('lists every shared disqualifier for %p', (boxes, bullets) => {
-      expect(nextAfterEligibilityCheck('DG', true, [...boxes])).toEqual({
+    ])('lists every shared disqualifier for the final third plus %p', (boxes, bullets) => {
+      expect(nextAfterEligibilityCheck('DG', withStatus({ inFinalThird: true }), [...boxes])).toEqual({
         target: 'not-eligible',
         reason: STEMS.disqualifiers,
         bullets,
@@ -216,22 +243,38 @@ describe('eligibility decision table', () => {
     })
 
     it('reports the shared disqualifiers ahead of the programme exclusions', () => {
-      expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'youthSentence', 'recalled'])).toEqual({
+      expect(
+        nextAfterEligibilityCheck('AB', withStatus(), ['accreditedProgramme', 'youthSentence', 'recalled']),
+      ).toEqual({
         target: 'not-eligible',
         reason: REASONS.recalled,
       })
     })
 
+    // The final third is a shared disqualifier, so it outranks the programme branch it arrives with.
+    it('reports the final third ahead of the programme exclusions', () => {
+      expect(
+        nextAfterEligibilityCheck('AB', withStatus({ inFinalThird: true, inEarlyEngagement: true }), [
+          'accreditedProgramme',
+        ]),
+      ).toEqual({ target: 'not-eligible', reason: REASONS.finalThird })
+    })
+
     it('reads a single programme exclusion as one sentence', () => {
-      expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'earlyEngagement'])).toEqual({
-        target: 'not-eligible',
-        reason: REASONS.earlyEngagement,
-      })
+      expect(nextAfterEligibilityCheck('AB', withStatus({ inEarlyEngagement: true }), ['accreditedProgramme'])).toEqual(
+        {
+          target: 'not-eligible',
+          reason: REASONS.earlyEngagement,
+        },
+      )
     })
 
     it('lists both programme exclusions when both apply', () => {
       expect(
-        nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'youthSentence', 'earlyEngagement']),
+        nextAfterEligibilityCheck('AB', withStatus({ inEarlyEngagement: true }), [
+          'accreditedProgramme',
+          'youthSentence',
+        ]),
       ).toEqual({
         target: 'not-eligible',
         reason: STEMS.programme,
@@ -241,7 +284,7 @@ describe('eligibility decision table', () => {
 
     // The pilot answer cannot save someone who is recalled, so the question is not asked at all.
     it('rules a disqualified person out without asking about the pilot', () => {
-      expect(nextAfterEligibilityCheck('AB', true, ['recalled'])).toEqual({
+      expect(nextAfterEligibilityCheck('AB', withStatus(), ['recalled'])).toEqual({
         target: 'not-eligible',
         reason: REASONS.recalled,
       })
@@ -262,21 +305,32 @@ describe('eligibility decision table', () => {
   // because the supervision package was among the boxes it denied.
   describe('none of these apply', () => {
     it.each(bands)('leaves a %s person to be judged on their tier alone', band => {
-      expect(nextAfterEligibilityCheck(band, true, ['none'])).toEqual(nextAfterEligibilityCheck(band, true, []))
+      expect(nextAfterEligibilityCheck(band, withStatus(), ['none'])).toEqual(
+        nextAfterEligibilityCheck(band, withStatus(), []),
+      )
     })
 
     // Exclusive in the browser only, so a forged submission can arrive with it and a disqualifier
     // at once. The box asserts nothing the rules rely on, so the disqualifiers still decide.
     it.each(bands)('is ignored when a %s person sends it alongside every other box', band => {
-      expect(nextAfterEligibilityCheck(band, true, ['none', ...boxesFor(band)])).toEqual(
-        nextAfterEligibilityCheck(band, true, boxesFor(band)),
+      expect(nextAfterEligibilityCheck(band, withStatus(), ['none', ...boxesFor(band)])).toEqual(
+        nextAfterEligibilityCheck(band, withStatus(), boxesFor(band)),
       )
     })
 
     it.each(bands)('cannot make a %s person eligible without a supervision package', band => {
-      expect(nextAfterEligibilityCheck(band, false, ['none'])).toEqual({
+      expect(nextAfterEligibilityCheck(band, withStatus({ onSupervisionPackage: false }), ['none'])).toEqual({
         target: 'not-eligible',
         reason: REASONS.supervisionPackage,
+      })
+    })
+
+    // The boxes are all it asserts anything about - the ESUP answers are not the practitioner's to
+    // deny, so ticking it cannot clear the final third.
+    it.each(bands)('cannot make a %s person in the final third eligible', band => {
+      expect(nextAfterEligibilityCheck(band, withStatus({ inFinalThird: true }), ['none'])).toEqual({
+        target: 'not-eligible',
+        reason: REASONS.finalThird,
       })
     })
   })
@@ -288,23 +342,31 @@ describe('eligibility decision table', () => {
       ['A', 'is-eligible'],
       ['B', 'is-eligible'],
     ])('routes %s through the accredited programme branch', (_tier, target) => {
-      expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme']).target).toBe(target)
+      expect(nextAfterEligibilityCheck('AB', withStatus(), ['accreditedProgramme']).target).toBe(target)
     })
 
     it('asks Tier C about the pilot even on an accredited programme', () => {
       // The box is not rendered for Tier C, but a forged submission must not open the A/B route.
-      expect(nextAfterEligibilityCheck('C', true, ['accreditedProgramme']).target).toBe('pilot-check')
+      expect(nextAfterEligibilityCheck('C', withStatus(), ['accreditedProgramme']).target).toBe('pilot-check')
     })
 
-    it.each(['youthSentence', 'earlyEngagement'])('ignores a forged %s for Tier C', box => {
-      expect(nextAfterEligibilityCheck('C', true, [box]).target).toBe('pilot-check')
+    it('ignores a forged youth sentence for Tier C', () => {
+      expect(nextAfterEligibilityCheck('C', withStatus(), ['youthSentence']).target).toBe('pilot-check')
     })
 
-    it.each(['accreditedProgramme', 'youthSentence', 'earlyEngagement'])('ignores a forged %s for Tiers D-G', box => {
-      expect(nextAfterEligibilityCheck('DG', true, [box])).toEqual({
+    it.each(['accreditedProgramme', 'youthSentence'])('ignores a forged %s for Tiers D-G', box => {
+      expect(nextAfterEligibilityCheck('DG', withStatus(), [box])).toEqual({
         target: 'is-eligible',
         accreditedProgramme: false,
       })
+    })
+
+    // Early engagement is a programme-branch rule, and the branch is Tier A/B's alone - so even with
+    // the box forged onto the submission, the other bands are unaffected by the ESUP answer.
+    it.each(['C', 'DG'] as const)('ignores early engagement for Tier %s on a forged programme box', band => {
+      expect(nextAfterEligibilityCheck(band, withStatus({ inEarlyEngagement: true }), ['accreditedProgramme'])).toEqual(
+        nextAfterEligibilityCheck(band, withStatus(), ['accreditedProgramme']),
+      )
     })
   })
 
