@@ -84,10 +84,10 @@ describe('utils/eligibilityRules', () => {
       // On the programme branch these rule the person out outright - there is no pilot route left
       // for them to fall back on. Off the branch neither matters; see the pilot cohort tests below.
       it.each([
-        ['earlyEngagement', 'is in Tier A/B and on an accredited programme, but they are in early engagement'],
-        ['youthSentence', 'is in Tier A/B and on an accredited programme, but they are on a youth sentence'],
+        ['earlyEngagement', 'is in Tier B and on an accredited programme, but they are in early engagement'],
+        ['youthSentence', 'is in Tier B and on an accredited programme, but they are on a youth sentence'],
       ])('rules the programme cohort out when %s applies', (exclusion, reason) => {
-        expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', exclusion])).toEqual({
+        expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', exclusion], 'B')).toEqual({
           target: 'not-eligible',
           reason,
         })
@@ -135,9 +135,9 @@ describe('utils/eligibilityRules', () => {
     // Tier A/B reaching here are outside the pilot cohort and off the programme branch, so both
     // facts are listed beneath the clause.
     it('rules a Tier A/B person outside the pilot cohort out, with its own reason', () => {
-      expect(nextAfterPilotCheck('AB', 'false')).toEqual({
+      expect(nextAfterPilotCheck('AB', 'false', 'B')).toEqual({
         target: 'not-eligible',
-        reason: 'is in Tier A/B and',
+        reason: 'is in Tier B and',
         bullets: [
           'not on an accredited programme',
           'you have no people who were signed up to use online check ins before 1 October 2026',
@@ -146,7 +146,7 @@ describe('utils/eligibilityRules', () => {
     })
 
     it('rules a Tier C person outside the pilot cohort out, with its own reason', () => {
-      expect(nextAfterPilotCheck('C', 'false')).toEqual({
+      expect(nextAfterPilotCheck('C', 'false', 'C')).toEqual({
         target: 'not-eligible',
         reason:
           'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',

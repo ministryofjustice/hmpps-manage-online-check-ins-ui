@@ -15,6 +15,16 @@ export default class NotEligiblePage extends Page {
   // so it takes the place of the sentence getReason() reads.
   getMissingTierGuidance = (): PageElement => cy.get('[data-qa="missingTier"]')
 
+  // A provisional Tier is worded impersonally for the same reason, and says a final Tier will
+  // replace the provisional one rather than being assigned for the first time.
+  getProvisionalTierGuidance = (): PageElement => cy.get('[data-qa="provisionalTier"]')
+
+  // No longer being supervised cannot clear, so in place of the invitation to check again it lists
+  // what might explain it.
+  getNotSupervisedGuidance = (): PageElement => cy.get('[data-qa="notSupervised"]')
+
+  getNotSupervisedReasons = (): PageElement => cy.get('[data-qa="notSupervisedReasons"] li')
+
   // The paragraph after the reason - for a missing Tier, how a Tier comes to be assigned; for every
   // other reason, the invitation to check eligibility again.
   getGuidance = (): PageElement => cy.get('.govuk-body').eq(1)

@@ -81,6 +81,8 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   res.locals.headerDob = res.locals.case.dateOfBirth
   res.locals.tierScore = headerDetails?.tierScore || ''
   res.locals.tierDetailsLink = headerDetails?.tierDetailsLink || ''
+  // An absent flag means the tier is settled: only an explicit true says the score is provisional.
+  res.locals.tierProvisional = headerDetails?.tierProvisional === true
   res.locals.overallRisk = headerDetails?.overallRisk || ''
   res.locals.practitioner = practitionerDetails ?? null
   res.locals.managedBy = getManagedByDetails(crn, practitionerDetails)

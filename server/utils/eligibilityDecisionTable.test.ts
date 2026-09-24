@@ -285,8 +285,8 @@ describe('eligibility decision table', () => {
   // band whose rules the designer's tree gives it.
   describe('tier score to band', () => {
     it.each([
-      ['A1', 'is-eligible'],
-      ['B2', 'is-eligible'],
+      ['A', 'is-eligible'],
+      ['B', 'is-eligible'],
     ])('routes %s through the accredited programme branch', (_tier, target) => {
       expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme']).target).toBe(target)
     })

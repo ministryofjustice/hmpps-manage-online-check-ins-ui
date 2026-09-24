@@ -50,6 +50,11 @@ const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
 const CRN_TIER_MISSING = 'X000010'
 const CRN_TIER_MISSING_NO_HEADER = 'X000009'
 const CRN_TIER_UNREADABLE = 'X000011'
+// X000012 has a readable tier (D1) that the header flags as provisional, so nothing but the flag
+// rules the person out - the rules would otherwise take them all the way to is-eligible.
+const CRN_TIER_PROVISIONAL = 'X000012'
+// X000013's header answers 'NOT_SUPERVISED', which rules the person out outright.
+const CRN_NOT_SUPERVISED = 'X000013'
 
 // failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
 // treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
@@ -177,7 +182,7 @@ context('Appointment check-ins', () => {
 
       new NotEligiblePage()
         .getReason()
-        .should('contain', 'is in Tier A/B and on an accredited programme, but they are in early engagement')
+        .should('contain', 'is in Tier A and on an accredited programme, but they are in early engagement')
     })
 
     // Both exclusions at once are listed beneath the clause rather than reported one at a time.
@@ -189,7 +194,7 @@ context('Appointment check-ins', () => {
       checkPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A/B and on an accredited programme, but they are')
+      notEligiblePage.getReason().should('contain', 'is in Tier A and on an accredited programme, but they are')
       notEligiblePage.getReasonBullets().should('have.length', 2)
       notEligiblePage.getReasonBullets().first().should('contain', 'on a youth sentence')
       notEligiblePage.getReasonBullets().last().should('contain', 'in early engagement')
@@ -225,7 +230,7 @@ context('Appointment check-ins', () => {
       pilotCheckPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A/B and')
+      notEligiblePage.getReason().should('contain', 'is in Tier A and')
       notEligiblePage.getReasonBullets().should('have.length', 2)
       notEligiblePage.getReasonBullets().first().should('contain', 'not on an accredited programme')
       notEligiblePage
@@ -455,6 +460,43 @@ context('Appointment check-ins', () => {
         .getGuidance()
         .should('contain', 'risk scores have been completed')
         .should('contain', 'You can come back and check eligibility again')
+    })
+
+    // A provisional tier reads as a real score, so only the header's flag rules the person out -
+    // and it does so before any question is asked, as a missing tier does.
+    it('rules the person out without asking anything when their Tier is only provisional', () => {
+      loadPage(CRN_TIER_PROVISIONAL)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getProvisionalTierGuidance()
+        .should('contain', 'This is because they are currently in a provisional Tier')
+      notEligiblePage
+        .getGuidance()
+        .should('contain', 'the system has calculated their final Tier')
+        .should('contain', 'You can come back and check eligibility again')
+    })
+
+    // An automatic disqualification like a missing tier, but one that cannot clear - so it lists what
+    // might explain it rather than inviting the practitioner to check eligibility again.
+    it('rules the person out when they are no longer being supervised', () => {
+      loadPage(CRN_NOT_SUPERVISED)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getNotSupervisedGuidance()
+        .should('contain', 'This is because they are not currently being supervised')
+      notEligiblePage.getGuidance().should('contain', 'This could be because they have')
+      notEligiblePage
+        .getNotSupervisedReasons()
+        .should('have.length', 3)
+        .then(items => {
+          expect([...items].map(item => item.textContent.trim())).to.deep.equal([
+            'passed away',
+            'been recalled to prison',
+            'have finished their probation',
+          ])
+        })
+      notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_NOT_SUPERVISED}`)
+      notEligiblePage.getSubmitBtn().should('contain', "Go to Tier's overview")
     })
   })
 
