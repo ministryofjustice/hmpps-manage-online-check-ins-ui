@@ -82,7 +82,7 @@
         "jsonBody": {
           "crn": "{{request.pathSegments.[3]}}",
           "dateOfBirth": "1979-08-18",
-          "tierScore": "{{#eq request.pathSegments.[3] 'X000002'}}C1{{else}}{{#eq request.pathSegments.[3] 'X000004'}}A1{{else}}{{#eq request.pathSegments.[3] 'X000005'}}E2{{else}}{{#eq request.pathSegments.[3] 'X000006'}}G1{{else}}{{#eq request.pathSegments.[3] 'X000007'}}C3{{else}}{{#eq request.pathSegments.[3] 'X000008'}}A2{{else}}D1{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}",
+          "tierScore": "{{#eq request.pathSegments.[3] 'X000002'}}C{{else}}{{#eq request.pathSegments.[3] 'X000004'}}A{{else}}{{#eq request.pathSegments.[3] 'X000005'}}E{{else}}{{#eq request.pathSegments.[3] 'X000006'}}G{{else}}{{#eq request.pathSegments.[3] 'X000007'}}C{{else}}{{#eq request.pathSegments.[3] 'X000008'}}A{{else}}D{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}",
           "tierDetailsLink": "https://example.com/tier",
           "overallRisk": "MEDIUM"
         },
@@ -139,7 +139,7 @@
         "jsonBody": {
           "crn": "X000011",
           "dateOfBirth": "1979-08-18",
-          "tierScore": "Z1",
+          "tierScore": "Z",
           "tierDetailsLink": "https://example.com/tier",
           "overallRisk": "MEDIUM"
         },
@@ -158,7 +158,7 @@
         "jsonBody": {
           "crn": "X000012",
           "dateOfBirth": "1979-08-18",
-          "tierScore": "D1",
+          "tierScore": "D",
           "tierDetailsLink": "https://example.com/tier",
           "overallRisk": "MEDIUM",
           "tierProvisional": true
