@@ -5,6 +5,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import express, { Request, RequestHandler } from 'express'
 import nunjucks from 'nunjucks'
 import { arnsNunjucksSetup } from '@ministryofjustice/hmpps-arns-frontend-components-lib'
+import { mpopNunjucksSetup } from '@ministryofjustice/hmpps-mpop-frontend-components-lib'
 
 import type { AppResponse } from '../models/Locals'
 import config from '../config'
@@ -19,6 +20,7 @@ import decorateFormAttributes from './decorateFormAttributes'
 import toErrorList from './toErrorList'
 
 import getUserFriendlyString from './eSupervisionFriendlyString'
+import formatTierScore from './formatTierScore'
 import { handleQuotes } from './handleQuotes'
 import { formatEnforcementActionNote } from './formatEnforcementActionNote'
 import { splitString } from './splitString'
@@ -77,6 +79,7 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addFilter('yearsSince', yearsSince)
   njkEnv.addFilter('split', splitString)
   njkEnv.addFilter('userFriendlyString', getUserFriendlyString)
+  njkEnv.addFilter('formatTierScore', formatTierScore)
   njkEnv.addFilter('formatEnforcementActionNote', formatEnforcementActionNote)
   njkEnv.addFilter('handleQuotes', handleQuotes)
   njkEnv.addFilter('assetMap', (url: string) => assetManifest[url] || url)
@@ -95,4 +98,5 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addGlobal('maxCharCount', config.maxCharCount)
 
   arnsNunjucksSetup(njkEnv)
+  mpopNunjucksSetup(njkEnv)
 }
