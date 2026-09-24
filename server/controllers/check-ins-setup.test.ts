@@ -42,7 +42,7 @@ describe('check-in setup flow', () => {
     // in case the guidance is wanted back, but nothing routes into or out of it.
     it('sends new setups straight to the eligibility check', async () => {
       const req = requestFor()
-      const res = responseForTier('B1')
+      const res = responseForTier('B')
       await controllers.checkIns.getStartSetup()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(
         expect.stringMatching(new RegExp(`^/case/${crn}/appointments/[\\w-]+/check-in/eligibility-check$`)),
@@ -69,7 +69,7 @@ describe('check-in setup flow', () => {
   describe('instructions', () => {
     it('shows the accredited programme guidance for Tier A/B', async () => {
       const req = requestFor()
-      const res = responseForTier('A2')
+      const res = responseForTier('A')
       await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/instructions.njk',
@@ -78,8 +78,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([
-      ['C1', 'C'],
-      ['D3', 'D-G'],
+      ['C', 'C'],
+      ['D', 'D-G'],
     ])('hides the accredited programme guidance for tier %s', async tierScore => {
       const req = requestFor()
       const res = responseForTier(tierScore)
@@ -92,7 +92,7 @@ describe('check-in setup flow', () => {
 
     it('continues to the eligibility check', async () => {
       const req = requestFor()
-      const res = responseForTier('B1')
+      const res = responseForTier('B')
       await controllers.checkIns.postInstructionsPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     })
@@ -117,13 +117,13 @@ describe('check-in setup flow', () => {
   describe('eligibility check', () => {
     // Every band shares one template, which renders the Tier A/B-only questions off `tierBand`.
     it.each([
-      ['A1', 'AB'],
-      ['B2', 'AB'],
-      ['C1', 'C'],
-      ['E2', 'DG'],
+      ['A', 'AB'],
+      ['B', 'AB'],
+      ['C', 'C'],
+      ['E', 'DG'],
     ])('renders the eligibility check for tier %s with band %s', async (tierScore, tierBand) => {
       const req = requestFor()
-      const res = responseForTier(tierScore)
+      const res = responseForTier(tierScore, { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
@@ -133,7 +133,7 @@ describe('check-in setup flow', () => {
 
     it('errors rather than guessing a band when the tier is unknown', async () => {
       const req = requestFor()
-      const res = responseForTier('Z1')
+      const res = responseForTier('Z1', { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
@@ -150,12 +150,87 @@ describe('check-in setup flow', () => {
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
     })
+
+    // No longer being supervised rules the person out outright - there is nothing to set check ins
+    // up for - so like a missing tier it skips the questions entirely.
+    it('rules the person out when they are not currently being supervised', async () => {
+      const req = requestFor()
+      const res = responseForTier('NOT_SUPERVISED', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe(
+        'is not currently being supervised',
+      )
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
+      expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // A provisional tier is a readable score, so the rules would happily apply to it - but it is not
+    // the person's final Tier, so it is ruled out before any question is asked, the same as a
+    // missing one.
+    it('rules the person out when their tier is only provisional', async () => {
+      const req = requestFor()
+      const res = responseForTier('D', {
+        tierProvisional: true,
+        supervisionPackageStatus: { onSupervisionPackage: true },
+      })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('is in a provisional Tier')
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
+      expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // Only an explicit true rules the person out: getPersonalDetails resolves an absent flag to
+    // false, but a stubbed or older header that omits it must not strand every case on not-eligible.
+    it('lets a settled tier through when the header reports no provisional flag', async () => {
+      const req = requestFor()
+      const res = responseForTier('D', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/eligibility-check.njk',
+        expect.objectContaining({ tierBand: 'DG' }),
+      )
+      expect(res.redirect).not.toHaveBeenCalled()
+    })
+
+    // A blanket failure whatever the tier - there is nothing the checkboxes could change, so
+    // this skips the form entirely rather than showing questions that cannot affect the outcome.
+    it('sends the person straight to not-eligible when the ESUP call says no supervision package', async () => {
+      const req = requestFor()
+      const res = responseForTier('D', { supervisionPackageStatus: { onSupervisionPackage: false } })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
+        'is not on a supervision package',
+      )
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
+    // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
+    // from ESUP, so the optional chain must fail safe to "not on a package" rather than throwing.
+    it('sends the person straight to not-eligible when the ESUP call 404s', async () => {
+      const req = requestFor()
+      const res = responseForTier('D', { supervisionPackageStatus: null })
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
+        'is not on a supervision package',
+      )
+      expect(res.render).not.toHaveBeenCalled()
+    })
   })
 
   describe('eligibility branching', () => {
-    const postEligibility = async (tierScore: string, eligibility: string[]) => {
+    // getSupervisionPackageStatus puts the ESUP answer on res.locals, replacing the checkbox the
+    // eligibility rules used to read this from.
+    const postEligibility = async (
+      tierScore: string,
+      eligibility: string[],
+      supervisionPackageStatus: { onSupervisionPackage: boolean } | null = { onSupervisionPackage: true },
+    ) => {
       const req = requestFor({ esupervision: { [crn]: { [id]: { checkins: { eligibility } } } } })
-      const res = responseForTier(tierScore)
+      const res = responseForTier(tierScore, { supervisionPackageStatus })
       await controllers.checkIns.postEligibilityPage()(req, res)
       return {
         redirect: (res.redirect as jest.Mock).mock.calls[0][0],
@@ -163,23 +238,33 @@ describe('check-in setup flow', () => {
       }
     }
 
-    // The four all-tier disqualifiers, each with the reason not-eligible.njk renders.
+    // The three all-tier disqualifiers, each with the reason not-eligible.njk renders.
     it.each([
-      [[] as string[], 'is not on a supervision package'],
-      [['supervisionPackage', 'recalled'], 'has been recalled to prison'],
-      [['supervisionPackage', 'finalThird'], 'is in the final third of their sentence'],
-      [
-        ['supervisionPackage', 'deviceRestriction'],
-        'has restrictions that mean they cannot use a device or the internet',
-      ],
+      [['recalled'], 'has been recalled to prison'],
+      [['finalThird'], 'is in the final third of their sentence'],
+      [['deviceRestriction'], 'has restrictions that mean they cannot use a device or the internet'],
     ])('rules the person out for %s whatever their tier', async (eligibility, reason) => {
-      const { redirect, checkins } = await postEligibility('D1', eligibility)
+      const { redirect, checkins } = await postEligibility('D', eligibility)
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe(reason)
     })
 
+    it('rules the person out when the ESUP API says they are not on a supervision package', async () => {
+      const { redirect, checkins } = await postEligibility('D', [], { onSupervisionPackage: false })
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    })
+
+    // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
+    // from ESUP, so this must fail safe to "not on a package" the same as an explicit false.
+    it('rules the person out when the ESUP API 404s', async () => {
+      const { redirect, checkins } = await postEligibility('D', [], null)
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    })
+
     it('sends the Tier A/B accredited programme cohort straight to is-eligible', async () => {
-      const { redirect, checkins } = await postEligibility('A1', ['supervisionPackage', 'accreditedProgramme'])
+      const { redirect, checkins } = await postEligibility('A', ['accreditedProgramme'])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
       expect(checkins.accreditedProgramme).toBe(true)
     })
@@ -189,11 +274,7 @@ describe('check-in setup flow', () => {
     it.each(['earlyEngagement', 'youthSentence'])(
       'rules the Tier A/B programme cohort out when %s applies',
       async exclusion => {
-        const { redirect, checkins } = await postEligibility('B1', [
-          'supervisionPackage',
-          'accreditedProgramme',
-          exclusion,
-        ])
+        const { redirect, checkins } = await postEligibility('B', ['accreditedProgramme', exclusion])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
         expect(checkins.notEligibleReason).toContain('on an accredited programme, but they are')
         expect(checkins.accreditedProgramme).toBe(false)
@@ -204,21 +285,21 @@ describe('check-in setup flow', () => {
     it.each(['earlyEngagement', 'youthSentence'])(
       'still asks Tier A/B about the pilot when %s applies without a programme',
       async exclusion => {
-        const { redirect } = await postEligibility('B1', ['supervisionPackage', exclusion])
+        const { redirect } = await postEligibility('B', [exclusion])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
       },
     )
 
     // The pilot answer cannot change the outcome for a disqualified person, so it is not asked.
     it('rules a disqualified Tier A/B person out without asking about the pilot', async () => {
-      const { redirect, checkins } = await postEligibility('A1', ['supervisionPackage', 'recalled'])
+      const { redirect, checkins } = await postEligibility('A', ['recalled'])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe('has been recalled to prison')
     })
 
     // Several disqualifiers are listed as bullets, so the clause above them is empty.
     it('records every disqualifier that applies', async () => {
-      const { checkins } = await postEligibility('D1', ['supervisionPackage', 'recalled', 'deviceRestriction'])
+      const { checkins } = await postEligibility('D', ['recalled', 'deviceRestriction'])
       expect(checkins.notEligibleReason).toBe('')
       expect(checkins.notEligibleReasonBullets).toEqual([
         'has been recalled to prison',
@@ -226,28 +307,25 @@ describe('check-in setup flow', () => {
       ])
     })
 
-    // "None of these apply" is exclusive in the browser only.
-    it('rules a person out when "none of these apply" is ticked alongside a package', async () => {
-      const { redirect, checkins } = await postEligibility('D1', ['none', 'supervisionPackage'])
-      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
-      expect(checkins.notEligibleReason).toBe('is not on a supervision package')
+    // Ticking "None of these apply" is how an eligible person is submitted: validation requires an
+    // answer, and every other box would rule them out.
+    it('lets a person through when "none of these apply" is ticked', async () => {
+      const { redirect } = await postEligibility('D', ['none'])
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
 
-    it.each(['A1', 'C2'])(
-      'asks tier %s about the pilot cohort when not on an accredited programme',
-      async tierScore => {
-        const { redirect } = await postEligibility(tierScore, ['supervisionPackage'])
-        expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
-      },
-    )
+    it.each(['A', 'C'])('asks tier %s about the pilot cohort when not on an accredited programme', async tierScore => {
+      const { redirect } = await postEligibility(tierScore, [])
+      expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
+    })
 
     it('skips the pilot check for tiers D to G', async () => {
-      const { redirect } = await postEligibility('F1', ['supervisionPackage'])
+      const { redirect } = await postEligibility('F', [])
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
 
     it('records the resolved band so later pages do not re-derive it', async () => {
-      const { checkins } = await postEligibility('C1', ['supervisionPackage'])
+      const { checkins } = await postEligibility('C', [])
       expect(checkins.tierBand).toBe('C')
     })
 
@@ -268,6 +346,33 @@ describe('check-in setup flow', () => {
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('has not been assigned a Tier yet')
     })
+
+    it('rules the person out when they are not currently being supervised', async () => {
+      const req = requestFor({
+        esupervision: { [crn]: { [id]: { checkins: { eligibility: ['none'] } } } },
+      })
+      const res = responseForTier('NOT_SUPERVISED', { supervisionPackageStatus: { onSupervisionPackage: true } })
+      await controllers.checkIns.postEligibilityPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe(
+        'is not currently being supervised',
+      )
+    })
+
+    // The GET rules a provisional tier out before the form renders, so a post can only arrive by a
+    // direct submission or a flag that turned true mid-journey - either way the answers are ignored.
+    it('rules the person out when their tier is only provisional, whatever they answered', async () => {
+      const req = requestFor({
+        esupervision: { [crn]: { [id]: { checkins: { eligibility: ['none'] } } } },
+      })
+      const res = responseForTier('D', {
+        tierProvisional: true,
+        supervisionPackageStatus: { onSupervisionPackage: true },
+      })
+      await controllers.checkIns.postEligibilityPage()(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('is in a provisional Tier')
+    })
   })
 
   describe('pilot check', () => {
@@ -282,7 +387,7 @@ describe('check-in setup flow', () => {
     }
 
     // A/B and C are asked the same question, so they share one template.
-    it.each(['A1', 'C1'])('renders the pilot check for tier %s', async tierScore => {
+    it.each(['A', 'C'])('renders the pilot check for tier %s', async tierScore => {
       const req = requestFor()
       const res = responseForTier(tierScore)
       await controllers.checkIns.getPilotCheckPage()(req, res)
@@ -295,7 +400,7 @@ describe('check-in setup flow', () => {
     // Tiers D-G never reach this page - there is no template for them to fall back on.
     it('errors for tiers D to G, which have no pilot question', async () => {
       const req = requestFor()
-      const res = responseForTier('D1')
+      const res = responseForTier('D')
       await controllers.checkIns.getPilotCheckPage()(req, res)
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('pilot-check'), expect.anything())
@@ -309,7 +414,7 @@ describe('check-in setup flow', () => {
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('pilot-check'), expect.anything())
     })
 
-    it.each(['A1', 'C1'])('lets the tier %s pilot cohort through', async tierScore => {
+    it.each(['A', 'C'])('lets the tier %s pilot cohort through', async tierScore => {
       const { redirect } = await postPilotCheck(tierScore, 'true')
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
     })
@@ -318,15 +423,15 @@ describe('check-in setup flow', () => {
     // Tier C has only the one, which reads as a single sentence.
     it.each([
       [
-        'B1',
-        'is in Tier A/B and',
+        'B',
+        'is in Tier B and',
         [
           'not on an accredited programme',
           'you have no people who were signed up to use online check ins before 1 October 2026',
         ],
       ],
       [
-        'C1',
+        'C',
         'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
         [],
       ],
@@ -345,18 +450,18 @@ describe('check-in setup flow', () => {
 
     it('renders the accredited programme page for the Tier A/B programme cohort', async () => {
       const req = requestFor({}, sessionWith({ accreditedProgramme: true }))
-      const res = responseForTier('A1')
+      const res = responseForTier('A')
       await controllers.checkIns.getIsEligiblePage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/tiers-a-b/accredited-programme-is-eligible.njk',
-        expect.objectContaining({ crn, id, tierScore: 'A1' }),
+        expect.objectContaining({ crn, id, tierScore: 'A' }),
       )
     })
 
     it.each([
-      ['A1', { accreditedProgramme: false }, 'eligibility/pilot-is-eligible.njk'],
-      ['C1', {}, 'eligibility/pilot-is-eligible.njk'],
-      ['G1', {}, 'eligibility/tiers-d-g/is-eligible.njk'],
+      ['A', { accreditedProgramme: false }, 'eligibility/pilot-is-eligible.njk'],
+      ['C', {}, 'eligibility/pilot-is-eligible.njk'],
+      ['G', {}, 'eligibility/tiers-d-g/is-eligible.njk'],
     ])('renders the tier %s page otherwise', async (tierScore, checkins, view) => {
       const req = requestFor({}, sessionWith(checkins))
       const res = responseForTier(tierScore)
@@ -376,7 +481,7 @@ describe('check-in setup flow', () => {
 
     const postIsEligible = async ({ discussion, ...checkins }: Record<string, unknown>) => {
       const req = requestFor({ esupervision: { [crn]: { [id]: { checkins: { discussion } } } } }, sessionWith(checkins))
-      const res = responseForTier('D1')
+      const res = responseForTier('D')
       await controllers.checkIns.postIsEligiblePage()(req, res)
       return (res.redirect as jest.Mock).mock.calls[0][0]
     }
@@ -426,7 +531,7 @@ describe('check-in setup flow', () => {
           },
         },
       )
-      const res = responseForTier('C1')
+      const res = responseForTier('C')
       await controllers.checkIns.getNotEligiblePage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/not-eligible.njk',
@@ -448,7 +553,7 @@ describe('check-in setup flow', () => {
           },
         },
       )
-      const res = responseForTier('C1')
+      const res = responseForTier('C')
       await controllers.checkIns.getNotEligiblePage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/not-eligible.njk',
@@ -460,7 +565,7 @@ describe('check-in setup flow', () => {
     // one reason going back could not change.
     it.each([
       ['MISSING', true],
-      ['C1', false],
+      ['C', false],
     ])('tells the page whether the tier is missing for score %s', async (tierScore, missingTier) => {
       const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: {} } } } } })
       const res = responseForTier(tierScore)
@@ -473,7 +578,7 @@ describe('check-in setup flow', () => {
 
     it('returns to the case overview', async () => {
       const req = requestFor()
-      const res = responseForTier('C1')
+      const res = responseForTier('C')
       await controllers.checkIns.postNotEligiblePage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}`)
     })
@@ -482,7 +587,7 @@ describe('check-in setup flow', () => {
   describe('discuss before signup', () => {
     it('renders the guidance page', async () => {
       const req = requestFor()
-      const res = responseForTier('C1')
+      const res = responseForTier('C')
       await controllers.checkIns.getDiscussBeforeSignupPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/discuss-before-signup.njk',
@@ -492,7 +597,7 @@ describe('check-in setup flow', () => {
 
     it('returns to the case overview', async () => {
       const req = requestFor()
-      const res = responseForTier('C1')
+      const res = responseForTier('C')
       await controllers.checkIns.postDiscussBeforeSignupPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}`)
     })
@@ -505,7 +610,7 @@ describe('check-in setup flow', () => {
         query,
         session: { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
       })
-      const res = responseForTier('A1')
+      const res = responseForTier('A')
       await controllers.checkIns.getRationalePage()(req, res)
       return { res, locals: (res.render as jest.Mock).mock.calls[0]?.[1] }
     }
@@ -536,7 +641,7 @@ describe('check-in setup flow', () => {
         query,
         session: { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
       })
-      const res = responseForTier('A1')
+      const res = responseForTier('A')
       await controllers.checkIns.getDateFrequencyPage()(req, res)
       return (res.render as jest.Mock).mock.calls[0][1].backLink
     }
@@ -563,7 +668,7 @@ describe('check-in setup flow', () => {
   describe('accredited programme approval', () => {
     it('renders its template', async () => {
       const req = requestFor()
-      const res = responseForTier('A1')
+      const res = responseForTier('A')
       await controllers.checkIns.getAccreditedProgrammeApprovalPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/accredited-programme-approval.njk',
@@ -720,7 +825,7 @@ describe('check-in setup flow', () => {
         getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: true }),
       }))
       const req = requestFor()
-      const res = responseForTier('B1')
+      const res = responseForTier('B', { supervisionPackageStatus: { onSupervisionPackage: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
     })
@@ -731,9 +836,10 @@ describe('check-in setup flow', () => {
       const getProbationPractitioner = jest.fn()
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
       const req = requestFor()
-      const res = responseForTier('B1', {
+      const res = responseForTier('B', {
         flags: { newDesignPopHeader: true },
         practitioner: { unallocated: false },
+        supervisionPackageStatus: { onSupervisionPackage: true },
       })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
       expect(getProbationPractitioner).not.toHaveBeenCalled()
@@ -747,7 +853,7 @@ describe('check-in setup flow', () => {
       const getProbationPractitioner = jest.fn()
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
       const req = requestFor()
-      const res = responseForTier('B1', {
+      const res = responseForTier('B', {
         flags: { newDesignPopHeader: true },
         practitioner: { unallocated: true },
       })

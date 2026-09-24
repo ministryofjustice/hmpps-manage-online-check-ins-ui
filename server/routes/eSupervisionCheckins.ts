@@ -15,6 +15,7 @@ import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRe
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
+import { getSupervisionPackageStatus } from '../middleware/getSupervisionPackageStatus'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
@@ -56,11 +57,13 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   // links, ?cya= links and restrictPageAccess don't need to know about bands.
   router.get('/case/:crn/appointments/:id/check-in/eligibility-check', [
     getPersonalDetails(hmppsAuthClient, arnsComponents),
+    getSupervisionPackageStatus(hmppsAuthClient),
     controllers.checkIns.getEligibilityPage(hmppsAuthClient),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/eligibility-check',
     getPersonalDetails(hmppsAuthClient, arnsComponents),
+    getSupervisionPackageStatus(hmppsAuthClient),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postEligibilityPage(),
@@ -97,6 +100,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/not-eligible', [
+    restrictPageAccess(),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getNotEligiblePage(),
   ])

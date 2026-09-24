@@ -35,7 +35,21 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 
-    const eligibility = nextAfterEligibilityCheck(band, toSelections(checkins.eligibility))
+    if (!toSelections(checkins.eligibility).length) {
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+
+    // Recorded by postEligibilityPage from the ESUP call, since that answer is not fetched again on
+    // the later pages this guards.
+    //
+    // No tier score is passed: this runs ahead of getPersonalDetails, so there is none on res.locals.
+    // Only `target` is read below - the reason is never rendered from here, so the band label the
+    // rules fall back to does not reach the practitioner.
+    const eligibility = nextAfterEligibilityCheck(
+      band,
+      Boolean(checkins.onSupervisionPackage),
+      toSelections(checkins.eligibility),
+    )
     let outcome = eligibility.target
 
     if (eligibility.target === 'pilot-check') {

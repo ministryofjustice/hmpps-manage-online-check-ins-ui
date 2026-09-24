@@ -32,13 +32,15 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
-import getTierBand, { MISSING_TIER, TierBand, TierStatus } from '../utils/getTierBand'
+import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
   hasCompletedDiscussion,
   missingTierReason,
   nextAfterEligibilityCheck,
   nextAfterPilotCheck,
+  notSupervisedReason,
+  provisionalTierReason,
   toSelections,
 } from '../utils/eligibilityRules'
 
@@ -80,24 +82,41 @@ function setNotEligibleReason(req: Request, crn: string, id: string, reason: str
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], [])
 }
 
+// The tier statuses that are not bands at all, each ruling the person out on its own. A missing tier
+// is what the header returns as an empty score too, since getPersonalDetails coerces 404s and 500s
+// to one.
+const tierStatusReasons: Record<typeof MISSING_TIER | typeof NOT_SUPERVISED_TIER, string> = {
+  [MISSING_TIER]: missingTierReason,
+  [NOT_SUPERVISED_TIER]: notSupervisedReason,
+}
+
 // Every eligibility rule keys off the tier, so each page needs a band before it can do anything.
-// This resolves one or answers the request itself, returning null once it has, so all three
-// outcomes are handled the same way everywhere. A missing tier - which the header endpoint returns
-// as an empty score, tolerating 404s and 500s - is a fact about the person, so they are ruled out
-// with a reason the practitioner can act on; a score we cannot read at all is unexpected data, and
-// guessing a band would apply the wrong rules, so that stays a 500.
+// This resolves one or answers the request itself, returning null once it has, so every outcome is
+// handled the same way everywhere. The statuses above are facts about the person, so they are ruled
+// out with a reason the practitioner can act on, as is a tier the header reports as provisional; a
+// score we cannot read at all is unexpected data, and guessing a band would apply the wrong rules,
+// so that stays a 500.
 function requireBand(req: Request, res: Response, crn: string, id: string): TierBand | null {
-  const band: TierStatus | null = getTierBand(res.locals.tierScore as string)
-  if (band === MISSING_TIER) {
-    setNotEligibleReason(req, crn, id, missingTierReason)
+  const status: TierStatus | null = getTierBand(res.locals.tierScore as string)
+  const ruleOut = (reason: string): null => {
+    setNotEligibleReason(req, crn, id, reason)
     res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
     return null
   }
-  if (!band) {
+  if (status === MISSING_TIER || status === NOT_SUPERVISED_TIER) {
+    return ruleOut(tierStatusReasons[status])
+  }
+  // Checked after the statuses above, which are the more basic facts: a person who is no longer
+  // supervised, or has no score at all, has no tier for this flag to qualify. A provisional score is
+  // otherwise readable, so this still comes ahead of the unreadable-score error below.
+  if (res.locals.tierProvisional === true) {
+    return ruleOut(provisionalTierReason)
+  }
+  if (!status) {
     renderError(500)(req, res)
     return null
   }
-  return band
+  return status
 }
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
@@ -224,6 +243,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+
+      // A blanket failure if not on a supervision package
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(
+        req.session.data,
+        ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'],
+        onSupervisionPackage,
+      )
+      if (!onSupervisionPackage) {
+        const { reason, bullets } = nextAfterEligibilityCheck(band, false, [], res.locals.tierScore as string)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      }
+
       return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
         crn,
         id,
@@ -253,7 +287,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
       const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
-      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(band, selections)
+      // Supplied by getSupervisionPackageStatus, which replaced the checkbox this used to read.
+      // Recorded like tierBand because restrictEligibilityAccess re-derives the outcome from the
+      // session on every later page, where the ESUP answer is no longer on res.locals.
+      const onSupervisionPackage = Boolean(res.locals.supervisionPackageStatus?.onSupervisionPackage)
+      setDataValue(data, ['esupervision', crn, id, 'checkins', 'onSupervisionPackage'], onSupervisionPackage)
+      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
+        band,
+        onSupervisionPackage,
+        selections,
+        res.locals.tierScore as string,
+      )
       // The rationale step and the summary both key off this, so record it either way.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
       // Going back and unticking accredited programme after already completing approval and/or
@@ -354,7 +398,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
-      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck)
+      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck, res.locals.tierScore as string)
       if (target === 'not-eligible') {
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
@@ -427,6 +471,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const checkins = ['esupervision', crn, id, 'checkins']
+      const noSupervisionPackage = getDataValue(req.session.data, [...checkins, 'onSupervisionPackage']) === false
+      const tierStatus = getTierBand(res.locals.tierScore as string)
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,
         id,
@@ -434,10 +480,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
-        // Every other reason comes from an answer the practitioner gave and can revisit, so the page
-        // offers a way back to the eligibility check. A missing tier is not theirs to change, and
-        // going back would only rule the person out again - so that route is hidden for it.
-        missingTier: getTierBand(res.locals.tierScore as string) === MISSING_TIER,
+        missingTier: tierStatus === MISSING_TIER,
+        notSupervised: tierStatus === NOT_SUPERVISED_TIER,
+        provisionalTier: res.locals.tierProvisional === true,
+        noSupervisionPackage,
       })
     }
   },

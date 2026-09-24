@@ -2,21 +2,21 @@ import getTierBand from './getTierBand'
 
 describe('utils/getTierBand', () => {
   it('should map tiers A and B to the AB band', () => {
-    expect(getTierBand('A1')).toEqual('AB')
-    expect(getTierBand('B2')).toEqual('AB')
+    expect(getTierBand('A')).toEqual('AB')
+    expect(getTierBand('B')).toEqual('AB')
   })
   it('should map tier C to its own band', () => {
-    expect(getTierBand('C3')).toEqual('C')
+    expect(getTierBand('C')).toEqual('C')
   })
   it('should map tiers D to G to the DG band', () => {
-    expect(getTierBand('D1')).toEqual('DG')
-    expect(getTierBand('E2')).toEqual('DG')
-    expect(getTierBand('F3')).toEqual('DG')
-    expect(getTierBand('G0')).toEqual('DG')
+    expect(getTierBand('D')).toEqual('DG')
+    expect(getTierBand('E')).toEqual('DG')
+    expect(getTierBand('F')).toEqual('DG')
+    expect(getTierBand('G')).toEqual('DG')
   })
   it('should ignore case and surrounding whitespace', () => {
-    expect(getTierBand('b1')).toEqual('AB')
-    expect(getTierBand(' c2 ')).toEqual('C')
+    expect(getTierBand('b')).toEqual('AB')
+    expect(getTierBand(' c ')).toEqual('C')
   })
   // The API says 'MISSING' outright when a person has no tier assigned, which rules them out with a
   // reason the practitioner can act on rather than being an error.
@@ -30,10 +30,17 @@ describe('utils/getTierBand', () => {
     expect(getTierBand('   ')).toEqual('MISSING')
     expect(getTierBand(undefined)).toEqual('MISSING')
   })
+  // 'NOT_SUPERVISED' says the person is no longer on probation, which rules them out outright rather
+  // than being a tier the rules could be applied to.
+  it('should pass a person who is not supervised through as its own status', () => {
+    expect(getTierBand('NOT_SUPERVISED')).toEqual('NOT_SUPERVISED')
+    expect(getTierBand(' not_supervised ')).toEqual('NOT_SUPERVISED')
+  })
   it('should return null when a tier is present but cannot be read', () => {
-    expect(getTierBand('Z1')).toBeNull()
-    // 'MISSING' is read whole, so a tier that merely starts with M is not mistaken for it - and M
-    // is not a band either.
-    expect(getTierBand('M1')).toBeNull()
+    expect(getTierBand('Z')).toBeNull()
+    // The statuses are read whole, so a tier that merely starts with one of their letters is not
+    // mistaken for them - and neither M nor N is a band.
+    expect(getTierBand('M')).toBeNull()
+    expect(getTierBand('N')).toBeNull()
   })
 })

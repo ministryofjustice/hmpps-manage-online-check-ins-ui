@@ -105,12 +105,11 @@ describe('eligibility/eligibility-check', () => {
     )
 
   // Every band ends with the exclusive "None of these apply".
-  const allTiers = ['supervisionPackage', 'recalled', 'finalThird', 'deviceRestriction', 'none']
+  const allTiers = ['recalled', 'finalThird', 'deviceRestriction', 'none']
 
   it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
     expect(valuesIn(html)).toEqual([
-      'supervisionPackage',
       'accreditedProgramme',
       'recalled',
       'finalThird',
@@ -190,15 +189,9 @@ describe('eligibility/not-eligible', () => {
     expect(html).not.toContain('reasonBullets')
   })
 
-  // The offer is made whatever the reason - see getNotEligiblePage.
-  it('always offers to check eligibility again', async () => {
-    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
-    expect(html).toContain('you can go back and check eligibility again')
-  })
-
   // The reason came from an answer given there, so going back is a real way to revisit it.
   it('links back to the eligibility check for a reason the practitioner answered', async () => {
-    const html = await render('eligibility/not-eligible', { ...base, reason: 'is not on a supervision package' })
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
 
@@ -226,5 +219,70 @@ describe('eligibility/not-eligible', () => {
     })
     expect(html).toContain(`href="/case/${crn}"`)
     expect(html).not.toContain('check-in/eligibility-check')
+  })
+
+  // A provisional Tier is about the record too, and says the score will be replaced by a final Tier
+  // rather than assigned for the first time - so it gets its own wording.
+  it('words a provisional tier impersonally and says a final Tier will follow', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is in a provisional Tier',
+      provisionalTier: true,
+    })
+    expect(html).toContain('This is because they are currently in a provisional Tier.')
+    expect(html).toContain('once their risk scores have been completed and the system has calculated their final Tier')
+    expect(html).toContain('You can come back and check eligibility again')
+    expect(html).not.toContain('This is because Bob')
+  })
+
+  it('links a provisional tier back to the case overview rather than the eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is in a provisional Tier',
+      provisionalTier: true,
+    })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('check-in/eligibility-check')
+  })
+
+  // The controller checks a missing tier first - with no score there is no Tier to call provisional -
+  // so the template must not show both paragraphs if both flags somehow arrive.
+  it('prefers the missing tier wording when a tier is both missing and flagged provisional', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'has not been assigned a Tier yet',
+      missingTier: true,
+      provisionalTier: true,
+    })
+    expect(html).toContain('This is because they have not been assigned a Tier yet.')
+    expect(html).not.toContain('provisional Tier')
+  })
+
+  // Not being supervised is the one reason that cannot clear, so it lists what might explain it
+  // instead of inviting the practitioner to check eligibility again.
+  it('lists what might explain a person no longer being supervised', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is not currently being supervised',
+      notSupervised: true,
+    })
+    expect(html).toContain('This is because they are not currently being supervised')
+    expect(html).toContain('This could be because they have:')
+    expect(html).toContain('<li>passed away</li>')
+    expect(html).toContain('<li>been recalled to prison</li>')
+    expect(html).toContain('<li>have finished their probation</li>')
+    expect(html).not.toContain('This is because Bob')
+    expect(html).not.toContain('check eligibility again')
+  })
+
+  it('links a person no longer supervised back to the case overview, and offers it as the button', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is not currently being supervised',
+      notSupervised: true,
+    })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('check-in/eligibility-check')
+    expect(html).toContain("Go to Bob's overview")
   })
 })

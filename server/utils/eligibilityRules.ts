@@ -4,24 +4,19 @@
 import { TierBand } from './getTierBand'
 
 // The eligibility check asks the practitioner about the person's circumstances; these are the
-// answers it can come back with. Four of them rule the person out whatever their tier, and
-// 'none' is the exclusive "None of these apply" box, which overrides all of them.
+// answers it can come back with. Three of them rule the person out whatever their tier. 'none' is
+// the exclusive "None of these apply" box, which asserts that no box below applies - so it carries
+// no weight of its own, and a forged submission pairing it with a disqualifier is still ruled out
+// by that disqualifier.
 export type EligibilitySelection =
-  | 'supervisionPackage'
-  | 'recalled'
-  | 'finalThird'
-  | 'deviceRestriction'
-  | 'accreditedProgramme'
-  | 'youthSentence'
-  | 'earlyEngagement'
-  | 'none'
+  'recalled' | 'finalThird' | 'deviceRestriction' | 'accreditedProgramme' | 'youthSentence' | 'earlyEngagement' | 'none'
 
 // not-eligible.njk renders "This is because <forename> <reason>.", so each disqualifier
 // supplies the clause that completes that sentence. Where more than one fact rules the person out
 // at once the clause ends in a colon and the facts are listed as `bullets` beneath it.
 //
-// A supervision package is the one box that has to be ticked; the rest rule the person out by
-// being ticked.
+// The supervision package comes from the ESUP API rather than a checkbox; the boxes that remain
+// all rule the person out by being ticked.
 export const requiresSupervisionPackage = 'is not on a supervision package'
 
 // The three that rule a person out whatever their tier and whichever route they took. They are
@@ -44,23 +39,29 @@ const programmeExclusions: { selection: EligibilitySelection; clause: string }[]
   { selection: 'earlyEngagement', clause: 'in early engagement' },
 ]
 
-const programmeExclusionStem = 'is in Tier A/B and on an accredited programme, but they are'
+// The bands are our own grouping, not Tiers anyone is assigned, so every reason that names a Tier
+// names the person's actual score - the same score the is-eligible pages render. The band is only a
+// fallback for callers that have no score to hand; see tierLabel below.
+const tierBandLabels: Record<TierBand, string> = { AB: 'A/B', C: 'C', DG: 'D-G' }
+
+const tierLabel = (band: TierBand, tierScore?: string): string => tierScore?.trim() || tierBandLabels[band]
+
+const programmeExclusionStem = (tier: string) => `is in Tier ${tier} and on an accredited programme, but they are`
 
 // Tier A/B outside the pilot cohort are told both of the things that ruled them out; Tier C only
 // has the one, so it reads as a single sentence.
-const pilotReasons: Record<'AB' | 'C', EligibilityReason> = {
-  AB: {
-    reason: 'is in Tier A/B and',
-    bullets: [
-      'not on an accredited programme',
-      'you have no people who were signed up to use online check ins before 1 October 2026',
-    ],
-  },
-  C: {
-    reason:
-      'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
-  },
-}
+const pilotReasons = (band: 'AB' | 'C', tier: string): EligibilityReason =>
+  band === 'AB'
+    ? {
+        reason: `is in Tier ${tier} and`,
+        bullets: [
+          'not on an accredited programme',
+          'you have no people who were signed up to use online check ins before 1 October 2026',
+        ],
+      }
+    : {
+        reason: `is in Tier ${tier} and you do not have one or more people on your caseload who started using online check ins before 1 October 2026`,
+      }
 
 export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
 
@@ -73,6 +74,18 @@ export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
 // "they" and follows it with how a Tier comes to be assigned. This is what gets recorded in session,
 // keeping the shape the same as every other reason.
 export const missingTierReason = 'has not been assigned a Tier yet'
+
+// A provisional tier is the same kind of fact as a missing one: the score the header reports is not
+// the person's final Tier, so the rules have nothing they can be applied to yet. It is worded
+// impersonally by not-eligible.njk for the same reason, and clears once the risk scores are done -
+// hence the same invitation to come back and check again.
+export const provisionalTierReason = 'is in a provisional Tier'
+
+// 'NOT_SUPERVISED' says the person is no longer on probation, so there is nothing to set check ins
+// up for - a disqualification on its own, like a missing tier. Unlike the other two tier statuses
+// this one cannot clear, so the page offers reasons it might apply rather than inviting the
+// practitioner to check again.
+export const notSupervisedReason = 'is not currently being supervised'
 
 // The clause that completes "This is because <forename> …", with the facts to list beneath it when
 // several apply at once.
@@ -104,10 +117,20 @@ const disqualifiersIn = (selections: string[]): EligibilityReason | undefined =>
 
 // The rules the eligibility-check post applies, kept free of Express so they can be tested
 // against the decision table directly.
-export function nextAfterEligibilityCheck(band: TierBand, selections: string[]): EligibilityOutcome {
-  // Nobody is eligible without a supervision package, whatever their tier. "None of these apply"
-  // is exclusive in the browser only, so the rules have to treat it as ruling the package out.
-  if (selections.includes('none') || !selections.includes('supervisionPackage')) {
+export function nextAfterEligibilityCheck(
+  band: TierBand,
+  onSupervisionPackage: boolean,
+  selections: string[],
+  tierScore?: string,
+): EligibilityOutcome {
+  // Nobody is eligible without a supervision package, whatever their tier. This is the only thing
+  // that can rule a person out before their answers are looked at, since the ESUP API decides it
+  // rather than the practitioner.
+  //
+  // "None of these apply" needs no handling of its own: every remaining box rules the person out by
+  // being ticked, so ticking none of them leaves nothing to find below. It used to rule the person
+  // out because the supervision package was one of the boxes it denied.
+  if (!onSupervisionPackage) {
     return { target: 'not-eligible', reason: requiresSupervisionPackage }
   }
   // These rule the person out on every branch, so there is no point asking anything further -
@@ -124,7 +147,7 @@ export function nextAfterEligibilityCheck(band: TierBand, selections: string[]):
       return {
         target: 'not-eligible',
         ...asReason(
-          programmeExclusionStem,
+          programmeExclusionStem(tierLabel(band, tierScore)),
           exclusions.map(({ clause }) => clause),
         ),
       }
@@ -138,10 +161,10 @@ export function nextAfterEligibilityCheck(band: TierBand, selections: string[]):
 
 // pilot-check is the last gate for Tiers A/B and C - only the pilot cohort can be signed up. Anyone
 // reaching it has already cleared the disqualifiers, so the cohort is all that is left to decide.
-export function nextAfterPilotCheck(band: 'AB' | 'C', pilotCheck: string): EligibilityOutcome {
+export function nextAfterPilotCheck(band: 'AB' | 'C', pilotCheck: string, tierScore?: string): EligibilityOutcome {
   return pilotCheck === 'true'
     ? { target: 'is-eligible', accreditedProgramme: false }
-    : { target: 'not-eligible', ...pilotReasons[band] }
+    : { target: 'not-eligible', ...pilotReasons(band, tierLabel(band, tierScore)) }
 }
 
 // One route per page with the band picking the template, so the URLs stay tier-agnostic.
