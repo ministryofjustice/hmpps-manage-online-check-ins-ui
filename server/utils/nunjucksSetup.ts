@@ -72,6 +72,9 @@ export default function nunjucksSetup(app: express.Express): void {
     },
   )
 
+  arnsNunjucksSetup(njkEnv)
+  mpopNunjucksSetup(njkEnv)
+
   njkEnv.addFilter('initialiseName', initialiseName)
   njkEnv.addFilter('dateWithYear', dateWithYear)
   njkEnv.addFilter('dateWithYearTimeFirst', dateWithYearTimeFirst)
@@ -96,7 +99,4 @@ export default function nunjucksSetup(app: express.Express): void {
   njkEnv.addFilter('toErrorList', toErrorList)
   njkEnv.addGlobal('makePageTitle', makePageTitle)
   njkEnv.addGlobal('maxCharCount', config.maxCharCount)
-
-  arnsNunjucksSetup(njkEnv)
-  mpopNunjucksSetup(njkEnv)
 }
