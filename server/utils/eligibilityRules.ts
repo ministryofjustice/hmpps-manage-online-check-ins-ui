@@ -50,7 +50,7 @@ const tierLabel = (band: TierBand, tierScore?: string): string => tierScore?.tri
 // rather than being told about the programme twice. It stands on its own, like the shared
 // disqualifiers, so the two can be listed together under the same empty stem.
 const programmeExclusionClause = (tier: string, fragments: string[]): string =>
-  `is in Tier ${tier} and on an accredited programme, but is ${fragments.join(' and ')}`
+  `is in Tier ${tier} and on an accredited programme, but they are ${fragments.join(' and ')}`
 
 // Tier A/B outside the pilot cohort are told both of the things that ruled them out; Tier C only
 // has the one, so it reads as a single sentence.

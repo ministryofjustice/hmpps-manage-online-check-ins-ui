@@ -276,7 +276,7 @@ describe('check-in setup flow', () => {
       async exclusion => {
         const { redirect, checkins } = await postEligibility('B', ['accreditedProgramme', exclusion])
         expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
-        expect(checkins.notEligibleReason).toContain('on an accredited programme, but is')
+        expect(checkins.notEligibleReason).toContain('on an accredited programme, but they are')
         expect(checkins.accreditedProgramme).toBe(false)
       },
     )
