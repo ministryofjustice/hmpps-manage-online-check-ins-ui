@@ -19,10 +19,9 @@ export type EligibilitySelection =
 // all rule the person out by being ticked.
 export const requiresSupervisionPackage = 'is not on a supervision package'
 
-// The three that rule a person out whatever their tier and whichever route they took. They are
-// checked ahead of the branch-specific reasons, since they are the more specific fact about the
-// person, and every one that applies is reported - hence full clauses, listed under no stem at all
-// ("This is because Joe:") when more than one is ticked.
+// The three that rule a person out whatever their tier and whichever route they took. Every one
+// that applies is reported alongside anything the branch adds - hence full clauses, listed under no
+// stem at all ("This is because Joe:") when more than one fact rules the person out.
 const disqualifyingSelections: { selection: EligibilitySelection; clause: string }[] = [
   { selection: 'recalled', clause: 'has been recalled to prison' },
   { selection: 'finalThird', clause: 'is in the final third of their sentence' },
@@ -33,10 +32,11 @@ const disqualifyingSelections: { selection: EligibilitySelection; clause: string
 ]
 
 // Tier A/B accredited-programme exclusions. These matter only on that branch - off it a youth
-// sentence or early engagement has no bearing on eligibility at all.
-const programmeExclusions: { selection: EligibilitySelection; clause: string }[] = [
-  { selection: 'youthSentence', clause: 'on a youth sentence' },
-  { selection: 'earlyEngagement', clause: 'in early engagement' },
+// sentence or early engagement has no bearing on eligibility at all. They are fragments rather than
+// clauses because both share the one sentence about the programme; see programmeExclusionClause.
+const programmeExclusions: { selection: EligibilitySelection; fragment: string }[] = [
+  { selection: 'youthSentence', fragment: 'on a youth sentence' },
+  { selection: 'earlyEngagement', fragment: 'in early engagement' },
 ]
 
 // The bands are our own grouping, not Tiers anyone is assigned, so every reason that names a Tier
@@ -46,7 +46,11 @@ const tierBandLabels: Record<TierBand, string> = { AB: 'A/B', C: 'C', DG: 'D-G' 
 
 const tierLabel = (band: TierBand, tierScore?: string): string => tierScore?.trim() || tierBandLabels[band]
 
-const programmeExclusionStem = (tier: string) => `is in Tier ${tier} and on an accredited programme, but they are`
+// One clause however many exclusions apply, so a person on both is told so in a single sentence
+// rather than being told about the programme twice. It stands on its own, like the shared
+// disqualifiers, so the two can be listed together under the same empty stem.
+const programmeExclusionClause = (tier: string, fragments: string[]): string =>
+  `is in Tier ${tier} and on an accredited programme, but is ${fragments.join(' and ')}`
 
 // Tier A/B outside the pilot cohort are told both of the things that ruled them out; Tier C only
 // has the one, so it reads as a single sentence.
@@ -106,14 +110,10 @@ export interface EligibilityOutcome extends Partial<EligibilityReason> {
 const asReason = (stem: string, clauses: string[]): EligibilityReason =>
   clauses.length > 1 ? { reason: stem, bullets: clauses } : { reason: `${stem} ${clauses[0]}`.trim() }
 
-// Every disqualifier that applies, so a person who is both recalled and in the final third is told
-// both rather than only the first.
-const disqualifiersIn = (selections: string[]): EligibilityReason | undefined => {
-  const clauses = disqualifyingSelections
-    .filter(({ selection }) => selections.includes(selection))
-    .map(({ clause }) => clause)
-  return clauses.length ? asReason('', clauses) : undefined
-}
+// Every shared disqualifier that applies, so a person who is both recalled and in the final third
+// is told both rather than only the first.
+const disqualifyingClausesIn = (selections: string[]): string[] =>
+  disqualifyingSelections.filter(({ selection }) => selections.includes(selection)).map(({ clause }) => clause)
 
 // The rules the eligibility-check post applies, kept free of Express so they can be tested
 // against the decision table directly.
@@ -133,25 +133,27 @@ export function nextAfterEligibilityCheck(
   if (!onSupervisionPackage) {
     return { target: 'not-eligible', reason: requiresSupervisionPackage }
   }
-  // These rule the person out on every branch, so there is no point asking anything further -
-  // including the pilot question, whose answer cannot change the outcome.
-  const disqualifier = disqualifiersIn(selections)
-  if (disqualifier) {
-    return { target: 'not-eligible', ...disqualifier }
-  }
+  // Every fact that rules the person out is collected before anything is decided, so someone who
+  // is recalled and also excluded from the programme is told both rather than only the first. The
+  // shared disqualifiers come first, being the more specific facts about the person.
+  const clauses = disqualifyingClausesIn(selections)
   // Tiers A/B split on the accredited programme, where a youth sentence or early engagement rules
   // the person out. Off that branch neither matters, so they are not looked at.
-  if (band === 'AB' && selections.includes('accreditedProgramme')) {
-    const exclusions = programmeExclusions.filter(({ selection }) => selections.includes(selection))
-    if (exclusions.length) {
-      return {
-        target: 'not-eligible',
-        ...asReason(
-          programmeExclusionStem(tierLabel(band, tierScore)),
-          exclusions.map(({ clause }) => clause),
-        ),
-      }
+  const onProgramme = band === 'AB' && selections.includes('accreditedProgramme')
+  if (onProgramme) {
+    const fragments = programmeExclusions
+      .filter(({ selection }) => selections.includes(selection))
+      .map(({ fragment }) => fragment)
+    if (fragments.length) {
+      clauses.push(programmeExclusionClause(tierLabel(band, tierScore), fragments))
     }
+  }
+  // Anything found so far rules the person out on every branch, so there is no point asking
+  // anything further - including the pilot question, whose answer cannot change the outcome.
+  if (clauses.length) {
+    return { target: 'not-eligible', ...asReason('', clauses) }
+  }
+  if (onProgramme) {
     return { target: 'is-eligible', accreditedProgramme: true }
   }
   // Tiers D-G are eligible on the supervision package alone, with no pilot question to answer;

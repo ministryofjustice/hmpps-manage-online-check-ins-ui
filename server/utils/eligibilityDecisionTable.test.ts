@@ -28,17 +28,17 @@ const REASONS = {
   recalled: 'has been recalled to prison',
   finalThird: 'is in the final third of their sentence',
   deviceRestriction: 'has restrictions that mean they cannot use a device or the internet',
-  youthSentence: 'is in Tier A/B and on an accredited programme, but they are on a youth sentence',
-  earlyEngagement: 'is in Tier A/B and on an accredited programme, but they are in early engagement',
+  youthSentence: 'is in Tier A/B and on an accredited programme, but is on a youth sentence',
+  earlyEngagement: 'is in Tier A/B and on an accredited programme, but is in early engagement',
+  bothExclusions: 'is in Tier A/B and on an accredited programme, but is on a youth sentence and in early engagement',
   pilotC:
     'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
 }
 
-// The clause that introduces a bullet list. The shared disqualifiers are whole clauses in
-// themselves, so they are listed under no stem at all - "This is because Joe:".
+// The clause that introduces a bullet list. Everything found on the eligibility check is a whole
+// clause in itself, so those are listed under no stem at all - "This is because Joe:".
 const STEMS = {
   disqualifiers: '',
-  programme: 'is in Tier A/B and on an accredited programme, but they are',
   pilotAB: 'is in Tier A/B and',
 }
 
@@ -46,8 +46,9 @@ const BULLETS = {
   recalled: 'has been recalled to prison',
   finalThird: 'is in the final third of their sentence',
   deviceRestriction: 'has restrictions that mean they cannot use a device or the internet',
-  youthSentence: 'on a youth sentence',
-  earlyEngagement: 'in early engagement',
+  youthSentence: REASONS.youthSentence,
+  earlyEngagement: REASONS.earlyEngagement,
+  bothExclusions: REASONS.bothExclusions,
   noProgramme: 'not on an accredited programme',
   noPilot: 'you have no people who were signed up to use online check ins before 1 October 2026',
 }
@@ -180,9 +181,9 @@ describe('eligibility decision table', () => {
   })
 
   // What a ruled-out person is shown when several facts apply at once. The tree does not settle
-  // this, so the choices are the code's: the shared disqualifiers come first, being the most
-  // specific facts about the person, and every fact that applies is reported rather than just the
-  // first - as a bullet list once there is more than one.
+  // this, so the choices are the code's: every fact that applies is reported rather than just the
+  // first - as a bullet list once there is more than one - with the shared disqualifiers listed
+  // ahead of the programme exclusions, being the most specific facts about the person.
   describe('reasons when several apply', () => {
     it('reports the missing supervision package ahead of everything else', () => {
       expect(nextAfterEligibilityCheck('AB', false, ['recalled', 'accreditedProgramme', 'youthSentence']).reason).toBe(
@@ -215,10 +216,29 @@ describe('eligibility decision table', () => {
       })
     })
 
-    it('reports the shared disqualifiers ahead of the programme exclusions', () => {
+    it('lists the shared disqualifiers ahead of the programme exclusions', () => {
       expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'youthSentence', 'recalled'])).toEqual({
         target: 'not-eligible',
-        reason: REASONS.recalled,
+        reason: STEMS.disqualifiers,
+        bullets: [BULLETS.recalled, BULLETS.youthSentence],
+      })
+    })
+
+    // The scenario the testers raised: recalled, in the final third and excluded from the programme
+    // on both counts, so all of it is reported rather than just the shared disqualifiers.
+    it('lists every shared disqualifier and the programme exclusions together', () => {
+      expect(
+        nextAfterEligibilityCheck('AB', true, [
+          'accreditedProgramme',
+          'youthSentence',
+          'earlyEngagement',
+          'recalled',
+          'finalThird',
+        ]),
+      ).toEqual({
+        target: 'not-eligible',
+        reason: STEMS.disqualifiers,
+        bullets: [BULLETS.recalled, BULLETS.finalThird, BULLETS.bothExclusions],
       })
     })
 
@@ -229,13 +249,13 @@ describe('eligibility decision table', () => {
       })
     })
 
-    it('lists both programme exclusions when both apply', () => {
+    // Both exclusions share the one sentence about the programme rather than repeating it.
+    it('reads both programme exclusions as one sentence when both apply', () => {
       expect(
         nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'youthSentence', 'earlyEngagement']),
       ).toEqual({
         target: 'not-eligible',
-        reason: STEMS.programme,
-        bullets: [BULLETS.youthSentence, BULLETS.earlyEngagement],
+        reason: REASONS.bothExclusions,
       })
     })
 

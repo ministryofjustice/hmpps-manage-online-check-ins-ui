@@ -84,12 +84,27 @@ describe('utils/eligibilityRules', () => {
       // On the programme branch these rule the person out outright - there is no pilot route left
       // for them to fall back on. Off the branch neither matters; see the pilot cohort tests below.
       it.each([
-        ['earlyEngagement', 'is in Tier B and on an accredited programme, but they are in early engagement'],
-        ['youthSentence', 'is in Tier B and on an accredited programme, but they are on a youth sentence'],
+        ['earlyEngagement', 'is in Tier B and on an accredited programme, but is in early engagement'],
+        ['youthSentence', 'is in Tier B and on an accredited programme, but is on a youth sentence'],
       ])('rules the programme cohort out when %s applies', (exclusion, reason) => {
         expect(nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', exclusion], 'B')).toEqual({
           target: 'not-eligible',
           reason,
+        })
+      })
+
+      // A programme exclusion is a whole clause, so it can be listed alongside the shared
+      // disqualifiers rather than being dropped in their favour.
+      it('lists a programme exclusion alongside a shared disqualifier', () => {
+        expect(
+          nextAfterEligibilityCheck('AB', true, ['accreditedProgramme', 'youthSentence', 'recalled'], 'B'),
+        ).toEqual({
+          target: 'not-eligible',
+          reason: '',
+          bullets: [
+            'has been recalled to prison',
+            'is in Tier B and on an accredited programme, but is on a youth sentence',
+          ],
         })
       })
 
