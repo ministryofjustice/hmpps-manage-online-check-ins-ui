@@ -28,9 +28,10 @@ const REASONS = {
   recalled: 'has been recalled to prison',
   finalThird: 'is in the final third of their sentence',
   deviceRestriction: 'has restrictions that mean they cannot use a device or the internet',
-  youthSentence: 'is in Tier A/B and on an accredited programme, but is on a youth sentence',
-  earlyEngagement: 'is in Tier A/B and on an accredited programme, but is in early engagement',
-  bothExclusions: 'is in Tier A/B and on an accredited programme, but is on a youth sentence and in early engagement',
+  youthSentence: 'is in Tier A/B and on an accredited programme, but they are on a youth sentence',
+  earlyEngagement: 'is in Tier A/B and on an accredited programme, but they are in early engagement',
+  bothExclusions:
+    'is in Tier A/B and on an accredited programme, but they are on a youth sentence and in early engagement',
   pilotC:
     'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
 }

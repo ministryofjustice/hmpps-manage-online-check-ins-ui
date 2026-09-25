@@ -182,7 +182,7 @@ context('Appointment check-ins', () => {
 
       new NotEligiblePage()
         .getReason()
-        .should('contain', 'is in Tier A and on an accredited programme, but is in early engagement')
+        .should('contain', 'is in Tier A and on an accredited programme, but they are in early engagement')
     })
 
     // Both exclusions at once share the one sentence about the programme.
@@ -197,7 +197,7 @@ context('Appointment check-ins', () => {
         .getReason()
         .should(
           'contain',
-          'is in Tier A and on an accredited programme, but is on a youth sentence and in early engagement',
+          'is in Tier A and on an accredited programme, but they are on a youth sentence and in early engagement',
         )
     })
 
@@ -216,7 +216,7 @@ context('Appointment check-ins', () => {
       notEligiblePage
         .getReasonBullets()
         .last()
-        .should('contain', 'is in Tier A and on an accredited programme, but is on a youth sentence')
+        .should('contain', 'is in Tier A and on an accredited programme, but they are on a youth sentence')
     })
 
     // Off the programme branch neither exclusion matters, so the pilot cohort still decides.
