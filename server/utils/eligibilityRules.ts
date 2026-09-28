@@ -4,19 +4,12 @@
 import { TierBand } from './getTierBand'
 
 // The eligibility check asks the practitioner about the person's circumstances; these are the
-// answers it can come back with. 'none' is the exclusive "None of these apply" box, which asserts
-// that no box below applies - so it carries no weight of its own, and a forged submission pairing it
-// with a disqualifier is still ruled out by that disqualifier.
+// answers it can come back with. Three of them rule the person out whatever their tier. 'none' is
+// the exclusive "None of these apply" box, which asserts that no box below applies - so it carries
+// no weight of its own, and a forged submission pairing it with a disqualifier is still ruled out
+// by that disqualifier.
 export type EligibilitySelection = 'recalled' | 'deviceRestriction' | 'accreditedProgramme' | 'youthSentence' | 'none'
 
-// What the ESUP supervision-package call tells us about the person, in place of the checkboxes that
-// used to ask the practitioner the same three questions. The API is authoritative, so these are
-// applied whatever the form says.
-//
-// Only being in early engagement depends on an answer: it rules a person out on the Tier A/B
-// accredited-programme branch alone, so the form has to be shown before it can be applied. The other
-// two are settled the moment the call returns - see getEligibilityPage, which rules the person out
-// without rendering the form at all.
 export interface EligibilityStatus {
   onSupervisionPackage: boolean
   inFinalThird: boolean
@@ -26,14 +19,14 @@ export interface EligibilityStatus {
 // not-eligible.njk renders "This is because <forename> <reason>.", so each disqualifier
 // supplies the clause that completes that sentence. Where more than one fact rules the person out
 // at once the clause ends in a colon and the facts are listed as `bullets` beneath it.
+//
+// The supervision package comes from the ESUP API rather than a checkbox; the boxes that remain
+// all rule the person out by being ticked.
 export const requiresSupervisionPackage = 'is not on a supervision package'
 
-// The three that rule a person out whatever their tier and whichever route they took. They are
-// checked ahead of the branch-specific reasons, since they are the more specific fact about the
-// person, and every one that applies is reported - hence full clauses, listed under no stem at all
-// ("This is because Joe:") when more than one applies. The final third comes from the ESUP call
-// rather than a box, so it is keyed off the status; its place in the list sets where it appears
-// among the bullets.
+// The three that rule a person out whatever their tier and whichever route they took. Every one
+// that applies is reported alongside anything the branch adds - hence full clauses, listed under no
+// stem at all ("This is because Joe:") when more than one fact rules the person out.
 const disqualifiers: { applies: (status: EligibilityStatus, selections: string[]) => boolean; clause: string }[] = [
   { applies: (_status, selections) => selections.includes('recalled'), clause: 'has been recalled to prison' },
   { applies: status => status.inFinalThird, clause: 'is in the final third of their sentence' },
@@ -44,8 +37,8 @@ const disqualifiers: { applies: (status: EligibilityStatus, selections: string[]
 ]
 
 // Tier A/B accredited-programme exclusions. These matter only on that branch - off it a youth
-// sentence or early engagement has no bearing on eligibility at all. Early engagement comes from the
-// ESUP call; the youth sentence is still a box, since the API does not supply it.
+// sentence or early engagement has no bearing on eligibility at all. They are fragments rather than
+// clauses because both share the one sentence about the programme; see programmeExclusionClause.
 const programmeExclusions: { applies: (status: EligibilityStatus, selections: string[]) => boolean; clause: string }[] =
   [
     { applies: (_status, selections) => selections.includes('youthSentence'), clause: 'on a youth sentence' },
@@ -59,7 +52,11 @@ const tierBandLabels: Record<TierBand, string> = { AB: 'A/B', C: 'C', DG: 'D-G' 
 
 const tierLabel = (band: TierBand, tierScore?: string): string => tierScore?.trim() || tierBandLabels[band]
 
-const programmeExclusionStem = (tier: string) => `is in Tier ${tier} and on an accredited programme, but they are`
+// One clause however many exclusions apply, so a person on both is told so in a single sentence
+// rather than being told about the programme twice. It stands on its own, like the shared
+// disqualifiers, so the two can be listed together under the same empty stem.
+const programmeExclusionClause = (tier: string, fragments: string[]): string =>
+  `is in Tier ${tier} and on an accredited programme, but they are ${fragments.join(' and ')}`
 
 // Tier A/B outside the pilot cohort are told both of the things that ruled them out; Tier C only
 // has the one, so it reads as a single sentence.
@@ -119,13 +116,6 @@ export interface EligibilityOutcome extends Partial<EligibilityReason> {
 const asReason = (stem: string, clauses: string[]): EligibilityReason =>
   clauses.length > 1 ? { reason: stem, bullets: clauses } : { reason: `${stem} ${clauses[0]}`.trim() }
 
-// Every disqualifier that applies, so a person who is both recalled and in the final third is told
-// both rather than only the first.
-const disqualifiersIn = (status: EligibilityStatus, selections: string[]): EligibilityReason | undefined => {
-  const clauses = disqualifiers.filter(({ applies }) => applies(status, selections)).map(({ clause }) => clause)
-  return clauses.length ? asReason('', clauses) : undefined
-}
-
 // The rules the eligibility-check post applies, kept free of Express so they can be tested
 // against the decision table directly.
 export function nextAfterEligibilityCheck(
@@ -134,8 +124,9 @@ export function nextAfterEligibilityCheck(
   selections: string[],
   tierScore?: string,
 ): EligibilityOutcome {
-  // Nobody is eligible without a supervision package, whatever their tier. Reported ahead of
-  // everything else, including the final third it arrives alongside.
+  // Nobody is eligible without a supervision package, whatever their tier. This is the only thing
+  // that can rule a person out before their answers are looked at, since the ESUP API decides it
+  // rather than the practitioner.
   //
   // "None of these apply" needs no handling of its own: every remaining box rules the person out by
   // being ticked, so ticking none of them leaves nothing to find below. It used to rule the person
@@ -143,26 +134,30 @@ export function nextAfterEligibilityCheck(
   if (!status.onSupervisionPackage) {
     return { target: 'not-eligible', reason: requiresSupervisionPackage }
   }
-  // These rule the person out on every branch, so there is no point asking anything further -
-  // including the pilot question, whose answer cannot change the outcome.
-  const disqualifier = disqualifiersIn(status, selections)
-  if (disqualifier) {
-    return { target: 'not-eligible', ...disqualifier }
-  }
+  // Every fact that rules the person out is collected before anything is decided, so someone who
+  // is recalled and also excluded from the programme is told both rather than only the first. The
+  // shared disqualifiers come first, being the more specific facts about the person.
+  const clauses = disqualifiers.filter(({ applies }) => applies(status, selections)).map(({ clause }) => clause)
   // Tiers A/B split on the accredited programme, where a youth sentence or early engagement rules
-  // the person out. Off that branch neither matters, so they are not looked at - a person in early
-  // engagement who is not on a programme is judged on the pilot cohort like anyone else.
-  if (band === 'AB' && selections.includes('accreditedProgramme')) {
-    const exclusions = programmeExclusions.filter(({ applies }) => applies(status, selections))
-    if (exclusions.length) {
-      return {
-        target: 'not-eligible',
-        ...asReason(
-          programmeExclusionStem(tierLabel(band, tierScore)),
-          exclusions.map(({ clause }) => clause),
-        ),
+  // the person out. Off that branch neither matters, so they are not looked at.
+  const onProgramme = band === 'AB' && selections.includes('accreditedProgramme')
+  if (onProgramme) {
+    const fragments = programmeExclusions
+      .filter(({ applies }) => applies(status, selections))
+      .map(({ clause }) => clause)
+    if (fragments.length) {
+      if (clauses.length === 1 && clauses[0] === 'is in the final third of their sentence') {
+        return { target: 'not-eligible', reason: clauses[0] }
       }
+      clauses.push(programmeExclusionClause(tierLabel(band, tierScore), fragments))
     }
+  }
+  // Anything found so far rules the person out on every branch, so there is no point asking
+  // anything further - including the pilot question, whose answer cannot change the outcome.
+  if (clauses.length) {
+    return { target: 'not-eligible', ...asReason('', clauses) }
+  }
+  if (onProgramme) {
     return { target: 'is-eligible', accreditedProgramme: true }
   }
   // Tiers D-G are eligible on the supervision package alone, with no pilot question to answer;

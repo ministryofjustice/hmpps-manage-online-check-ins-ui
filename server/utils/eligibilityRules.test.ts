@@ -122,6 +122,21 @@ describe('utils/eligibilityRules', () => {
         })
       })
 
+      // A programme exclusion is a whole clause, so it can be listed alongside the shared
+      // disqualifiers rather than being dropped in their favour.
+      it('lists a programme exclusion alongside a shared disqualifier', () => {
+        expect(
+          nextAfterEligibilityCheck('AB', status(), ['accreditedProgramme', 'youthSentence', 'recalled'], 'B'),
+        ).toEqual({
+          target: 'not-eligible',
+          reason: '',
+          bullets: [
+            'has been recalled to prison',
+            'is in Tier B and on an accredited programme, but they are on a youth sentence',
+          ],
+        })
+      })
+
       // Only the programme branch cares - the designer's tree marks these as "doesn't matter if
       // ticked or not" everywhere else, so a person on the pilot route is unaffected. This is why
       // early engagement cannot be settled before the form is answered.

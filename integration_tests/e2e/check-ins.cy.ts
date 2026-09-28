@@ -219,19 +219,37 @@ context('Appointment check-ins', () => {
       new NotEligiblePage().getBackLink().should('have.attr', 'href').and('contain', 'check-in/eligibility-check')
     })
 
-    // Both exclusions at once are listed beneath the clause rather than reported one at a time. The
-    // fixture supplies the early engagement, the practitioner still ticks the youth sentence.
-    it('lists both programme exclusions when both apply', () => {
+    // Both exclusions at once share the one sentence about the programme.
+    it('reads both programme exclusions as one sentence when both apply', () => {
       const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
       checkPage.getAccreditedProgramme().click()
       checkPage.getYouthSentence().click()
       checkPage.getSubmitBtn().click()
 
+      new NotEligiblePage()
+        .getReason()
+        .should(
+          'contain',
+          'is in Tier A and on an accredited programme, but they are on a youth sentence and in early engagement',
+        )
+    })
+
+    // A programme exclusion is listed alongside the shared disqualifiers rather than being dropped
+    // in their favour, so the practitioner sees every reason at once.
+    it('lists the programme exclusion alongside a shared disqualifier', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getYouthSentence().click()
+      checkPage.getRecalled().click()
+      checkPage.getSubmitBtn().click()
+
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier A and on an accredited programme, but they are')
       notEligiblePage.getReasonBullets().should('have.length', 2)
-      notEligiblePage.getReasonBullets().first().should('contain', 'on a youth sentence')
-      notEligiblePage.getReasonBullets().last().should('contain', 'in early engagement')
+      notEligiblePage.getReasonBullets().first().should('contain', 'has been recalled to prison')
+      notEligiblePage
+        .getReasonBullets()
+        .last()
+        .should('contain', 'is in Tier A and on an accredited programme, but they are on a youth sentence')
     })
 
     // Off the programme branch neither exclusion matters, so the pilot cohort still decides. This is
