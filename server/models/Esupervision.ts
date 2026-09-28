@@ -1,7 +1,11 @@
 import { Errors } from './Errors'
-import { EsupervisionQuestionTemplatesList } from '../data/model/esupervision'
+import { EsupervisionQuestionTemplatesList, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface ESupervisionSession {
+  // Server-owned response from the supervision-package endpoint. The access guard uses it to
+  // re-derive the outcome without fetching the endpoint again. See SERVER_OWNED_KEYS in
+  // middleware/autoStoreSessionData.
+  supervisionPackageStatus?: SupervisionPackageStatus
   checkins?: CheckinUserDetails
   manageCheckin?: CheckinUserDetails
   restartCheckin?: CheckinUserDetails
@@ -26,11 +30,6 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
-  // The ESUP supervision-package answers, recorded by the eligibility-check pages so that
-  // restrictEligibilityAccess can re-derive the outcome without fetching them again.
-  onSupervisionPackage?: boolean
-  inFinalThird?: boolean
-  inEarlyEngagement?: boolean
   eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   eligibilitySPOApproval?: any
   rationale?: string

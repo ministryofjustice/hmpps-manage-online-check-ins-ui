@@ -12,13 +12,9 @@
 //
 // Cases where the rules are the same for every band are covered once here rather than three times;
 // eligibilityRules.test.ts keeps the readable per-rule tests that name each behaviour.
-import {
-  nextAfterEligibilityCheck,
-  nextAfterPilotCheck,
-  EligibilityOutcome,
-  EligibilityStatus,
-} from './eligibilityRules'
+import { nextAfterEligibilityCheck, nextAfterPilotCheck, EligibilityOutcome } from './eligibilityRules'
 import { TierBand } from './getTierBand'
+import { SupervisionPackageStatus } from '../data/model/esupervision'
 
 // Only ever ticked on Tiers A and B - the boxes are not rendered for other bands.
 const tierABOnly = ['accreditedProgramme', 'youthSentence'] as const
@@ -26,19 +22,26 @@ const allTiers = ['recalled', 'deviceRestriction'] as const
 
 const bands: TierBand[] = ['AB', 'C', 'DG']
 
-const statuses: EligibilityStatus[] = [true, false].flatMap(onSupervisionPackage =>
+const statuses: SupervisionPackageStatus[] = [true, false].flatMap(onSupervisionPackage =>
   [true, false].flatMap(inFinalThird =>
     [true, false].map(inEarlyEngagement => ({ onSupervisionPackage, inFinalThird, inEarlyEngagement })),
   ),
 )
 
-const describeStatus = ({ onSupervisionPackage, inFinalThird, inEarlyEngagement }: EligibilityStatus): string =>
+const describeStatus = ({ onSupervisionPackage, inFinalThird, inEarlyEngagement }: SupervisionPackageStatus): string =>
   `package ${onSupervisionPackage ? 'yes' : 'no'}, final third ${inFinalThird ? 'yes' : 'no'}, early engagement ${
     inEarlyEngagement ? 'yes' : 'no'
   }`
 
-const ON_PACKAGE: EligibilityStatus = { onSupervisionPackage: true, inFinalThird: false, inEarlyEngagement: false }
-const withStatus = (overrides: Partial<EligibilityStatus> = {}): EligibilityStatus => ({ ...ON_PACKAGE, ...overrides })
+const ON_PACKAGE: SupervisionPackageStatus = {
+  onSupervisionPackage: true,
+  inFinalThird: false,
+  inEarlyEngagement: false,
+}
+const withStatus = (overrides: Partial<SupervisionPackageStatus> = {}): SupervisionPackageStatus => ({
+  ...ON_PACKAGE,
+  ...overrides,
+})
 
 // What not-eligible.njk renders after "This is because <forename>". One fact reads as a single
 // sentence; several are listed as bullets under a stem, so most reasons have both forms.
@@ -94,7 +97,7 @@ type ExpectedOutcome = { eligible: false } | { eligible: true; accreditedProgram
 
 const expectedOutcome = (
   band: TierBand,
-  status: EligibilityStatus,
+  status: SupervisionPackageStatus,
   ticked: string[],
   pilot: boolean,
 ): ExpectedOutcome => {
@@ -144,7 +147,7 @@ const asExpected = (outcome: EligibilityOutcome): ExpectedOutcome =>
 // there so that both sides describe the end of the flow rather than one step of it.
 const actualOutcome = (
   band: TierBand,
-  status: EligibilityStatus,
+  status: SupervisionPackageStatus,
   ticked: string[],
   pilot: boolean,
 ): EligibilityOutcome => {

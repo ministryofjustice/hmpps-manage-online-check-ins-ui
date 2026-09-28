@@ -11,6 +11,7 @@ import {
   ESupervisionNote,
   ESupervisionReview,
   ReactivateOffenderRequest,
+  SupervisionPackageStatus,
 } from '../data/model/esupervision'
 import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
@@ -34,7 +35,6 @@ import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
-  EligibilityStatus,
   eligibilityViews,
   hasCompletedDiscussion,
   missingTierReason,
@@ -124,7 +124,7 @@ function requireBand(req: Request, res: Response, crn: string, id: string): Tier
 // ask the practitioner for them. getSupervisionPackageStatus leaves res.locals null on a 404, and an
 // older API build may not send every field, so each is read as a definite boolean - an unknown fact
 // must not read as true and rule a person out.
-function eligibilityStatusFrom(res: Response): EligibilityStatus {
+function getSupervisionPackageStatus(res: Response): SupervisionPackageStatus {
   const status = res.locals.supervisionPackageStatus
   return {
     onSupervisionPackage: Boolean(status?.onSupervisionPackage),
@@ -133,12 +133,10 @@ function eligibilityStatusFrom(res: Response): EligibilityStatus {
   }
 }
 
-// Recorded alongside tierBand because restrictEligibilityAccess re-derives the outcome from session
-// on every later page, where the ESUP answers are no longer on res.locals.
-function storeEligibilityStatus(req: Request, crn: string, id: string, status: EligibilityStatus): void {
-  Object.entries(status).forEach(([key, value]) => {
-    setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', key], value)
-  })
+// Stored beside checkins because it comes from ESUP, not the submitted wizard form. The access guard
+// re-derives the outcome from it on later pages, where the response is no longer on res.locals.
+function storeSupervisionPackageStatus(req: Request, crn: string, id: string, status: SupervisionPackageStatus): void {
+  setDataValue(req.session.data, ['esupervision', crn, id, 'supervisionPackageStatus'], status)
 }
 
 export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
@@ -266,8 +264,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
 
-      const status = eligibilityStatusFrom(res)
-      storeEligibilityStatus(req, crn, id, status)
+      const status = getSupervisionPackageStatus(res)
+      storeSupervisionPackageStatus(req, crn, id, status)
 
       // Not being on a supervision package and being in the final third are both blanket failures on
       // every branch, so no box on the form below could change the outcome - the person is ruled out
@@ -313,8 +311,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
       // Supplied by getSupervisionPackageStatus, which replaced the boxes these used to read.
-      const status = eligibilityStatusFrom(res)
-      storeEligibilityStatus(req, crn, id, status)
+      const status = getSupervisionPackageStatus(res)
+      storeSupervisionPackageStatus(req, crn, id, status)
       const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
         band,
         status,
@@ -494,10 +492,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const checkins = ['esupervision', crn, id, 'checkins']
+      const supervisionPackageStatus = ['esupervision', crn, id, 'supervisionPackageStatus']
       // Both come from the ESUP call rather than an answer, so the page offers no way back to the
       // eligibility check - see the back link in not-eligible.njk.
-      const noSupervisionPackage = getDataValue(req.session.data, [...checkins, 'onSupervisionPackage']) === false
-      const inFinalThird = getDataValue(req.session.data, [...checkins, 'inFinalThird']) === true
+      const noSupervisionPackage =
+        getDataValue(req.session.data, [...supervisionPackageStatus, 'onSupervisionPackage']) === false
+      const inFinalThird = getDataValue(req.session.data, [...supervisionPackageStatus, 'inFinalThird']) === true
       const tierStatus = getTierBand(res.locals.tierScore as string)
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,

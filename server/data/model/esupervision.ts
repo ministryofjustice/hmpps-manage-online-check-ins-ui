@@ -322,8 +322,8 @@ export interface PractitionerAlertsResponse {
   count: number
 }
 
-// The facts about the person's supervision that the eligibility rules used to ask the practitioner
-// about. See EligibilityStatus in utils/eligibilityRules for what each one rules out.
+// The facts about the person's supervision returned by the supervision-package endpoint and used by
+// the eligibility rules.
 export interface SupervisionPackageStatus {
   onSupervisionPackage: boolean
   inFinalThird: boolean

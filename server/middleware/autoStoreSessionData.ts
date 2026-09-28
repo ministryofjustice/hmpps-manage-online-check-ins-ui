@@ -7,7 +7,7 @@ import setDataValue from '../utils/setDataValue'
 // Values the controllers record themselves (see models/Esupervision). Wizard pages post into the
 // same session entry, so without this a crafted post could overwrite them - fabricating how long a
 // setup took, or claiming questions were added.
-const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded']
+const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded', 'supervisionPackageStatus']
 
 const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {
   return async (req, _res, next) => {

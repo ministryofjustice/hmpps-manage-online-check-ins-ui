@@ -5,13 +5,31 @@ import restrictEligibilityAccess from './restrictEligibilityAccess'
 const crn = 'X778160'
 const id = '19a88188-6013-43a7-bb4d-6e338516818f'
 
-const buildReq = (checkins: Record<string, unknown> | undefined) =>
-  httpMocks.createRequest({
+const buildReq = (checkins: Record<string, unknown> | undefined) => {
+  if (!checkins) {
+    return httpMocks.createRequest({ params: { crn, id }, session: { data: {} } })
+  }
+  const { onSupervisionPackage, inFinalThird, inEarlyEngagement, ...checkinAnswers } = checkins
+  const hasSupervisionPackageStatus =
+    onSupervisionPackage !== undefined || inFinalThird !== undefined || inEarlyEngagement !== undefined
+  return httpMocks.createRequest({
     params: { crn, id },
     session: {
-      data: checkins ? { esupervision: { [crn]: { [id]: { checkins } } } } : {},
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: {
+              checkins: checkinAnswers,
+              ...(hasSupervisionPackageStatus && {
+                supervisionPackageStatus: { onSupervisionPackage, inFinalThird, inEarlyEngagement },
+              }),
+            },
+          },
+        },
+      },
     },
   })
+}
 
 const buildRes = () =>
   ({

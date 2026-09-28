@@ -1,5 +1,4 @@
 import {
-  EligibilityStatus,
   eligibilityViews,
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
@@ -7,18 +6,22 @@ import {
   toSelections,
 } from './eligibilityRules'
 import { TierBand } from './getTierBand'
+import { SupervisionPackageStatus } from '../data/model/esupervision'
 
 const bands: TierBand[] = ['AB', 'C', 'DG']
 
 // The ESUP answers for a person nothing is wrong with, so each test below names only the fact it is
-// about. See EligibilityStatus - all three come from the supervision-package call.
-const ELIGIBLE_STATUS: EligibilityStatus = {
+// about. All three come from the supervision-package endpoint.
+const ELIGIBLE_STATUS: SupervisionPackageStatus = {
   onSupervisionPackage: true,
   inFinalThird: false,
   inEarlyEngagement: false,
 }
 
-const status = (overrides: Partial<EligibilityStatus> = {}): EligibilityStatus => ({ ...ELIGIBLE_STATUS, ...overrides })
+const status = (overrides: Partial<SupervisionPackageStatus> = {}): SupervisionPackageStatus => ({
+  ...ELIGIBLE_STATUS,
+  ...overrides,
+})
 
 describe('utils/eligibilityRules', () => {
   describe('nextAfterEligibilityCheck', () => {

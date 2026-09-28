@@ -263,10 +263,11 @@ describe('check-in setup flow', () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: { ...ON_PACKAGE, inEarlyEngagement: true } })
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
-      const { checkins } = req.session.data.esupervision[crn][id]
-      expect(checkins.onSupervisionPackage).toBe(true)
-      expect(checkins.inFinalThird).toBe(false)
-      expect(checkins.inEarlyEngagement).toBe(true)
+      expect(req.session.data.esupervision[crn][id].supervisionPackageStatus).toEqual({
+        onSupervisionPackage: true,
+        inFinalThird: false,
+        inEarlyEngagement: true,
+      })
     })
 
     // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
@@ -318,6 +319,7 @@ describe('check-in setup flow', () => {
       return {
         redirect: (res.redirect as jest.Mock).mock.calls[0][0],
         checkins: req.session.data?.esupervision?.[crn]?.[id]?.checkins,
+        supervisionPackageStatus: req.session.data?.esupervision?.[crn]?.[id]?.supervisionPackageStatus,
       }
     }
 
@@ -349,10 +351,12 @@ describe('check-in setup flow', () => {
     // All three are recorded, since restrictEligibilityAccess re-derives the outcome from session on
     // every later page, where res.locals no longer carries them.
     it('records every ESUP answer for the later pages to re-derive the outcome from', async () => {
-      const { checkins } = await postEligibility('D', ['none'], { inEarlyEngagement: true })
-      expect(checkins.onSupervisionPackage).toBe(true)
-      expect(checkins.inFinalThird).toBe(false)
-      expect(checkins.inEarlyEngagement).toBe(true)
+      const { supervisionPackageStatus } = await postEligibility('D', ['none'], { inEarlyEngagement: true })
+      expect(supervisionPackageStatus).toEqual({
+        onSupervisionPackage: true,
+        inFinalThird: false,
+        inEarlyEngagement: true,
+      })
     })
 
     // getSupervisionPackageStatus leaves res.locals.supervisionPackageStatus as null on a 404
@@ -696,7 +700,10 @@ describe('check-in setup flow', () => {
       ['onSupervisionPackage', false, { noSupervisionPackage: true, inFinalThird: false }],
       ['inFinalThird', true, { noSupervisionPackage: false, inFinalThird: true }],
     ])('tells the page about %s being %p', async (key, value, expected) => {
-      const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: { [key]: value } } } } } })
+      const req = requestFor(
+        {},
+        { data: { esupervision: { [crn]: { [id]: { supervisionPackageStatus: { [key]: value } } } } } },
+      )
       const res = responseForTier('C')
       await controllers.checkIns.getNotEligiblePage()(req, res)
       expect(res.render).toHaveBeenCalledWith(

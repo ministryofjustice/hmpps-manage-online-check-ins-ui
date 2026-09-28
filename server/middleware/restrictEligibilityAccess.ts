@@ -29,6 +29,7 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
 
     const { data } = req.session
     const checkins = getDataValue(data, ['esupervision', crn, id, 'checkins'])
+    const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
     if (!checkins || !band) {
@@ -48,9 +49,9 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     const eligibility = nextAfterEligibilityCheck(
       band,
       {
-        onSupervisionPackage: Boolean(checkins.onSupervisionPackage),
-        inFinalThird: Boolean(checkins.inFinalThird),
-        inEarlyEngagement: Boolean(checkins.inEarlyEngagement),
+        onSupervisionPackage: Boolean(supervisionPackageStatus?.onSupervisionPackage),
+        inFinalThird: Boolean(supervisionPackageStatus?.inFinalThird),
+        inEarlyEngagement: Boolean(supervisionPackageStatus?.inEarlyEngagement),
       },
       toSelections(checkins.eligibility),
     )

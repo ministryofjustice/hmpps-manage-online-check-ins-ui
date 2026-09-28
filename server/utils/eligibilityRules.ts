@@ -2,6 +2,7 @@
 // Kept free of Express so the decision table can be tested directly, and shared with the
 // validation middleware, which needs the same template map when re-rendering with errors.
 import { TierBand } from './getTierBand'
+import { SupervisionPackageStatus } from '../data/model/esupervision'
 
 // The eligibility check asks the practitioner about the person's circumstances; these are the
 // answers it can come back with. Three of them rule the person out whatever their tier. 'none' is
@@ -9,12 +10,6 @@ import { TierBand } from './getTierBand'
 // no weight of its own, and a forged submission pairing it with a disqualifier is still ruled out
 // by that disqualifier.
 export type EligibilitySelection = 'recalled' | 'deviceRestriction' | 'accreditedProgramme' | 'youthSentence' | 'none'
-
-export interface EligibilityStatus {
-  onSupervisionPackage: boolean
-  inFinalThird: boolean
-  inEarlyEngagement: boolean
-}
 
 // not-eligible.njk renders "This is because <forename> <reason>.", so each disqualifier
 // supplies the clause that completes that sentence. Where more than one fact rules the person out
@@ -27,7 +22,10 @@ export const requiresSupervisionPackage = 'is not on a supervision package'
 // The three that rule a person out whatever their tier and whichever route they took. Every one
 // that applies is reported alongside anything the branch adds - hence full clauses, listed under no
 // stem at all ("This is because Joe:") when more than one fact rules the person out.
-const disqualifiers: { applies: (status: EligibilityStatus, selections: string[]) => boolean; clause: string }[] = [
+const disqualifiers: {
+  applies: (status: SupervisionPackageStatus, selections: string[]) => boolean
+  clause: string
+}[] = [
   { applies: (_status, selections) => selections.includes('recalled'), clause: 'has been recalled to prison' },
   { applies: status => status.inFinalThird, clause: 'is in the final third of their sentence' },
   {
@@ -39,11 +37,13 @@ const disqualifiers: { applies: (status: EligibilityStatus, selections: string[]
 // Tier A/B accredited-programme exclusions. These matter only on that branch - off it a youth
 // sentence or early engagement has no bearing on eligibility at all. They are fragments rather than
 // clauses because both share the one sentence about the programme; see programmeExclusionClause.
-const programmeExclusions: { applies: (status: EligibilityStatus, selections: string[]) => boolean; clause: string }[] =
-  [
-    { applies: (_status, selections) => selections.includes('youthSentence'), clause: 'on a youth sentence' },
-    { applies: status => status.inEarlyEngagement, clause: 'in early engagement' },
-  ]
+const programmeExclusions: {
+  applies: (status: SupervisionPackageStatus, selections: string[]) => boolean
+  clause: string
+}[] = [
+  { applies: (_status, selections) => selections.includes('youthSentence'), clause: 'on a youth sentence' },
+  { applies: status => status.inEarlyEngagement, clause: 'in early engagement' },
+]
 
 // The bands are our own grouping, not Tiers anyone is assigned, so every reason that names a Tier
 // names the person's actual score - the same score the is-eligible pages render. The band is only a
@@ -120,7 +120,7 @@ const asReason = (stem: string, clauses: string[]): EligibilityReason =>
 // against the decision table directly.
 export function nextAfterEligibilityCheck(
   band: TierBand,
-  status: EligibilityStatus,
+  status: SupervisionPackageStatus,
   selections: string[],
   tierScore?: string,
 ): EligibilityOutcome {
