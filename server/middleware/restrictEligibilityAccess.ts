@@ -32,7 +32,7 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
-    if (!checkins || !band) {
+    if (!checkins || !band || !supervisionPackageStatus) {
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 

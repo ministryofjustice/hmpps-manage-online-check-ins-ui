@@ -81,6 +81,17 @@ describe('restrictEligibilityAccess', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
+  it('sends a saved eligibility selection back to eligibility-check when supervision status is missing', async () => {
+    const req = buildReq({ tierBand: 'C', eligibility: ['none'] })
+    const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('pilot-check')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
   it('redirects to not-eligible for a Tier A/B pilot-check GET when the stored answers already disqualify the person', async () => {
     const req = buildReq({ tierBand: 'AB', onSupervisionPackage: true, eligibility: ['recalled'] })
     const res = buildRes()
