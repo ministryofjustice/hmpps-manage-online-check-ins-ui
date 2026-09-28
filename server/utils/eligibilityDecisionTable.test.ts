@@ -7,7 +7,7 @@
 // nextAfterEligibilityCheck is written: supervision package, then the programme branch with its own
 // exclusions, then the pilot branch, with the shared disqualifiers repeated at the foot of each.
 // The code settles those up front instead - the same verdict by a shorter route. Two implementations
-// of the same rules that disagree on any of the 320 cases fail the test - which is the point, since
+// of the same rules that disagree on any of the 384 cases fail the test - which is the point, since
 // the rules are the requirement and the code is only one expression of them.
 //
 // Cases where the rules are the same for every band are covered once here rather than three times;
@@ -248,8 +248,8 @@ describe('eligibility decision table', () => {
       })
     })
 
-    // The scenario the testers raised: recalled, in the final third and excluded from the programme
-    // on both counts, so all of it is reported rather than just the shared disqualifiers.
+    // Recalled, in the final third and excluded from the programme on both counts, so all reasons
+    // are reported with the shared disqualifiers first.
     it('lists every shared disqualifier and the programme exclusions together', () => {
       expect(
         nextAfterEligibilityCheck('AB', withStatus({ inFinalThird: true, inEarlyEngagement: true }), [
@@ -261,6 +261,18 @@ describe('eligibility decision table', () => {
         target: 'not-eligible',
         reason: STEMS.disqualifiers,
         bullets: [BULLETS.recalled, BULLETS.finalThird, BULLETS.bothExclusions],
+      })
+    })
+
+    it('lists the final third before an applicable programme exclusion', () => {
+      expect(
+        nextAfterEligibilityCheck('AB', withStatus({ inFinalThird: true, inEarlyEngagement: true }), [
+          'accreditedProgramme',
+        ]),
+      ).toEqual({
+        target: 'not-eligible',
+        reason: STEMS.disqualifiers,
+        bullets: [BULLETS.finalThird, BULLETS.earlyEngagement],
       })
     })
 

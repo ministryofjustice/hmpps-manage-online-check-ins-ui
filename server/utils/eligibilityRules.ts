@@ -146,9 +146,6 @@ export function nextAfterEligibilityCheck(
       .filter(({ applies }) => applies(status, selections))
       .map(({ clause }) => clause)
     if (fragments.length) {
-      if (clauses.length === 1 && clauses[0] === 'is in the final third of their sentence') {
-        return { target: 'not-eligible', reason: clauses[0] }
-      }
       clauses.push(programmeExclusionClause(tierLabel(band, tierScore), fragments))
     }
   }

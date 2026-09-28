@@ -48,12 +48,22 @@ describe('utils/eligibilityRules', () => {
         })
       })
 
-      // Unlike early engagement, this is not a programme-branch rule - it rules the Tier A/B
-      // programme cohort out too, ahead of any exclusion that branch would have reported.
-      it('rules the Tier A/B programme cohort out in the final third', () => {
-        expect(nextAfterEligibilityCheck('AB', status({ inFinalThird: true }), ['accreditedProgramme'], 'B')).toEqual({
+      // Final third applies to everyone and is listed before any programme-branch exclusion.
+      it('reports the final third ahead of an applicable programme exclusion', () => {
+        expect(
+          nextAfterEligibilityCheck(
+            'AB',
+            status({ inFinalThird: true, inEarlyEngagement: true }),
+            ['accreditedProgramme'],
+            'B',
+          ),
+        ).toEqual({
           target: 'not-eligible',
-          reason: 'is in the final third of their sentence',
+          reason: '',
+          bullets: [
+            'is in the final third of their sentence',
+            'is in Tier B and on an accredited programme, but they are in early engagement',
+          ],
         })
       })
 
