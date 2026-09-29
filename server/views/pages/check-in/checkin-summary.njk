@@ -115,8 +115,8 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
-    {# ELIGIBILITY_V2_FLAG #}
-    {% if not flags.eligibilityFeatureToggle or userDetails.accreditedProgramme %}
+    {# Only the Tier A/B accredited-programme cohort is asked for a rationale. #}
+    {% if userDetails.accreditedProgramme %}
     {% set _ = summaryRows.push({
         key: {
         html: rationaleLabel

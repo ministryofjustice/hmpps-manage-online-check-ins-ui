@@ -278,11 +278,6 @@ const stubDeleteAssignedQuestionsFromCheckIn = () => {
   })
 }
 const stubFeatureFlags = (flags: Record<string, boolean> = {}): SuperAgentRequest => {
-  const defaults = {
-    eligibilityFeatureToggle: false,
-    mockAccreditedProgrammeTiersABToggle: false,
-  }
-  const merged = { ...defaults, ...flags }
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     priority: 1,
     request: {
@@ -295,7 +290,7 @@ const stubFeatureFlags = (flags: Record<string, boolean> = {}): SuperAgentReques
         namespace: {
           key: 'hmpps-esupervision',
         },
-        flags: Object.entries(merged).map(([key, enabled]) => ({
+        flags: Object.entries(flags).map(([key, enabled]) => ({
           key,
           name: key,
           description: '',

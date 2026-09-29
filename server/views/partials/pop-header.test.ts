@@ -29,16 +29,42 @@ const render = (locals: Record<string, unknown>): Promise<string> =>
 
 describe('pop-header', () => {
   describe('legacy header (flags.newDesignPopHeader off)', () => {
-    it('renders the legacy markup and not the new person-header component', async () => {
+    it('renders the pop-header component and not the new person-header component', async () => {
       const html = await render({ flags: {} })
 
-      expect(html).toContain('govuk-flex')
+      expect(html).toContain('pop-header__details')
       expect(html).not.toContain('person-header')
+    })
+
+    it('shows the CRN, date of birth and age', async () => {
+      const html = await render({ flags: {} })
+
+      expect(html).toContain("<span data-qa='crn' aria-hidden='true'>X000001</span>")
+      expect(html).toContain("<span data-qa='headerDateOfBirthValue'>1 January 1990</span>")
+      expect(html).toMatch(/<span data-qa='headerDateOfBirthAge'>\d+ years old<\/span>/)
+    })
+
+    it('links the tier score to the tier history', async () => {
+      const html = await render({ flags: {} })
+
+      expect(html).toContain("href='/tier-details' data-qa='tierLink'")
+      expect(html).toContain('Tier: B1</a>')
+    })
+
+    it('shows the name as the page heading', async () => {
+      const html = await render({ flags: {} })
+
+      expect(html).toContain('<span data-qa="name">Bob Smith</span>')
     })
   })
 
   describe('new header (flags.newDesignPopHeader on)', () => {
-    it('shows the practitioner name and hands off risk badges when allocated', async () => {
+    const managedBy = {
+      text: 'Jane Doe (London PDU)',
+      href: 'https://mpop/case/X000001/personal-details/staff-contacts',
+    }
+
+    it('shows the managed-by link and hands off risk badges', async () => {
       const html = await render({
         flags: { newDesignPopHeader: true },
         overallRisk: 'HIGH',
@@ -54,34 +80,67 @@ describe('pop-header', () => {
             },
           ],
         },
-        practitioner: { name: { forename: 'Jane', surname: 'Doe' }, unallocated: false },
+        managedBy,
       })
 
       expect(html).toContain('person-header')
       expect(html).not.toContain('govuk-flex')
-      expect(html).toContain('Jane Doe')
-      expect(html).not.toContain('Unallocated')
+      expect(html).toContain('Jane Doe (London PDU)')
+      expect(html).toContain(`href='${managedBy.href}'`)
       expect(html).toContain('data-badge-base="OSP/C HIGH"')
       expect(html).toContain('data-badge-base="RISK OF SERIOUS HARM HIGH"')
     })
 
-    it('falls back to Unallocated when the practitioner is flagged unallocated', async () => {
+    it('renders whatever managed-by text it is given, such as Unallocated', async () => {
       const html = await render({
         flags: { newDesignPopHeader: true },
-        practitioner: { name: { forename: 'Jane', surname: 'Doe' }, unallocated: true },
+        managedBy: { ...managedBy, text: 'Unallocated' },
       })
 
       expect(html).toContain('Unallocated')
       expect(html).not.toContain('Jane Doe')
     })
 
-    it('falls back to Unallocated when the practitioner is missing', async () => {
-      const html = await render({
-        flags: { newDesignPopHeader: true },
-        practitioner: null,
-      })
+    it('shows the tier score when present', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy })
 
-      expect(html).toContain('Unallocated')
+      expect(html).toContain('>B1<')
+      expect(html).not.toContain('Missing')
+    })
+
+    it('shows Missing when the tier score is absent', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy, tierScore: '' })
+
+      expect(html).toContain('>Missing<')
+    })
+
+    it('shows a tier status in sentence case', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy, tierScore: 'NOT_SUPERVISED' })
+
+      expect(html).toContain('>Not supervised<')
+      expect(html).not.toContain('NOT_SUPERVISED')
+    })
+
+    it('shows a MISSING status as Missing', async () => {
+      const html = await render({ flags: { newDesignPopHeader: true }, managedBy, tierScore: 'MISSING' })
+
+      expect(html).toContain('>Missing<')
+      expect(html).not.toContain('MISSING')
+    })
+  })
+
+  describe('tier score in the legacy header', () => {
+    it('shows a tier status in sentence case', async () => {
+      const html = await render({ flags: {}, tierScore: 'NOT_SUPERVISED' })
+
+      expect(html).toContain('Tier: Not supervised')
+      expect(html).not.toContain('NOT_SUPERVISED')
+    })
+
+    it('shows Missing when the tier score is absent', async () => {
+      const html = await render({ flags: {}, tierScore: '' })
+
+      expect(html).toContain('Tier: Missing')
     })
   })
 })

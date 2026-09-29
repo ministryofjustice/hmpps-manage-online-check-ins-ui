@@ -39,7 +39,9 @@ export const postCheckInDetails = (
       crn,
       firstCheckin: firstCheckinDate,
       checkinInterval: savedUserDetails.interval,
-      startedAt: new Date().toISOString(),
+      // Recorded by getStartSetup. Left unset if the session lost it, rather than defaulting to now,
+      // which would record a setup time of zero.
+      startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
       contactPreference: savedUserDetails.preferredComs,
       eligibilityChoice: savedUserDetails.eligibilityChoice,
       rationale: savedUserDetails.rationale,
