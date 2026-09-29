@@ -1,6 +1,6 @@
 import type { Response } from 'express'
 import { Errors } from './Errors'
-import { OffenderByCRNResponse } from '../data/model/esupervision'
+import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface LocalsUser {
   userId?: string
@@ -25,6 +25,7 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'eligibilityFeatureToggle', type: 'boolean' },
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'newDesignPopHeader', type: 'boolean' },
+  { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
   { key: 'enableAdHocCheckIns', type: 'boolean' },
 ]
 
@@ -53,6 +54,7 @@ export interface AppLocals extends Record<string, unknown> {
   uploadError?: string
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
+  supervisionPackageStatus?: SupervisionPackageStatus | null
   flags?: FeatureFlags
 }
 

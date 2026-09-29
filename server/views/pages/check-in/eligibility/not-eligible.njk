@@ -1,0 +1,59 @@
+{% extends "../../_form.njk" %}
+{% set title = case.name.forename + " is not eligible to use online check ins"  %}
+{% set pageTitleText = "The person is not eligible to use online check ins" %}
+{% set pageTitle = makePageTitle({
+  pageHeading: [pageTitleText]
+}) %}
+{% set back = back if back else '' %}
+{# Every other reason came from an answer given on the eligibility check, so going back there is a
+   real way to revisit it. None of the tier statuses is an answer - the check would rule the person
+   out again the moment it loaded, looping straight back here - so the link leads to the case
+   overview instead. Checking again once a final Tier has been assigned means starting the setup
+   afresh. An absent supervision package is not an answer either: it comes from the ESUP API, so
+   going back would loop the same way. #}
+{% set returnToOverviewPage = missingTier or provisionalTier or notSupervised or noSupervisionPackage %}
+{% set backLink = '/case/' + crn if returnToOverviewPage else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{% set buttonText = "Go to " + case.name.forename + "'s overview" %}
+
+
+{# `reason` completes the sentence below. When more than one fact ruled the person out they arrive as
+   `reasonBullets` and are listed instead, with `reason` introducing them - and it is empty where the
+   facts are whole clauses in themselves, giving "This is because Joe:". The reasons and the rules
+   that pick between them live in utils/eligibilityRules - nextAfterEligibilityCheck and
+   nextAfterPilotCheck. #}
+
+{% block form %}
+    {# The tier statuses are the reasons that are about the record rather than the person, so they read
+       "they" and explain what the status means, in place of both the named sentence above and the
+       standard invitation below. A score is either missing or NOT_SUPERVISED, never both, so only
+       their order against `provisionalTier` matters - and both win, as they do in the controller,
+       since a person with no score at all or no supervision has no Tier to call provisional.
+       Not being supervised is the one status that cannot clear, so it offers what might explain it
+       rather than inviting the practitioner to check again. #}
+    {% if notSupervised %}
+        <p class="govuk-body" data-qa="notSupervised">This is because they are not currently being supervised</p>
+        <p class="govuk-body">This could be because they have:</p>
+        <ul class="govuk-list govuk-list--bullet" data-qa="notSupervisedReasons">
+            <li>passed away</li>
+            <li>been recalled to prison</li>
+            <li>have finished their probation</li>
+        </ul>
+    {% elif missingTier %}
+        <p class="govuk-body" data-qa="missingTier">This is because they have not been assigned a Tier yet.</p>
+        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their Tier. You can come back and check eligibility again.</p>
+    {% elif provisionalTier %}
+        <p class="govuk-body" data-qa="provisionalTier">This is because they are currently in a provisional Tier.</p>
+        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their final Tier. You can come back and check eligibility again. </p>
+    {% elif reasonBullets and reasonBullets | length %}
+        <p class="govuk-body">This is because {{case.name.forename}}{{ " " + reason if reason }}:</p>
+        <ul class="govuk-list govuk-list--bullet" data-qa="reasonBullets">
+            {% for bullet in reasonBullets %}
+                <li>{{ bullet }}</li>
+            {% endfor %}
+        </ul>
+        <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+    {% else %}
+        <p class="govuk-body">This is because {{case.name.forename}} {{reason}}.</p>
+        <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+    {% endif %}
+{% endblock %}

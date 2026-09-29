@@ -1,5 +1,7 @@
 {% from "mpop/components/person-header/macro.njk" import personHeader %}
+{% from "mpop/components/pop-header/macro.njk" import popHeader %}
 {% from "arns/components/predictor-badge/macro.njk" import predictorBadge %}
+{%- from "moj/components/badge/macro.njk" import mojBadge -%}
 
 {% if overallRisk == 'VERY_HIGH' %}
     {% set overallRisk = 'VERY HIGH' %}
@@ -17,12 +19,13 @@
 } %}
 
 {% set riskBadges %}
-    {% if riskData.assessments[0].combinedSeriousReoffendingPredictor.band != "NOT APPLICABLE" %}
+    {% if riskData.assessments[0].combinedSeriousReoffendingPredictor.band != 'NOT APPLICABLE' %}
         {{ predictorBadge({
             data: riskData,
             predictor: 'combinedSeriousReoffendingPredictor',
             showScore: true
         }) }}
+
         {% if riskData.assessments[0].rsr.band %}
             {{ predictorBadge({
                 data: riskData,
@@ -30,7 +33,8 @@
                 showScore: true
             }) }}
         {% endif %}
-        {% if overallRisk and overallRisk !== 'NOT_FOUND' %}
+
+        {% if overallRisk and overallRisk != 'NOT_FOUND' %}
             {{ predictorBadge({
                 data: riskDataRosh,
                 predictor: 'rosh',
@@ -40,37 +44,69 @@
     {% endif %}
 {% endset %}
 
+{% set personRiskFlags %}
+    {% for group in riskBadgeData.groups %}
+        {% for risk in group.badges %}
+            <a href="/case/{{ headerCRN }}/risk/flag/{{ risk.id }}" class="risk-badge-link" data-qa="risk-badge-{{ risk.id }}">
+                {{ mojBadge({
+                    text: risk.text,
+                    classes: risk.badgeClass
+                }) }}
+            </a>
+        {% endfor %}
+    {% endfor %}
+
+    {% if riskBadgeData.remainingCount > 0 %}
+        <a href="/case/{{ headerCRN }}/risk" class="govuk-link risk-badge-more" data-qa="risk-badge-more">
+            +{{ riskBadgeData.remainingCount }} active risk flags
+        </a>
+    {% endif %}
+{% endset %}
+
+{% set combinedRiskBadges %}
+    {% if riskBadges and (riskBadges | trim) %}
+        <div class="pop-header-risk-badges">
+            {{ riskBadges | safe }}
+        </div>
+    {% endif %}
+
+    {% if personRiskFlags and (personRiskFlags | trim) %}
+        <div class="pop-header-risk-flags">
+            {{ personRiskFlags | safe }}
+        </div>
+    {% endif %}
+{% endset %}
+
 {% if flags.newDesignPopHeader %}
     {{ personHeader({
         name: headerPersonName.forename + ' ' + headerPersonName.surname,
         crn: headerCRN,
         dob: headerDob | dateWithYear,
-        tier: tierScore,
+        tier: tierScore | formatTierScore,
         historyHref: tierDetailsLink,
-        managedBy: practitioner.name.forename + ' ' + practitioner.name.surname if practitioner and not practitioner.unallocated else 'Unallocated',
-        riskBadges: riskBadges
+        managedBy: managedBy.text,
+        managedByHref: managedBy.href,
+        photo: null,
+        riskBadges: combinedRiskBadges,
+        personRiskFlags: combinedRiskBadges
     }) }}
 {% else %}
-    <div class="govuk-flex">
-        <div>
-            <ul class="govuk-list inline-list-from-tablet">
-                <li>CRN:
-                    <span data-qa="crn">{{ headerCRN }}</span>
-                    <span class="govuk-!-padding-left-3 govuk-!-padding-right-3 hide-mobile">|</span>
-                </li>
-                <li>Date of birth:
-                    <span data-qa="headerDateOfBirthValue">{{ headerDob | dateWithYear }}</span>
-                    (<span data-qa="headerDateOfBirthAge">{{ headerDob | yearsSince }} years old</span>)
-                    <span class="govuk-!-padding-left-3 govuk-!-padding-right-3 hide-mobile">|</span>
-                </li>
-                <li><a href="{{ tierDetailsLink }}" data-qa="tierLink" class="govuk-link">Tier: {{ tierScore }}</a></li>
-            </ul>
-        </div>
-    </div>
+    {{ popHeader({
+        crn: headerCRN,
+        dob: headerDob | dateWithYear,
+        age: headerDob | yearsSince,
+        historyHref: tierDetailsLink,
+        tierScore: tierScore | formatTierScore,
+        provisional: tierProvisional,
+        tag: {
+          color: 'orange',
+          text: 'Provisional'
+        }
+    }) }}
     <div class="moj-page-header-actions govuk-!-static-margin-bottom-4">
         <div class="moj-page-header-actions__title">
             <h1 class="govuk-heading-xl govuk-!-margin-bottom-4">
-                <span data-qa="name">{{ headerPersonName.forename }}{{ ' ' }}{{ headerPersonName.surname }}</span>
+                <span data-qa="name">{{ headerPersonName.forename }} {{ headerPersonName.surname }}</span>
             </h1>
             {{ riskBadges | safe }}
         </div>

@@ -20,6 +20,7 @@ import {
   OffenderByCRNResponse,
   OffenderHeaderDetails,
   PractitionerAlertsResponse,
+  SupervisionPackageStatus,
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
@@ -200,5 +201,11 @@ export default class ESupervisionClient extends RestClient {
   // GET /v2/practitioners/{username}/alerts — count of alerts for the logged-in practitioner's caseload.
   async getPractitionerAlerts(username: string): Promise<PractitionerAlertsResponse> {
     return this.get({ path: `/v2/practitioners/${username}/alerts` })
+  }
+
+  // GET /v2/offenders/crn/{crn}/supervision-package — whether the person is on a supervision
+  // package
+  async getSupervisionPackageStatus(crn: string): Promise<SupervisionPackageStatus | null> {
+    return this.get({ path: `/v2/offenders/crn/${crn}/supervision-package`, handle404: true })
   }
 }

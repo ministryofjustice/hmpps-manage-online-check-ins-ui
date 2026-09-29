@@ -4,6 +4,11 @@ import HmppsAuthClient from '../data/hmppsAuthClient'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
 
+// Values the controllers record themselves (see models/Esupervision). Wizard pages post into the
+// same session entry, so without this a crafted post could overwrite them - fabricating how long a
+// setup took, or claiming questions were added.
+const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded']
+
 const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {
   return async (req, _res, next) => {
     const newSessionData: Data = req.session.data ?? {}
@@ -18,6 +23,10 @@ const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<
 
         if (body) {
           Object.keys(body).forEach(valueKey => {
+            if (SERVER_OWNED_KEYS.includes(valueKey)) {
+              return
+            }
+
             let newValue = body[valueKey]
             const setPath = id ? [key, crn, id, valueKey] : [key, crn, valueKey]
 

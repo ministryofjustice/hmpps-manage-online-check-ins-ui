@@ -138,6 +138,34 @@ describe('ESupervisionClient', () => {
     })
   })
 
+  describe('getSupervisionPackageStatus', () => {
+    it('should GET supervision package status by CRN', async () => {
+      const crn = 'X000001'
+
+      fakeESupervisionApi
+        .get(`/v2/offenders/crn/${crn}/supervision-package`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, { onSupervisionPackage: true })
+
+      const output = await client.getSupervisionPackageStatus(crn)
+
+      expect(output).toEqual({ onSupervisionPackage: true })
+    })
+
+    it('should return null when supervision package status returns 404', async () => {
+      const crn = 'X000001'
+
+      fakeESupervisionApi
+        .get(`/v2/offenders/crn/${crn}/supervision-package`)
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(404)
+
+      const output = await client.getSupervisionPackageStatus(crn)
+
+      expect(output).toBeNull()
+    })
+  })
+
   describe('getProbationPractitioner', () => {
     it('should GET practitioner details by CRN', async () => {
       const crn = 'X000001'

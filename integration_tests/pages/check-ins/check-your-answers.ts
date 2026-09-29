@@ -2,7 +2,7 @@ import Page, { PageElement } from '../page'
 
 export default class CheckYourAnswersPage extends Page {
   constructor() {
-    super('Check your answers before adding Caroline to online check ins')
+    super('Check your answers before adding ')
   }
 
   getBackLink = (): PageElement => cy.get('.govuk-back-link')
