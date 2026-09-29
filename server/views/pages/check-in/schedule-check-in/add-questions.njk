@@ -1,7 +1,7 @@
 {% extends "../../_form.njk" %}
 {% set notStandardForm = true %}
-{% set title = "Add questions to " + case.name.forename + "'s next online check in" %}
-{% set pageTitleText = "Add questions to the person's next online check in" %}
+{% set title = "Add questions to " + case.name.forename + "'s online check in" %}
+{% set pageTitleText = "Add questions to the person's online check in" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
@@ -12,15 +12,15 @@
   }) %}
 {% endif %}
 {% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/start" %}
+{% set formAnchorLink = "/case/" + crn + "/appointments/check-in/manage/" + id %}
 {% set formAnchorText = "Cancel and go back" %}
-{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/start" %}
+{% set backLink = back if back else "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in" %}
 {% set addQuestionButtonText = "Add question" %}
-{% set addQuestionButtonLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/list" %}
-{% set buttonText = "Save questions" %}
-{% set previewFeelingPageLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/preview/feeling" %}
-{% set previewSupportPageLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/preview/support" %}
-{% set expectedCheckinDateValue = expectedCheckinDate | dateWithYear %}
+{% set addQuestionButtonLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/list" %}
+{% set buttonText = "Create online check in" %}
+{% set previewFeelingPageLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/preview/feeling" %}
+{% set previewSupportPageLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/preview/support" %}
+{% set expectedCheckinDateValue = expectedCheckinDate | dmyToLongDate %}
 
 {% block primary %}
 
@@ -75,8 +75,7 @@
         <div class="govuk-grid-column-two-thirds">
 
             <h2 class="govuk-heading-m">Additional questions</h2>
-            <p class="govuk-body">You can add up to 3 questions to {{case.name.forename}}'s online check in. These will only apply to their next online check in on <b>{{expectedCheckinDateValue}}</b>.</p>
-        </div>
+            <p class="govuk-body">You can add up to 3 questions to {{case.name.forename}}'s online check in. These will only apply to their next online check in on <b>{{expectedCheckinDateValue}}</b>.</p>        </div>
     </div>
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-full">
@@ -85,8 +84,8 @@
 {% if addedQuestions | length > 0 %}
                 {% set additionalRows = [] %}
                 {% for question in addedQuestions %}
-                    {% set editLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions/" + question.id + "/edit" %}
-                    {% set deleteLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions/" + question.id + "/delete" %}
+                    {% set editLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/" + question.id + "/edit" %}
+                    {% set deleteLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/" + question.id + "/delete" %}
 
                     {% set row = additionalRows.push([
                         {

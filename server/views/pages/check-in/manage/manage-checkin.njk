@@ -6,6 +6,7 @@
 {% set checkinLink = '/case/' + crn + '/appointments/check-in/eligibility-check' %}
 {% set changeDtLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/settings' %}
 {% set changeQuestionsLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/questions/start' %}
+{% set scheduleCheckInLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/schedule-check-in' %}
 {% set changeContactLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/contact' %}
 {% set stopCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/stop-checkin' %}
 {% set restartCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/restart-checkin' %}
@@ -44,9 +45,15 @@
           {% else %}
               {% set checkinText = offenderCheckinsByCRNResponse.firstCheckin | dateWithYear %}
           {% endif %}
-
-        <div class="moj-button-group__item">
-            <a href="{{ stopCheckinLink }}" class="govuk-button govuk-button--warning govuk-!-margin-left"  data-qa="stop-checkin-btn" >Stop online check ins</a>
+        <div class="moj-button-group">
+            {% if flags.enableAdHocCheckIns %}
+                <div class="moj-button-group__item">
+                    <a href="{{ scheduleCheckInLink }}" class="govuk-button govuk-button--primary govuk-!-margin-left" data-qa="schedule-check-in-btn">Schedule a check in</a>
+                </div>
+            {% endif %}
+            <div class="moj-button-group__item">
+                <a href="{{ stopCheckinLink }}" class="govuk-button govuk-button--warning govuk-!-margin-left"  data-qa="stop-checkin-btn" >Stop online check ins</a>
+            </div>
         </div>
     {% endif %}
     {% if offenderCheckinsByCRNResponse.status === 'INACTIVE' %}

@@ -494,4 +494,159 @@ describe('Test eSuperVision validation', () => {
       expect(next).not.toHaveBeenCalled()
     })
   })
+
+  describe('Test schedule-check-in (ad hoc)', () => {
+    const scheduleDateUrl = `${manageBase}/schedule-check-in`
+    const scheduleEditQuestionUrl = `${scheduleDateUrl}/questions/1-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`
+
+    const adHocRes = (enableAdHocCheckIns: boolean) => mockAppResponse({ flags: { enableAdHocCheckIns } })
+
+    const scheduleSession = (scheduleCheckIn: Record<string, unknown>) => ({
+      [crn]: { [id]: { scheduleCheckIn } },
+    })
+
+    describe('date page', () => {
+      it('fails when no date is entered', () => {
+        const esupervision = scheduleSession({ date: '' })
+        const req = makeReq({
+          url: scheduleDateUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).toHaveBeenCalledWith('pages/check-in/schedule-check-in/date', expect.any(Object))
+        expect(next).not.toHaveBeenCalled()
+      })
+
+      it('fails when the date is in the past', () => {
+        const esupervision = scheduleSession({ date: '1/2/2020' })
+        const req = makeReq({
+          url: scheduleDateUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).toHaveBeenCalledWith('pages/check-in/schedule-check-in/date', expect.any(Object))
+      })
+
+      it('passes when a future date is entered', () => {
+        const esupervision = scheduleSession({ date: '1/2/2099' })
+        const req = makeReq({
+          url: scheduleDateUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(next).toHaveBeenCalled()
+        expect(res.render).not.toHaveBeenCalled()
+      })
+
+      it('does not validate or render when the feature flag is off', () => {
+        const esupervision = scheduleSession({ date: '' })
+        const req = makeReq({
+          url: scheduleDateUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(false)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).not.toHaveBeenCalled()
+        expect(next).toHaveBeenCalled()
+      })
+    })
+
+    describe('edit question page', () => {
+      it('fails when draftQuestionInput is empty', () => {
+        const bodyEsupervision = scheduleSession({ draftQuestionInput: '' })
+        const sessionEsupervision = scheduleSession({
+          availableTemplates: [{ id: '1', template: 'Have you heard back from {{thing}}?' }],
+        })
+        const req = makeReq({
+          url: scheduleEditQuestionUrl,
+          body: { esupervision: bodyEsupervision },
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).toHaveBeenCalledWith('pages/check-in/schedule-check-in/edit-question', expect.any(Object))
+        expect(next).not.toHaveBeenCalled()
+      })
+
+      it('reports the error against the ad hoc session group, matching the field the view posts', () => {
+        const bodyEsupervision = scheduleSession({ draftQuestionInput: '' })
+        const req = makeReq({
+          url: scheduleEditQuestionUrl,
+          body: { esupervision: bodyEsupervision },
+          session: { data: { esupervision: bodyEsupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(renderArgs.errorMessages).toEqual({
+          [`esupervision-${crn}-${id}-scheduleCheckIn-draftQuestionInput`]: 'Enter what you want to ask the person',
+        })
+      })
+
+      it('passes when draftQuestionInput is provided', () => {
+        const esupervision = scheduleSession({ draftQuestionInput: 'the housing service' })
+        const req = makeReq({
+          url: scheduleEditQuestionUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(true)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(next).toHaveBeenCalled()
+      })
+
+      it('does not validate or render when the feature flag is off', () => {
+        const esupervision = scheduleSession({ draftQuestionInput: '' })
+        const req = makeReq({
+          url: scheduleEditQuestionUrl,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(false)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).not.toHaveBeenCalled()
+        expect(next).toHaveBeenCalled()
+      })
+
+      it('still validates the manage flow edit question page when the ad hoc flag is off', () => {
+        const esupervision = {
+          [crn]: { [id]: { manageQuestions: { draftQuestionInput: '' } } },
+        }
+        const req = makeReq({
+          url: `${manageBase}/questions/1-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+          body: { esupervision },
+          session: { data: { esupervision } },
+        })
+        const res = adHocRes(false)
+
+        validation.eSuperVision(req, res, next)
+
+        expect(res.render).toHaveBeenCalledWith('pages/check-in/questions/edit-question', expect.any(Object))
+        expect(next).not.toHaveBeenCalled()
+      })
+    })
+  })
 })
