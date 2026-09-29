@@ -29,9 +29,10 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
 
     const { data } = req.session
     const checkins = getDataValue(data, ['esupervision', crn, id, 'checkins'])
+    const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
-    if (!checkins || !band) {
+    if (!checkins || !band || !supervisionPackageStatus) {
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 
@@ -39,15 +40,19 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
     }
 
-    // Recorded by postEligibilityPage from the ESUP call, since that answer is not fetched again on
-    // the later pages this guards.
+    // Recorded by the eligibility-check pages from the ESUP call, since those answers are not fetched
+    // again on the later pages this guards.
     //
     // No tier score is passed: this runs ahead of getPersonalDetails, so there is none on res.locals.
     // Only `target` is read below - the reason is never rendered from here, so the band label the
     // rules fall back to does not reach the practitioner.
     const eligibility = nextAfterEligibilityCheck(
       band,
-      Boolean(checkins.onSupervisionPackage),
+      {
+        onSupervisionPackage: Boolean(supervisionPackageStatus?.onSupervisionPackage),
+        inFinalThird: Boolean(supervisionPackageStatus?.inFinalThird),
+        inEarlyEngagement: Boolean(supervisionPackageStatus?.inEarlyEngagement),
+      },
       toSelections(checkins.eligibility),
     )
     let outcome = eligibility.target

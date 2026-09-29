@@ -307,7 +307,12 @@ describe('/middleware/autoStoreSessionData', () => {
         data: {
           esupervision: {
             [crn]: {
-              [id]: { setupStartedAt: startedAt, questionsAdded: true },
+              [id]: {
+                setupStartedAt: startedAt,
+                questionsAdded: true,
+                supervisionPackageStatus: { onSupervisionPackage: true, inFinalThird: false, inEarlyEngagement: true },
+                checkins: {},
+              },
             },
           },
         },
@@ -318,6 +323,11 @@ describe('/middleware/autoStoreSessionData', () => {
             [id]: {
               setupStartedAt: '2026-08-01T08:59:59.000Z',
               questionsAdded: 'false',
+              supervisionPackageStatus: {
+                onSupervisionPackage: false,
+                inFinalThird: true,
+                inEarlyEngagement: false,
+              },
               checkins: { rationale: 'Stable and low risk' },
             },
           },
@@ -333,6 +343,11 @@ describe('/middleware/autoStoreSessionData', () => {
       expect(req.session.data.esupervision[crn][id]).toEqual({
         setupStartedAt: startedAt,
         questionsAdded: true,
+        supervisionPackageStatus: {
+          onSupervisionPackage: true,
+          inFinalThird: false,
+          inEarlyEngagement: true,
+        },
         checkins: { rationale: 'Stable and low risk' },
       })
     })

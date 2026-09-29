@@ -22,10 +22,11 @@
 {% set buttonText = "Continue" %}
 {% set currentEligibility = data.esupervision[crn][id].checkins.eligibility or [] %}
 
-{# The accredited programme, youth sentence and early engagement questions are Tier A/B rules -
-   see nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The
-   three boxes below them apply to every tier. The supervision package is no longer asked about
-   here: it comes from the ESUP API via the getSupervisionPackageStatus middleware. #}
+{# The accredited programme and youth sentence questions are Tier A/B rules - see
+   nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The two
+   boxes below them apply to every tier. The supervision package, the final third of the sentence and
+   early engagement are no longer asked about here: they come from the ESUP API via the
+   getSupervisionPackageStatus middleware. #}
 {% set eligibilityItems = [] %}
 {% if tierBand == 'AB' %}
     {% set eligibilityItems = (eligibilityItems.push({
@@ -41,11 +42,6 @@
     checked: currentEligibility.includes("recalled")
     },
     {
-    value: "finalThird",
-    text: "In the final third of their sentence",
-    checked: currentEligibility.includes("finalThird")
-    },
-    {
     value: "deviceRestriction",
     text: "Has a sentence restriction that means they can't use a device or the internet",
     checked: currentEligibility.includes("deviceRestriction")
@@ -57,11 +53,6 @@
         value: "youthSentence",
         text: "Is on a youth sentence",
         checked: currentEligibility.includes("youthSentence")
-        },
-        {
-        value: "earlyEngagement",
-        text: "Is in early engagement",
-        checked: currentEligibility.includes("earlyEngagement")
         }
     ), eligibilityItems) %}
 {% endif %}

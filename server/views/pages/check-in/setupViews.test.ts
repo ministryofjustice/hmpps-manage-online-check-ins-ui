@@ -96,7 +96,7 @@ describe.each(views)('%s', view => {
   })
 })
 
-// One eligibility-check template serves every band, rendering the three Tier A/B-only questions
+// One eligibility-check template serves every band, rendering the two Tier A/B-only questions
 // off `tierBand`. Asserting on the checkbox values keeps the bands from drifting into each other.
 describe('eligibility/eligibility-check', () => {
   const valuesIn = (html: string): string[] =>
@@ -105,24 +105,25 @@ describe('eligibility/eligibility-check', () => {
     )
 
   // Every band ends with the exclusive "None of these apply".
-  const allTiers = ['recalled', 'finalThird', 'deviceRestriction', 'none']
+  const allTiers = ['recalled', 'deviceRestriction', 'none']
 
-  it('asks tiers A and B about the accredited programme, youth sentences and early engagement', async () => {
+  it('asks tiers A and B about the accredited programme and youth sentences', async () => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: 'AB' })
-    expect(valuesIn(html)).toEqual([
-      'accreditedProgramme',
-      'recalled',
-      'finalThird',
-      'deviceRestriction',
-      'youthSentence',
-      'earlyEngagement',
-      'none',
-    ])
+    expect(valuesIn(html)).toEqual(['accreditedProgramme', 'recalled', 'deviceRestriction', 'youthSentence', 'none'])
   })
 
   it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
     expect(valuesIn(html)).toEqual(allTiers)
+  })
+
+  // The supervision package, the final third and early engagement all come from the ESUP
+  // supervision-package call now, so the practitioner is not asked about any of them.
+  it.each(['AB', 'C', 'DG'])('does not ask tier %s about anything the ESUP call answers', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
+    expect(valuesIn(html)).not.toContain('supervisionPackage')
+    expect(valuesIn(html)).not.toContain('finalThird')
+    expect(valuesIn(html)).not.toContain('earlyEngagement')
   })
 
   it.each(['AB', 'C', 'DG'])('makes "none of these apply" exclusive for tier %s', async band => {
@@ -284,5 +285,27 @@ describe('eligibility/not-eligible', () => {
     expect(html).toContain(`href="/case/${crn}"`)
     expect(html).not.toContain('check-in/eligibility-check')
     expect(html).toContain("Go to Bob's overview")
+  })
+
+  // Both come from the ESUP supervision-package call and rule the person out before the check even
+  // renders, so going back there would be redirected straight to this page again.
+  it.each([
+    ['no supervision package', { noSupervisionPackage: true }, 'is not on a supervision package'],
+    ['the final third', { inFinalThird: true }, 'is in the final third of their sentence'],
+  ])('links %s back to the case overview rather than the eligibility check', async (_name, flag, reason) => {
+    const html = await render('eligibility/not-eligible', { ...base, reason, ...flag })
+    expect(html).toContain(`This is because Bob ${reason}.`)
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('check-in/eligibility-check')
+  })
+
+  // Early engagement only rules a person out alongside the accredited programme box, so unticking it
+  // is a real way to revisit the outcome - unlike the two above.
+  it('links early engagement back to the eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is in Tier A and on an accredited programme, but they are in early engagement',
+    })
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
 })

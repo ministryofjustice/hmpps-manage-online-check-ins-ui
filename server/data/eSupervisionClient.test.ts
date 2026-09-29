@@ -145,11 +145,11 @@ describe('ESupervisionClient', () => {
       fakeESupervisionApi
         .get(`/v2/offenders/crn/${crn}/supervision-package`)
         .matchHeader('authorization', `Bearer ${token.access_token}`)
-        .reply(200, { onSupervisionPackage: true })
+        .reply(200, { onSupervisionPackage: true, inFinalThird: false, inEarlyEngagement: false })
 
       const output = await client.getSupervisionPackageStatus(crn)
 
-      expect(output).toEqual({ onSupervisionPackage: true })
+      expect(output).toEqual({ onSupervisionPackage: true, inFinalThird: false, inEarlyEngagement: false })
     })
 
     it('should return null when supervision package status returns 404', async () => {

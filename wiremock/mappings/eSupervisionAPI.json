@@ -46,7 +46,7 @@
     },
     {
       "request": {
-        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-3])/personal-details",
+        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-4])/personal-details",
         "method": "GET"
       },
       "response": {
@@ -189,7 +189,26 @@
     },
     {
       "request": {
-        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-3])",
+        "urlPathPattern": "/v2/offenders/header/X000014",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000014",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "A",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-4])",
         "method": "GET"
       },
       "response": {
@@ -218,7 +237,99 @@
       "response": {
         "status": 200,
         "jsonBody": {
-          "onSupervisionPackage": false
+          "onSupervisionPackage": false,
+          "inFinalThird": false,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000005/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000014/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000007/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000006/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": false,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000008/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": false,
+          "inEarlyEngagement": true
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
@@ -233,7 +344,9 @@
       "response": {
         "status": 200,
         "jsonBody": {
-          "onSupervisionPackage": true
+          "onSupervisionPackage": true,
+          "inFinalThird": false,
+          "inEarlyEngagement": false
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"

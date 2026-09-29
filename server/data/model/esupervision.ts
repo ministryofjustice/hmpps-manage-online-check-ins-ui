@@ -322,6 +322,10 @@ export interface PractitionerAlertsResponse {
   count: number
 }
 
+// The facts about the person's supervision returned by the supervision-package endpoint and used by
+// the eligibility rules.
 export interface SupervisionPackageStatus {
   onSupervisionPackage: boolean
+  inFinalThird: boolean
+  inEarlyEngagement: boolean
 }
