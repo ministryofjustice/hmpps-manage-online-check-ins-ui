@@ -8,6 +8,7 @@ import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
+import { fromApiSchedule } from '../../utils/checkinSchedule'
 
 const eSuperVision: Route<void> = (req, res, next) => {
   const { url, params, body } = req
@@ -177,7 +178,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageCheckin', 'interval'],
-          offenderDetails?.checkinInterval,
+          fromApiSchedule(offenderDetails),
         )
       }
     } else if (baseUrl.endsWith(manage('settings-date'))) {

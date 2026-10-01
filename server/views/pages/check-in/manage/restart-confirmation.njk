@@ -23,7 +23,8 @@
 {% set panelHtml %}
 <div class="govuk-!-font-size-36">
   {% if userDetails.isAdHoc %}
-    {{ userDetails.interval }}
+    Next check in on {{ userDetails.displayDay }}
+  {{ checkInDateVal }}
   {% else %}
     Starting {{ userDetails.displayDay }}
   {{ checkInDateVal }}<br/>

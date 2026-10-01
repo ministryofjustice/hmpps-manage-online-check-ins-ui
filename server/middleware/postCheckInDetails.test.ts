@@ -105,6 +105,29 @@ describe('postCheckInDetails', () => {
     expect(mockPostOffenderSetup.mock.calls[0][0].startedAt).toBeUndefined()
   })
 
+  it('sends a standard interval with the scheduled mode and its first check-in date', async () => {
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(
+      expect.objectContaining({ mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2026/8/01' }),
+    )
+  })
+
+  // The API takes ad-hoc as a mode with no interval, and an ad-hoc setup schedules no first check in.
+  it('sends ad-hoc as the mode, with no interval and no first check-in date', async () => {
+    const req = buildRequest()
+    const { checkins } = req.session.data.esupervision[crn][id]
+    checkins.interval = 'AD_HOC'
+    delete checkins.date
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    const body = mockPostOffenderSetup.mock.calls[0][0]
+    expect(body.mode).toBe('AD_HOC')
+    expect(body.checkinInterval).toBeUndefined()
+    expect(body.firstCheckin).toBeUndefined()
+  })
+
   it('leaves the cache untouched when setup fails', async () => {
     mockPostOffenderSetup.mockRejectedValue(Object.assign(new Error('boom'), { data: { status: 500 } }))
     const req = buildRequest()

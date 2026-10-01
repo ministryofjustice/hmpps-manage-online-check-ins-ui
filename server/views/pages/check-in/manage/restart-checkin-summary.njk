@@ -72,7 +72,6 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
-    {% if not userDetails.isAdHoc %}
     {% set _ = summaryRows.push(
             { key:
                 { html:  checkInDateLabel  },
@@ -89,7 +88,6 @@
                 ]
             } }
     ) %}
-    {% endif %}
 
     {% set _ = summaryRows.push(
             { key:

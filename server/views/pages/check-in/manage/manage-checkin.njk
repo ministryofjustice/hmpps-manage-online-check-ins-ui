@@ -104,7 +104,7 @@
     {% endif %}
     {% set _ = settingsRows.push({
         key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
-        value: { html: '<span data-qa="frequencyValue">' + (nextCheckin.checkinInterval | userFriendlyString) + '</span>'}
+        value: { html: '<span data-qa="frequencyValue">' + (('AD_HOC' if nextCheckin.mode == 'AD_HOC' else nextCheckin.checkinInterval) | userFriendlyString) + '</span>'}
     }) %}
     {% set nextCheckinText %}
             {{ govukSummaryList({

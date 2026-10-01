@@ -138,29 +138,6 @@
     }) %}
     {% endif %}
 
-    {% if not userDetails.isAdHoc %}
-    {% set _ = summaryRows.push(
-    {
-        key: {
-          html: checkInDateLabel
-        },
-        value: {
-          html: checkInDateVal
-        },
-        actions: {
-        items: [{
-            href: changeDateUrl,
-            text: "Change",
-            visuallyHiddenText: "when would you like the person to start using online check ins",
-            attributes: {
-            'data-qa': 'dateAction'
-            }
-        }]
-        }
-    }
-    ) %}
-    {% endif %}
-
     {% set _ = summaryRows.push(
     {
         key: {
@@ -179,7 +156,12 @@
             }
         }]
         }
-    },
+    }
+    ) %}
+
+    {# An ad-hoc setup schedules no first check in, so there is no date to show or change. #}
+    {% if not userDetails.isAdHoc %}
+    {% set _ = summaryRows.push(
     {
         key: {
         html: checkInDateLabel
@@ -197,7 +179,11 @@
             }
         }]
         }
-    },
+    }
+    ) %}
+    {% endif %}
+
+    {% set _ = summaryRows.push(
     {
         key: {
         html: sendLinkLabel
