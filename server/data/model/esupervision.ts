@@ -313,8 +313,19 @@ export interface OffenderHeaderDetails {
   tierScore: string
   tierDetailsLink: string
   overallRisk: string
+  // True while the tier is only provisional - the risk scores are incomplete, so the score is not
+  // the person's final Tier. Eligibility keys off the tier, so a provisional one rules them out.
+  tierProvisional?: boolean
 }
 
 export interface PractitionerAlertsResponse {
   count: number
+}
+
+// The facts about the person's supervision returned by the supervision-package endpoint and used by
+// the eligibility rules.
+export interface SupervisionPackageStatus {
+  onSupervisionPackage: boolean
+  inFinalThird: boolean
+  inEarlyEngagement: boolean
 }

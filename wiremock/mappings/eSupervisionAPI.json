@@ -46,6 +46,315 @@
     },
     {
       "request": {
+        "urlPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-4])/personal-details",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "transformers": [
+          "response-template"
+        ],
+        "jsonBody": {
+          "crn": "{{request.pathSegments.[3]}}",
+          "name": {
+            "forename": "Tier",
+            "surname": "Tester {{request.pathSegments.[3]}}"
+          },
+          "dateOfBirth": "1979-08-18",
+          "mobile": "07783889300",
+          "email": "tier.tester@example.com"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X00000[1-8]",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "transformers": [
+          "response-template"
+        ],
+        "jsonBody": {
+          "crn": "{{request.pathSegments.[3]}}",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "{{#eq request.pathSegments.[3] 'X000002'}}C{{else}}{{#eq request.pathSegments.[3] 'X000004'}}A{{else}}{{#eq request.pathSegments.[3] 'X000005'}}E{{else}}{{#eq request.pathSegments.[3] 'X000006'}}G{{else}}{{#eq request.pathSegments.[3] 'X000007'}}C{{else}}{{#eq request.pathSegments.[3] 'X000008'}}A{{else}}D{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}{{/eq}}",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000009",
+        "method": "GET"
+      },
+      "response": {
+        "status": 404,
+        "jsonBody": {
+          "status": 404,
+          "errorCode": "NOT_FOUND",
+          "userMessage": "404 NOT_FOUND, no header details for CRN X000009",
+          "developerMessage": "404 NOT_FOUND, no header details for CRN X000009",
+          "moreInfo": null
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000010",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000010",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "MISSING",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000011",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000011",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "Z",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000012",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000012",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "D",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM",
+          "tierProvisional": true
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000013",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000013",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "NOT_SUPERVISED",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/header/X000014",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "crn": "X000014",
+          "dateOfBirth": "1979-08-18",
+          "tierScore": "A",
+          "tierDetailsLink": "https://example.com/tier",
+          "overallRisk": "MEDIUM"
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPathPattern": "/v2/offenders/crn/X0000(0[2-9]|1[0-4])",
+        "method": "GET"
+      },
+      "response": {
+        "status": 404,
+        "transformers": [
+          "response-template"
+        ],
+        "jsonBody": {
+          "status": 404,
+          "errorCode": "NOT_FOUND",
+          "userMessage": "404 NOT_FOUND, CRN {{request.pathSegments.[3]}} not found",
+          "developerMessage": "404 NOT_FOUND, CRN {{request.pathSegments.[3]}} not found",
+          "moreInfo": null
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000003/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": false,
+          "inFinalThird": false,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000005/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000014/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000007/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000006/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": false,
+          "inFinalThird": true,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/X000008/supervision-package",
+        "method": "GET"
+      },
+      "priority": 1,
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": false,
+          "inEarlyEngagement": true
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
+        "urlPattern": "/v2/offenders/crn/.*/supervision-package",
+        "method": "GET"
+      },
+      "response": {
+        "status": 200,
+        "jsonBody": {
+          "onSupervisionPackage": true,
+          "inFinalThird": false,
+          "inEarlyEngagement": false
+        },
+        "headers": {
+          "Content-Type": "application/json;charset=UTF-8"
+        }
+      }
+    },
+    {
+      "request": {
         "urlPattern": "/v2/offenders/crn/.*/practitioner-details",
         "method": "GET"
       },
@@ -59,7 +368,11 @@
           },
           "unallocated": false,
           "username": "TestPractitioner",
-          "email": "test.practitioner@example.com"
+          "email": "test.practitioner@example.com",
+          "probationDeliveryUnit": {
+            "code": "PDU001",
+            "description": "London Probation Delivery Unit"
+          }
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
@@ -86,7 +399,9 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         },
-        "transformers": ["response-template"]
+        "transformers": [
+          "response-template"
+        ]
       }
     },
     {
@@ -121,7 +436,6 @@
         }
       }
     },
-
     {
       "request": {
         "urlPathPattern": "/v2/fake-s3-upload",
@@ -137,7 +451,6 @@
         }
       }
     },
-
     {
       "request": {
         "urlPathPattern": "/v2/offender_setup",
@@ -303,7 +616,9 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         },
-        "transformers": ["response-template"]
+        "transformers": [
+          "response-template"
+        ]
       }
     },
     {
@@ -325,7 +640,9 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         },
-        "transformers": ["response-template"]
+        "transformers": [
+          "response-template"
+        ]
       }
     },
     {
@@ -347,7 +664,9 @@
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"
         },
-        "transformers": ["response-template"]
+        "transformers": [
+          "response-template"
+        ]
       }
     },
     {
@@ -366,7 +685,9 @@
               "responseFormat": "TEXT",
               "responseSpec": {
                 "hint": "Hint for the question about the {{thing}}",
-                "placeholders": ["thing"]
+                "placeholders": [
+                  "thing"
+                ]
               },
               "policy$hmpps_esupervision_api": "CUSTOMISABLE"
             },
@@ -377,7 +698,9 @@
               "responseFormat": "TEXT",
               "responseSpec": {
                 "hint": "Hint for the question about the {{thing}}",
-                "placeholders": ["thing"]
+                "placeholders": [
+                  "thing"
+                ]
               },
               "policy$hmpps_esupervision_api": "CUSTOMISABLE"
             }
@@ -395,7 +718,9 @@
       },
       "response": {
         "status": 200,
-        "transformers": ["response-template"],
+        "transformers": [
+          "response-template"
+        ],
         "jsonBody": {
           "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
           "questions": [
@@ -420,7 +745,9 @@
       },
       "response": {
         "status": 200,
-        "transformers": ["response-template"],
+        "transformers": [
+          "response-template"
+        ],
         "jsonBody": {
           "upcoming": {
             "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
@@ -439,10 +766,12 @@
       },
       "response": {
         "status": 200,
-        "transformers": ["response-template"],
+        "transformers": [
+          "response-template"
+        ],
         "jsonBody": {
           "upcoming": {
-            "count" : 5
+            "count": 5
           }
         },
         "headers": {
@@ -462,7 +791,9 @@
       },
       "response": {
         "status": 200,
-        "transformers": ["response-template"],
+        "transformers": [
+          "response-template"
+        ],
         "jsonBody": {
           "expectedCheckinDate": "{{now offset='5 days' format='yyyy-MM-dd'}}T10:00:00+01:00",
           "listId": 3
@@ -483,30 +814,7 @@
           "namespace": {
             "key": "hmpps-esupervision"
           },
-          "flags": [
-            {
-              "key": "eligibilityFeatureToggle",
-              "name": "eligibilityFeatureToggle",
-              "description": "",
-              "enabled": false,
-              "type": "BOOLEAN_FLAG_TYPE",
-              "createdAt": "2026-09-09T12:00:00.920581Z",
-              "updatedAt": "2026-09-09T12:00:00.920581Z",
-              "rules": [],
-              "rollouts": []
-            },
-            {
-              "key": "mockAccreditedProgrammeTiersABToggle",
-              "name": "mockAccreditedProgrammeTiersABToggle",
-              "description": "",
-              "enabled": false,
-              "type": "BOOLEAN_FLAG_TYPE",
-              "createdAt": "2026-09-09T12:00:00.920581Z",
-              "updatedAt": "2026-09-09T12:00:00.920581Z",
-              "rules": [],
-              "rollouts": []
-            }
-          ]
+          "flags": []
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"

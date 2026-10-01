@@ -18,12 +18,12 @@ import ContactPreferencePage from '../pages/check-ins/contact-preference'
 import AccreditedProgrammeApprovalPage from '../pages/check-ins/accredited-programme-approval'
 import DateFrequencyPage from '../pages/check-ins/date-frequencey'
 import EditContactPreferencePage from '../pages/check-ins/edit-contact-preference'
-import EligibilityCheckPage from '../pages/check-ins/eligibility-check'
-import EligibilityInstructionsPage from '../pages/check-ins/eligibility-instructions'
-import EligibilityDeniedPage from '../pages/check-ins/eligibility-denied'
-import EligibilityFullPage from '../pages/check-ins/eligibility-full'
-import EligibilitySPOApprovalPage from '../pages/check-ins/eligibility-spo-approval'
-import EligibilitySupplementaryPage from '../pages/check-ins/eligibility-supplementary'
+import EligibilityCheckPage from '../pages/check-ins/eligibility/eligibility-check'
+import TiersABEligibilityCheckPage from '../pages/check-ins/eligibility/tiers-a-b-eligibility-check'
+import PilotCheckPage from '../pages/check-ins/eligibility/pilot-check'
+import IsEligiblePage from '../pages/check-ins/eligibility/is-eligible'
+import NotEligiblePage from '../pages/check-ins/eligibility/not-eligible'
+import DiscussBeforeSignupPage from '../pages/check-ins/eligibility/discuss-before-signup'
 import PhotoOptionsPage from '../pages/check-ins/photo-options'
 import PhotoRulesPage from '../pages/check-ins/photo-rules'
 import RationalePage from '../pages/check-ins/rationale'
@@ -33,18 +33,97 @@ import UploadAPhotoPage from '../pages/check-ins/upload-a-photo'
 import ErrorPage from '../pages/error'
 import { getCheckinUuid } from '../utils/common'
 
-const loadPage = () => {
+// The header stub derives each CRN's tier from its last digit, so a spec picks its CRN to pick
+// the tier band the eligibility rules will apply. See wiremock/mappings/eSupervisionAPI.json.
+//
+// X000001 is the primary case, with the full fixture the downstream specs assert against, and
+// the stub's default tier is D1 so that it lands in D-G - the band that reaches date-frequency
+// in the fewest steps.
+const CRN_TIER_AB = 'X000004'
+const CRN_TIER_C = 'X000002'
+const CRN_TIER_DG = 'X000001'
+// The three facts the supervision-package check answers, one fixture each - see
+// wiremock/mappings/eSupervisionAPI.json. X000003 answers false for the package; X000005 (tier E, so
+// band D-G) is in the final third, which is blanket and so needs no particular band; X000008 is in
+// early engagement and is tier A, since that fact only bites on the Tier A/B programme branch.
+const CRN_NOT_ON_SUPERVISION_PACKAGE = 'X000003'
+const CRN_IN_FINAL_THIRD = 'X000005'
+const CRN_IN_EARLY_ENGAGEMENT = 'X000008'
+// The final third is blanket, so it has to hold on every band rather than just the D-G fixture above.
+// X000014 is tier A, which is the band that could hide a regression: if the rule were ever moved into
+// the Tier A/B programme exclusions it would still pass on C and D-G. X000007 is tier C.
+const CRN_IN_FINAL_THIRD_TIER_A = 'X000014'
+const CRN_IN_FINAL_THIRD_TIER_C = 'X000007'
+// Both facts at once (tier G), for the precedence between them - the package is reported first.
+const CRN_NO_PACKAGE_AND_FINAL_THIRD = 'X000006'
+// The two ways a tier can be unusable. X000010 answers with the score 'MISSING', which is how the
+// API reports a person with no tier assigned; X000009's header endpoint 404s, which getPersonalDetails
+// coerces to an empty score and which means the same thing. X000011 answers with a score that is
+// present but not a tier we recognise - unexpected data, and the only one of the three that errors.
+const CRN_TIER_MISSING = 'X000010'
+const CRN_TIER_MISSING_NO_HEADER = 'X000009'
+const CRN_TIER_UNREADABLE = 'X000011'
+// X000012 has a readable tier (D1) that the header flags as provisional, so nothing but the flag
+// rules the person out - the rules would otherwise take them all the way to is-eligible.
+const CRN_TIER_PROVISIONAL = 'X000012'
+// X000013's header answers 'NOT_SUPERVISED', which rules the person out outright.
+const CRN_NOT_SUPERVISED = 'X000013'
+
+// failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
+// treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
+const loadPage = (crn: string = CRN_TIER_DG, failOnStatusCode = true) => {
   cy.task('resetMocks')
-  cy.visit(`/case/X000001/appointments/check-in/eligibility-check`)
+  cy.visit(`/case/${crn}/appointments/check-in/eligibility-check`, { failOnStatusCode })
 }
 
-// specific to the new eligibility page updates
-const loadInstructionsPage = (flags: Record<string, boolean> = {}) => {
-  cy.task('resetMocks')
-  cy.task('stubFeatureFlags', { eligibilityFeatureToggle: true, ...flags })
-  // eslint-disable-next-line cypress/no-unnecessary-waiting
-  cy.wait(2500)
-  cy.visit(`/case/X000001/appointments/check-in/eligibility-check`)
+// Every setup spec starts here: the eligibility check is the wizard's opening page, and the only
+// way through to rationale, date-frequency and beyond.
+const startSetup = (crn: string = CRN_TIER_DG) => {
+  loadPage(crn)
+  return new EligibilityCheckPage()
+}
+
+// Tiers A and B are asked about the accredited programme and youth sentences on top of the boxes
+// every tier gets, so their specs need the wider page object. The CRN is a parameter so the early
+// engagement fixture, which is tier A too, can be walked through the same branch.
+const startSetupTiersAB = (crn: string = CRN_TIER_AB) => {
+  loadPage(crn)
+  return new TiersABEligibilityCheckPage()
+}
+
+// Tiers D-G are eligible on the ESUP supervision-package answer alone and go straight from
+// is-eligible to date-frequency - the shortest route to the pages that follow eligibility.
+// "None of these apply" is how an eligible person is submitted now that every other box is a
+// disqualifier; validation still requires an answer.
+const completeEligibilityCheck = () => {
+  const checkPage = new EligibilityCheckPage()
+  checkPage.getNone().click()
+  checkPage.getSubmitBtn().click()
+  const isEligiblePage = new IsEligiblePage()
+  isEligiblePage.confirmDiscussion()
+  isEligiblePage.getSubmitBtn().click()
+}
+
+// The downstream setup specs all reach their page this way. The error-scenario specs instead
+// call loadPage and completeEligibilityCheck themselves, so they can stub a failing API
+// response after loadPage has reset the mocks.
+const passEligibilityCheck = (crn: string = CRN_TIER_DG) => {
+  startSetup(crn)
+  completeEligibilityCheck()
+}
+
+// The Tier A/B accredited-programme cohort is the only one that reaches approval and rationale,
+// so the rationale specs come through here.
+const passEligibilityCheckToRationale = () => {
+  const checkPage = startSetupTiersAB()
+  checkPage.getAccreditedProgramme().click()
+  checkPage.getSubmitBtn().click()
+  const isEligiblePage = new IsEligiblePage()
+  isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
+  isEligiblePage.getSubmitBtn().click()
+  const approvalPage = new AccreditedProgrammeApprovalPage()
+  approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
+  approvalPage.getSubmitBtn().click()
 }
 
 const confirmContactPreference = () => {
@@ -65,159 +144,512 @@ const rejectContactPreferenceAndEdit = (): EditContactPreferencePage => {
 }
 
 context('Appointment check-ins', () => {
-  it('should navigate to supplementary eligibility page when option one is selected', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-
-    checkPage.getOptionOne().check()
-    checkPage.getSubmitBtn().click()
-
-    const supplementaryPage = new EligibilitySupplementaryPage()
-    supplementaryPage.checkOnPage()
-  })
-
-  it('should navigate to supplementary eligibility page when more than one eligible option is selected', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-
-    checkPage.getOptionOne().check()
-    checkPage.getOptionTwo().check()
-
-    checkPage.getSubmitBtn().click()
-
-    const supplementaryPage = new EligibilitySupplementaryPage()
-    supplementaryPage.checkOnPage()
-  })
-
-  it('should navigate to full eligibility choice when "None of these apply" is selected', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-
-    checkPage.getNoneOption().check()
-    checkPage.getSubmitBtn().click()
-
-    const fullPage = new EligibilityFullPage()
-    fullPage.checkOnPage()
-  })
-  it('should navigate to SPO approval when "To replace some face-to-face contact" radio is selected', () => {
-    loadPage()
-
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getNoneOption().check()
-    checkPage.getSubmitBtn().click()
-
-    const fullPage = new EligibilityFullPage()
-    fullPage.getReplacementRadio().check()
-    fullPage.getSubmitBtn().click()
-
-    const spoApprovalPage = new EligibilitySPOApprovalPage()
-    spoApprovalPage.checkOnPage()
-  })
-
-  it('should navigate to rationale page when SPO approval checkbox is checked', () => {
-    loadPage()
-
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getNoneOption().check()
-    checkPage.getSubmitBtn().click()
-
-    const fullPage = new EligibilityFullPage()
-    fullPage.getReplacementRadio().check()
-    fullPage.getSubmitBtn().click()
-
-    const spoApprovalPage = new EligibilitySPOApprovalPage()
-    spoApprovalPage.checkOnPage()
-    spoApprovalPage.getCheckbox().check()
-    spoApprovalPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.checkOnPage()
-  })
-
-  it('should navigate to rationale page when "As well as existing face-to-face contact" radio is selected', () => {
-    loadPage()
-
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getNoneOption().check()
-    checkPage.getSubmitBtn().click()
-
-    const fullPage = new EligibilityFullPage()
-    fullPage.getSupplementaryRadio().check()
-    fullPage.getSubmitBtn().click()
-
-    const rationalePage = new RationalePage()
-    rationalePage.checkOnPage()
-  })
-
-  it('should navigate to denied page when option 10 (Intensive Supervision Court pilot case) is selected', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getOptionNine().check()
-    checkPage.getSubmitBtn().click()
-    const deniedPage = new EligibilityDeniedPage()
-    deniedPage.checkOnPage()
-  })
-
-  it('should navigate to denied page when option 10 (Intensive Supervision Court pilot case) is selected alongside other eligible choices', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getOptionOne().check()
-    checkPage.getOptionNine().check()
-    checkPage.getSubmitBtn().click()
-    const deniedPage = new EligibilityDeniedPage()
-    deniedPage.checkOnPage()
-  })
-
-  it('should show validation errors when no option is selected', () => {
-    loadPage()
-    const checkPage = new EligibilityCheckPage()
-    checkPage.getSubmitBtn().click()
-    cy.get('.govuk-error-summary').should('be.visible')
-    cy.get('.govuk-error-message').should('contain', 'Select if any of these apply')
-  })
-
-  it('should redirect straight to eligibility-check when eligibilityFeatureToggle is disabled', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.checkOnPage()
-  })
-
-  context('when eligibilityFeatureToggle is enabled', () => {
-    after(() => {
-      cy.task('stubFeatureFlags', {})
-      // eslint-disable-next-line cypress/no-unnecessary-waiting
-      cy.wait(2500)
+  // The tier band decides which eligibility rules apply and which template renders, so there is
+  // one walkthrough per band. Each uses a CRN whose stubbed tier puts it in that band.
+  describe('eligibility, tiers A and B', () => {
+    // Early engagement was the one box that rendered here and nowhere else; it is an API fact now, so
+    // the widest template offers no box for it either.
+    it('does not ask about early engagement, the one box this template used to add', () => {
+      startSetupTiersAB()
+      cy.get('input[value="accreditedProgramme"]').should('exist')
+      cy.get('input[value="earlyEngagement"]').should('not.exist')
     })
 
-    it('should show the instructions page and continue to date-frequency', () => {
-      loadInstructionsPage({ eligibilityFeatureToggle: true })
-      const instructionsPage = new EligibilityInstructionsPage()
-      instructionsPage.pageHeading().should('contain', 'About online check ins')
-      cy.contains('You can use online check ins as additional contact with the people you manage.')
-      instructionsPage.getSubmitBtn().click()
+    it('routes the accredited programme cohort through approval and rationale', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getSubmitBtn().click()
 
-      const dateFrequencyPage = new DateFrequencyPage()
-      dateFrequencyPage.checkOnPage()
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
+      isEligiblePage.getSubmitBtn().click()
+
+      // Only this cohort passes through approval and rationale on the way to date-frequency.
+      const approvalPage = new AccreditedProgrammeApprovalPage()
+      approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
+      approvalPage.getSubmitBtn().click()
+
+      const rationalePage = new RationalePage()
+      rationalePage.rationaleNotes().find('textarea').type('On an accredited programme')
+      rationalePage.getSubmitBtn().click()
+
+      new DateFrequencyPage().checkOnPage()
     })
 
-    it('should show accredited programme guidance and continue to accredited programme approval when mockAccreditedProgrammeTiersABToggle is also enabled', () => {
-      loadInstructionsPage({ eligibilityFeatureToggle: true, mockAccreditedProgrammeTiersABToggle: true })
-      const instructionsPage = new EligibilityInstructionsPage()
-      cy.contains('How you can use online check ins with people in Tiers A and B')
-      instructionsPage.getSubmitBtn().click()
+    // The accredited programme is the A/B route that skips the pilot question; without it the
+    // pilot cohort is the only way through.
+    it('asks about the pilot cohort when the person is not on an accredited programme', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
 
-      const accreditedProgrammeApprovalPage = new AccreditedProgrammeApprovalPage()
-      accreditedProgrammeApprovalPage.checkOnPage()
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getYes().click()
+      pilotCheckPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.confirmDiscussion()
+      isEligiblePage.getSubmitBtn().click()
+
+      new DateFrequencyPage().checkOnPage()
+    })
+
+    // Early engagement comes from the ESUP API rather than a box, but it is still decided on the
+    // submission: only the accredited-programme answer, which the form has yet to collect, makes it
+    // bite. On that branch it rules the person out outright - there is no pilot question to fall
+    // back on.
+    it('rules the programme cohort out when the ESUP API says the person is in early engagement', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage()
+        .getReason()
+        .should('contain', 'is in Tier A and on an accredited programme, but they are in early engagement')
+    })
+
+    // Unticking the accredited programme is a real way to change this outcome, so unlike the final
+    // third the page keeps the eligibility-check back link rather than sending the practitioner to
+    // the case overview.
+    it('offers the re-check when the programme cohort is ruled out for early engagement', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getSubmitBtn().click()
+
+      // The URL carries the generated setup id, so this matches the tail rather than the whole href.
+      new NotEligiblePage().getBackLink().should('have.attr', 'href').and('contain', 'check-in/eligibility-check')
+    })
+
+    // Both exclusions at once share the one sentence about the programme.
+    it('reads both programme exclusions as one sentence when both apply', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getYouthSentence().click()
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage()
+        .getReason()
+        .should(
+          'contain',
+          'is in Tier A and on an accredited programme, but they are on a youth sentence and in early engagement',
+        )
+    })
+
+    // A programme exclusion is listed alongside the shared disqualifiers rather than being dropped
+    // in their favour, so the practitioner sees every reason at once.
+    it('lists the programme exclusion alongside a shared disqualifier', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getAccreditedProgramme().click()
+      checkPage.getYouthSentence().click()
+      checkPage.getRecalled().click()
+      checkPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'has been recalled to prison')
+      notEligiblePage
+        .getReasonBullets()
+        .last()
+        .should('contain', 'is in Tier A and on an accredited programme, but they are on a youth sentence')
+    })
+
+    // Off the programme branch neither exclusion matters, so the pilot cohort still decides. This is
+    // why early engagement cannot be settled before the form is answered, the way the final third is.
+    it('ignores early engagement when the person is not on an accredited programme', () => {
+      const checkPage = startSetupTiersAB(CRN_IN_EARLY_ENGAGEMENT)
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getYes().click()
+      pilotCheckPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.confirmDiscussion()
+      isEligiblePage.getSubmitBtn().click()
+
+      // Outside the accredited programme cohort there is no approval or rationale step.
+      new DateFrequencyPage().checkOnPage()
+    })
+
+    // Tier A/B reaching the pilot question are off the programme branch too, so both facts that
+    // ruled them out are listed.
+    it('rules the person out when they are not in the pilot cohort', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getNo().click()
+      pilotCheckPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReason().should('contain', 'is in Tier A and')
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'not on an accredited programme')
+      notEligiblePage
+        .getReasonBullets()
+        .last()
+        .should('contain', 'no people who were signed up to use online check ins before 1 October 2026')
+    })
+
+    it('shows a validation error when the pilot cohort question is not answered', () => {
+      const checkPage = startSetupTiersAB()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getSubmitBtn().click()
+      pilotCheckPage.checkErrorSummaryBox([
+        'Select if you have one or more people who started using online check ins before 1 October 2026',
+      ])
+    })
+  })
+
+  describe('eligibility, tier C', () => {
+    // The accredited programme and youth sentence boxes are Tier A/B rules, so the tier C template
+    // does not offer them at all.
+    it('does not ask about the accredited programme', () => {
+      startSetup(CRN_TIER_C)
+      cy.get('input[value="accreditedProgramme"]').should('not.exist')
+      cy.get('input[value="youthSentence"]').should('not.exist')
+    })
+
+    it('always asks about the pilot cohort', () => {
+      const checkPage = startSetup(CRN_TIER_C)
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getYes().click()
+      pilotCheckPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.confirmDiscussion()
+      isEligiblePage.getSubmitBtn().click()
+
+      new DateFrequencyPage().checkOnPage()
+    })
+
+    it('rules the person out with the tier C pilot reason', () => {
+      const checkPage = startSetup(CRN_TIER_C)
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const pilotCheckPage = new PilotCheckPage()
+      pilotCheckPage.getNo().click()
+      pilotCheckPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReason().should('contain', 'is in Tier C and you do not have one or more people')
+    })
+  })
+
+  describe('eligibility, tiers D to G', () => {
+    it('is eligible outright, with no pilot check', () => {
+      const checkPage = startSetup(CRN_TIER_DG)
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.confirmDiscussion()
+      isEligiblePage.getSubmitBtn().click()
+
+      new DateFrequencyPage().checkOnPage()
+    })
+
+    // The accredited programme route is a Tier A/B rule, so the box is not offered here either.
+    it('does not ask about the accredited programme', () => {
+      startSetup(CRN_TIER_DG)
+      cy.get('input[value="accreditedProgramme"]').should('not.exist')
+      cy.get('input[value="youthSentence"]').should('not.exist')
+    })
+  })
+
+  describe('eligibility, rules that apply to every tier', () => {
+    // None of the three facts the supervision-package call answers are asked about - the API supplies
+    // them, so a box would only let the practitioner contradict it.
+    it('does not ask the practitioner about the facts the ESUP API supplies', () => {
+      startSetup()
+      cy.get('input[value="supervisionPackage"]').should('not.exist')
+      cy.get('input[value="finalThird"]').should('not.exist')
+      cy.get('input[value="earlyEngagement"]').should('not.exist')
+    })
+
+    // A blanket failure whatever the tier - the eligibility-check form is skipped entirely since
+    // no checkbox on it could change this outcome. See getEligibilityPage in check-ins.ts.
+    it('sends the person straight to not-eligible when the ESUP API says they are not on a supervision package', () => {
+      loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+      new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+    })
+
+    // Every remaining box rules the person out, so this is how an eligible person is submitted.
+    it('lets the person through when none of the boxes apply', () => {
+      const checkPage = startSetup()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      // The Page constructor asserts the heading, so constructing it is the assertion.
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.checkOnPage()
+    })
+
+    // Leaving the group untouched is neither an answer nor a way of saying none of them apply -
+    // that is what "None of these apply" is for.
+    it('shows a validation error when nothing is selected', () => {
+      const checkPage = startSetup()
+      checkPage.getSubmitBtn().click()
+
+      checkPage.checkErrorSummaryBox(['Select if any of these apply to the person'])
+    })
+
+    it('rules the person out when they have been recalled', () => {
+      const checkPage = startSetup()
+      checkPage.getRecalled().click()
+
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage().getReason().should('contain', 'has been recalled to prison')
+
+      // A mis-answered box is the likeliest explanation, so the re-check is offered on every screen.
+      cy.contains('you can go back and check eligibility again').should('exist')
+    })
+
+    // Several facts at once are listed beneath "This is because <forename>:" rather than reported
+    // one at a time - the disqualifiers are whole clauses, so there is no stem above them. These are
+    // the two remaining boxes that can be submitted together: the final third is an API fact now, and
+    // a person it applies to never reaches the form to tick anything alongside it.
+    it('lists every disqualifier when several apply', () => {
+      const checkPage = startSetup()
+      checkPage.getRecalled().click()
+      checkPage.getDeviceRestriction().click()
+      checkPage.getSubmitBtn().click()
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReasonBullets().should('have.length', 2)
+      notEligiblePage.getReasonBullets().first().should('contain', 'has been recalled to prison')
+      notEligiblePage.getReasonBullets().last().should('contain', 'cannot use a device or the internet')
+    })
+
+    it('rules the person out with a device or internet restriction', () => {
+      const checkPage = startSetup()
+      checkPage.getDeviceRestriction().click()
+      checkPage.getSubmitBtn().click()
+
+      new NotEligiblePage().getReason().should('contain', 'cannot use a device or the internet')
+    })
+
+    // A part-filled set of discussion boxes means the conversation with the person has not
+    // happened yet, which is guidance rather than a validation error.
+    it('sends the practitioner to speak to the person when the discussion is incomplete', () => {
+      const checkPage = startSetup()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.getOptional().click()
+      isEligiblePage.getSubmitBtn().click()
+
+      new DiscussBeforeSignupPage().checkOnPage()
+    })
+
+    // "I have not done all of these" says outright what a part-filled set implies, and takes the
+    // same route.
+    it('sends the practitioner to speak to the person when they have not done all of these', () => {
+      const checkPage = startSetup()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.getNotAll().click()
+      isEligiblePage.getSubmitBtn().click()
+
+      new DiscussBeforeSignupPage().checkOnPage()
+    })
+
+    // Leaving the group untouched says nothing either way, so it is a validation error rather than
+    // an answer.
+    it('shows a validation error when no discussion box is ticked', () => {
+      const checkPage = startSetup()
+      checkPage.getNone().click()
+      checkPage.getSubmitBtn().click()
+
+      const isEligiblePage = new IsEligiblePage()
+      isEligiblePage.getSubmitBtn().click()
+
+      isEligiblePage.checkErrorSummaryBox(['Select if you have discussed any of these with the person'])
+    })
+
+    // Every rule keys off the tier, so a score we cannot read is an error rather than a default band.
+    // The page answers 500, which is the point - hence failOnStatusCode: false.
+    it('shows an error page when the tier cannot be read', () => {
+      loadPage(CRN_TIER_UNREADABLE, false)
+      new ErrorPage().checkPageTitle('Sorry, there is a problem with the service')
+    })
+
+    // No header at all leaves an empty score, which says the same thing as 'MISSING' - so it rules
+    // the person out with the same reason rather than erroring.
+    it('rules the person out when no header details exist to carry a tier', () => {
+      loadPage(CRN_TIER_MISSING_NO_HEADER)
+      new NotEligiblePage()
+        .getMissingTierGuidance()
+        .should('contain', 'This is because they have not been assigned a Tier yet')
+    })
+
+    // A tier the API reports as 'MISSING' is a fact about the record, not a fault - so the person is
+    // ruled out with a reason, without being asked any of the eligibility questions first. It is
+    // worded impersonally, unlike the reasons that complete "This is because <forename> …".
+    it('rules the person out without asking anything when they have no Tier yet', () => {
+      loadPage(CRN_TIER_MISSING)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getMissingTierGuidance()
+        .should('contain', 'This is because they have not been assigned a Tier yet')
+      notEligiblePage
+        .getGuidance()
+        .should('contain', 'risk scores have been completed')
+        .should('contain', 'You can come back and check eligibility again')
+    })
+
+    // A provisional tier reads as a real score, so only the header's flag rules the person out -
+    // and it does so before any question is asked, as a missing tier does.
+    it('rules the person out without asking anything when their Tier is only provisional', () => {
+      loadPage(CRN_TIER_PROVISIONAL)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getProvisionalTierGuidance()
+        .should('contain', 'This is because they are currently in a provisional Tier')
+      notEligiblePage
+        .getGuidance()
+        .should('contain', 'the system has calculated their final Tier')
+        .should('contain', 'You can come back and check eligibility again')
+    })
+
+    // An automatic disqualification like a missing tier, but one that cannot clear - so it lists what
+    // might explain it rather than inviting the practitioner to check eligibility again.
+    it('rules the person out when they are no longer being supervised', () => {
+      loadPage(CRN_NOT_SUPERVISED)
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage
+        .getNotSupervisedGuidance()
+        .should('contain', 'This is because they are not currently being supervised')
+      notEligiblePage.getGuidance().should('contain', 'This could be because they have')
+      notEligiblePage
+        .getNotSupervisedReasons()
+        .should('have.length', 3)
+        .then(items => {
+          expect([...items].map(item => item.textContent.trim())).to.deep.equal([
+            'passed away',
+            'been recalled to prison',
+            'have finished their probation',
+          ])
+        })
+      notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_NOT_SUPERVISED}`)
+      notEligiblePage.getSubmitBtn().should('contain', "Go to Tier's overview")
+    })
+  })
+
+  // The three facts the ESUP supervision-package call supplies, in place of the checkboxes that used
+  // to ask the practitioner for them. The rules themselves are covered exhaustively by the decision
+  // table in server/utils/eligibilityDecisionTable.test.ts - what these specs prove is the wiring the
+  // unit tests cannot see: which page the practitioner lands on, what the back link does, and that the
+  // outcome survives being re-derived from session on the pages that follow.
+  describe('eligibility, the facts the ESUP API supplies', () => {
+    // Both of these are blanket and unconditional, so the form is skipped entirely - no box on it
+    // could change the outcome, and the practitioner is never asked. Early engagement is the
+    // exception and is covered in the tiers A and B block, since it needs an answer first.
+    describe('settled before the form renders', () => {
+      it('reports no supervision package without rendering the form', () => {
+        loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+
+        new NotEligiblePage().getReason().should('contain', 'is not on a supervision package')
+      })
+
+      it('reports the final third without rendering the form', () => {
+        loadPage(CRN_IN_FINAL_THIRD)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+      })
+
+      // Neither is an answer, so going back to the check would load it and be redirected straight back
+      // here. Both the back link and the button lead to the case overview instead.
+      it('sends a no-package ruling to the case overview rather than the check', () => {
+        loadPage(CRN_NOT_ON_SUPERVISION_PACKAGE)
+
+        const notEligiblePage = new NotEligiblePage()
+        notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_NOT_ON_SUPERVISION_PACKAGE}`)
+        notEligiblePage.getSubmitBtn().should('contain', 'overview')
+      })
+
+      it('sends a final-third ruling to the case overview rather than the check', () => {
+        loadPage(CRN_IN_FINAL_THIRD)
+
+        const notEligiblePage = new NotEligiblePage()
+        notEligiblePage.getBackLink().should('have.attr', 'href', `/case/${CRN_IN_FINAL_THIRD}`)
+        notEligiblePage.getSubmitBtn().should('contain', 'overview')
+      })
+    })
+
+    // The final third sits in the shared disqualifiers rather than the Tier A/B programme exclusions,
+    // so it has to rule a person out on every band. Tier A is the band that would catch a regression:
+    // were the rule ever moved onto the programme branch, C and D-G would still pass.
+    describe('the final third applies to every band', () => {
+      // Tier A has the most ways through - the accredited programme branch and the pilot route - and
+      // this beats both, so the form is never even offered.
+      it('rules a tier A person out ahead of the accredited programme branch', () => {
+        loadPage(CRN_IN_FINAL_THIRD_TIER_A)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+        cy.get('input[value="accreditedProgramme"]').should('not.exist')
+      })
+
+      it('rules a tier C person out ahead of the pilot question', () => {
+        loadPage(CRN_IN_FINAL_THIRD_TIER_C)
+
+        new NotEligiblePage().getReason().should('contain', 'is in the final third of their sentence')
+      })
+    })
+
+    // Both facts arrive on the same call, so something has to settle which is reported. The package
+    // wins, on the GET and the POST alike - the rules decide, so the two cannot disagree.
+    it('reports a missing package ahead of the final third when both apply', () => {
+      loadPage(CRN_NO_PACKAGE_AND_FINAL_THIRD)
+
+      const notEligiblePage = new NotEligiblePage()
+      notEligiblePage.getReason().should('contain', 'is not on a supervision package')
+      notEligiblePage.getReason().should('not.contain', 'final third')
+    })
+
+    // The facts are recorded in session by the eligibility pages, because restrictEligibilityAccess
+    // re-derives the outcome on every later page and no longer has the ESUP answers to hand. Skipping
+    // ahead by URL therefore has to land back on not-eligible rather than on the page asked for.
+    describe('the outcome survives a skip forward by URL', () => {
+      // Tier C would otherwise be asked the pilot question and Tier D-G would go straight to
+      // is-eligible, so each jumps to the page its band would have reached next.
+      const skips = [
+        ['pilot-check', CRN_IN_FINAL_THIRD_TIER_C],
+        ['is-eligible', CRN_IN_FINAL_THIRD],
+      ] as const
+
+      skips.forEach(([page, crn]) => {
+        it(`bounces a final-third case that jumps straight to ${page}`, () => {
+          // The ruling has to be reached first, since that is what records the facts in session.
+          loadPage(crn)
+          new NotEligiblePage().checkOnPage()
+
+          cy.url().then(url => {
+            const id = url.split('/appointments/')[1].split('/')[0]
+            cy.visit(`/case/${crn}/appointments/${id}/check-in/${page}`)
+          })
+
+          new NotEligiblePage().checkOnPage()
+        })
+      })
     })
   })
 
   it('should be able to submit rationale details', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
+    passEligibilityCheckToRationale()
     const rationalePage = new RationalePage()
     rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
     rationalePage.getSubmitBtn().click()
@@ -226,13 +658,7 @@ context('Appointment check-ins', () => {
   })
 
   it('rationale page should fail with validation errors', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
+    passEligibilityCheckToRationale()
     const rationalePage = new RationalePage()
 
     rationalePage.getSubmitBtn().click()
@@ -240,16 +666,7 @@ context('Appointment check-ins', () => {
   })
 
   it('check-in frequency page should fail with validation errors', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     dateFrequencyPage.getSubmitBtn().click()
@@ -271,16 +688,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to submit check-in frequency details', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -296,16 +704,7 @@ context('Appointment check-ins', () => {
   })
 
   it('contact preference page should fail with validation errors', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -327,16 +726,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to submit contact preference details', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -363,16 +753,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to edit contact preference details', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -400,16 +781,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to choose photo options', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -445,16 +817,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to upload a pic and show rules page', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -494,16 +857,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to show cya and confirm page', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -547,16 +901,7 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to take a photo and show cya and confirm page', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    passEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -599,13 +944,9 @@ context('Appointment check-ins', () => {
   })
 
   it('should be able to change options from cya', () => {
-    loadPage()
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
+    // Via the Tier A/B accredited-programme route, because rationale is the only answer the
+    // summary offers a change link for that other bands never collect.
+    passEligibilityCheckToRationale()
     const rationalePage = new RationalePage()
     rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
     rationalePage.getSubmitBtn().click()
@@ -741,15 +1082,7 @@ context('check-ins error scenario ', () => {
   it('should show error page when update fails with 404 HTTP response code', () => {
     loadPage()
     cy.task('stubUpdatePersonalContact404Response')
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    completeEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -779,15 +1112,7 @@ context('check-ins error scenario ', () => {
   it('should show error page when update fails with 500 HTTP response code', () => {
     loadPage()
     cy.task('stubUpdatePersonalContact500Response')
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    completeEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -817,15 +1142,7 @@ context('check-ins error scenario ', () => {
   it('should be able to show error message when same phone / email already registered', () => {
     loadPage()
     cy.task('stubOffenderSetup422Response')
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    completeEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -875,15 +1192,7 @@ context('check-ins error scenario ', () => {
   it('should be able to show check ins registration error message', () => {
     loadPage()
     cy.task('stubOffenderSetup500Response')
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
+    completeEligibilityCheck()
     const dateFrequencyPage = new DateFrequencyPage()
     dateFrequencyPage.checkOnPage()
     const now = DateTime.now()
@@ -927,18 +1236,9 @@ context('check-ins error scenario ', () => {
 
   it('should be able to show error page, when checkin registration fails', () => {
     loadPage()
-
     cy.task('stubOffenderSetupComplete500Response')
+    completeEligibilityCheck()
 
-    const eligibilityCheckPage = new EligibilityCheckPage()
-    eligibilityCheckPage.getOptionOne().click()
-    eligibilityCheckPage.getSubmitBtn().click()
-    const eligibilitySupplementaryPage = new EligibilitySupplementaryPage()
-    eligibilitySupplementaryPage.checkOnPage()
-    eligibilitySupplementaryPage.getSubmitBtn().click()
-    const rationalePage = new RationalePage()
-    rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
-    rationalePage.getSubmitBtn().click()
     const dateFrequencyPage = new DateFrequencyPage()
 
     dateFrequencyPage.checkOnPage()

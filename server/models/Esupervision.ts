@@ -1,12 +1,19 @@
 import { Errors } from './Errors'
-import { EsupervisionQuestionTemplatesList } from '../data/model/esupervision'
+import { EsupervisionQuestionTemplatesList, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface ESupervisionSession {
+  // Server-owned response from the supervision-package endpoint. The access guard uses it to
+  // re-derive the outcome without fetching the endpoint again. See SERVER_OWNED_KEYS in
+  // middleware/autoStoreSessionData.
+  supervisionPackageStatus?: SupervisionPackageStatus
   checkins?: CheckinUserDetails
   manageCheckin?: CheckinUserDetails
   restartCheckin?: CheckinUserDetails
   manageQuestions?: ManageQuestionsSession
+  // Server-owned: recorded by the controllers, never posted. See SERVER_OWNED_KEYS in
+  // middleware/autoStoreSessionData.
   questionsAdded?: boolean
+  setupStartedAt?: string
 }
 
 export interface CheckinUserDetails {
@@ -54,6 +61,7 @@ export interface LocalParams {
   contactPreference?: string
   contactValue?: string
   hasContactDetails?: boolean
+  tierBand?: string
   questionId?: string
   question?: {
     prefix: string
