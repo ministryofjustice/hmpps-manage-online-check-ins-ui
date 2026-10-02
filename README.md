@@ -206,3 +206,4 @@ You'll need to manually handle the merge of the changes, but if you do it early,
 ## Change log
 
 A changelog for the service is available [here](./CHANGELOG.md)
+
