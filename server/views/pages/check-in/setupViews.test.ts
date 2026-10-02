@@ -56,7 +56,8 @@ const views = [
   'eligibility/tiers-d-g/is-eligible',
   'rationale',
   'accredited-programme-approval',
-  'date-frequency',
+  'check-in-frequency',
+  'check-in-date',
   'contact-preference',
   'confirm-contact-preference',
   'edit-contact-preference',
@@ -307,5 +308,38 @@ describe('eligibility/not-eligible', () => {
       reason: 'is in Tier A and on an accredited programme, but they are in early engagement',
     })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+})
+
+// An ad-hoc setup schedules no first check in, so there is no date to show or change.
+describe('an ad-hoc setup', () => {
+  const adHoc = {
+    ...base,
+    userDetails: {
+      ...(base.userDetails as object),
+      date: undefined as string,
+      displayDay: undefined as string,
+      interval: "I'll schedule them one at a time",
+      isAdHoc: true,
+    },
+    isFutureCheckinDate: false,
+  }
+
+  it('leaves the check-in date off the summary', async () => {
+    const html = await render('checkin-summary', adHoc)
+    expect(html).not.toContain('check-in/check-in-date')
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`)
+  })
+
+  it('shows the date on the summary once for a standard interval', async () => {
+    const html = await render('checkin-summary', base)
+    expect(html.match(/data-qa="dateAction"/g)).toHaveLength(1)
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
+  })
+
+  it('confirms the frequency alone, with no start date', async () => {
+    const html = await render('confirmation', adHoc)
+    expect(html).toContain('I&#39;ll schedule them one at a time')
+    expect(html).not.toMatch(/Starting/)
   })
 })

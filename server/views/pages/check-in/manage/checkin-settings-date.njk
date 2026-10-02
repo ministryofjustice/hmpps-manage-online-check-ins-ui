@@ -1,0 +1,36 @@
+{% extends "../../_form.njk" %}
+{% set pageTitleText = "When would you like " + case.name.forename + " to complete their first online check in?" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + title]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [title]
+  }) %}
+{% endif %}
+{% set backLink =  '/case/' + crn + '/appointments/check-in/manage/' + id + '/settings' %}
+{% set buttonText =  "Save changes" %}
+{% set showAnchorLink = true %}
+{% set formAnchorLink = backLink %}
+{% set formAnchorText = "Cancel and go back" %}
+
+{% block form %}
+    {{ mojDatePicker({
+        label: {
+            text: pageTitleText,
+            classes: "govuk-label--l",
+            isPageHeading: true
+        },
+        hint: {
+            text: "For example, 17/5/2024/ They will get a notification to use online check ins from this date."
+        },
+        formGroup: {
+            classes: "govuk-!-margin-bottom-3",
+            attributes: {
+                'data-qa': 'checkInDate'
+            }
+        },
+        minDate: checkInMinDate
+    } | decorateFormAttributes(['esupervision', crn, id, 'manageCheckin', 'date'])) }}
+{% endblock %}

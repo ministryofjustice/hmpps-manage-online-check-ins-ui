@@ -14,21 +14,6 @@
 {% set buttonText =  "Continue" %}
 
 {% block form %}
-    {{ mojDatePicker({
-        name: "date",
-        label: {
-            text: "When would you like " + case.name.forename + " to complete their next online check in?",
-            classes: "govuk-label--s govuk-!-margin-bottom-3"
-        },
-        formGroup: {
-            classes: "govuk-!-margin-bottom-3",
-            attributes: {
-                'data-qa': 'checkInDate'
-            }
-        },
-        minDate: checkInMinDate
-    } | decorateFormAttributes(['esupervision', crn, id, 'restartCheckin', 'date'])) }}
-
     {{ govukRadios({
         fieldset: {
             legend: {
@@ -57,11 +42,11 @@
             {
                 value: "EIGHT_WEEKS",
                 text: "Every 8 weeks"
+            },
+            {
+                value: "AD_HOC",
+                text: "I'll schedule them one at a time"
             }
         ]
     } | decorateFormAttributes(['esupervision', crn, id, 'restartCheckin', 'interval'])) }}
-
-    <input type="hidden" name="previousDate" value="{{ date }}">
-    <input type="hidden" name="previousInterval" value="{{ interval }}">
-    <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
 {% endblock %}

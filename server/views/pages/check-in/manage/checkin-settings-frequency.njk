@@ -1,35 +1,27 @@
 {% extends "../../_form.njk" %}
-{% set title = "Change online check in settings" %}
+{% set pageTitleText = "How often would you like " + case.name.forename + " to check in?" %}}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
-    pageHeading: ["Error: " + title]
+    pageHeading: ["Error: " + pageTitleText]
   }) %}
 {% else %}
   {% set pageTitle = makePageTitle({
-    pageHeading: [title]
+    pageHeading: [pageTitleText]
   }) %}
 {% endif %}
 {% set backLink =  '/case/' + crn + '/appointments/check-in/manage/' + id %}
-{% set radioLabel =  "How often would you like "+ case.name.forename + " to check in?" %}
 {% set buttonText =  "Save changes" %}
+{% set showAnchorLink = true %}
+{% set formAnchorLink = backLink %}
+{% set formAnchorText = "Cancel and go back" %}
 
 {% block form %}
-    <h3 class="govuk-heading-s govuk-!-margin-bottom-1" >When would you like {{case.name.forename}} to complete their next online <br/> check in?</h3>
-    {{ mojDatePicker({
-        formGroup: {
-            classes: "govuk-!-margin-bottom-3",
-            attributes: {
-                'data-qa': 'checkInDate'
-            }
-        },
-        minDate: checkInMinDate
-    } | decorateFormAttributes(['esupervision', crn, id, 'manageCheckin', 'date'])) }}
-
     {{ govukRadios({
         fieldset: {
             legend: {
-                text: radioLabel ,
-                classes: "govuk-label--m govuk-!-font-weight-bold"
+                text: pageTitleText,
+                isPageHeading: true,
+                classes: "govuk-fieldset__legend--l"
             }
         },
         formGroup: {
@@ -53,11 +45,14 @@
             {
                 value: "EIGHT_WEEKS",
                 text: "Every 8 weeks"
+            },
+            {
+                divider: "or"
+            },
+            {
+                value: "AD_HOC",
+                text: "I'll schedule them one at a time"
             }
         ]
     } | decorateFormAttributes(['esupervision', crn, id, 'manageCheckin', 'interval'])) }}
-
-    <input type="hidden" name="previousDate" value="{{ date }}">
-    <input type="hidden" name="previousInterval" value="{{ interval }}">
-    <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
 {% endblock %}
