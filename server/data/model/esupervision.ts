@@ -74,6 +74,14 @@ export interface OffenderSetup {
   createdAt: string
 }
 
+// To send to the ESUP API so it can store practitioner's checkbox results
+export interface EligibilityAnswers {
+  accreditedProgramme: boolean
+  recalled: boolean
+  deviceRestriction: boolean
+  youthSentence: boolean
+}
+
 export interface OffenderInfo {
   setupUuid: string
   practitionerId: string
@@ -84,6 +92,7 @@ export interface OffenderInfo {
   startedAt?: string
   eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   rationale?: string
+  eligibilityAnswers: EligibilityAnswers
 }
 
 export interface LocationInfo {

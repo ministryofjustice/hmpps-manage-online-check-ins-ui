@@ -4,6 +4,7 @@ import { Route } from '../@types'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { OffenderInfo, OffenderSetup, UploadLocationResponse } from '../data/model/esupervision'
 import { ProbationPractitioner } from '../data/model/personalDetails'
+import { toSelections } from '../utils/eligibilityRules'
 import logger from '../../logger'
 
 export const postCheckInDetails = (
@@ -32,6 +33,7 @@ export const postCheckInDetails = (
 
     const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
+    const selections = toSelections(savedUserDetails?.eligibility)
 
     const data: OffenderInfo = {
       setupUuid: id,
@@ -45,6 +47,12 @@ export const postCheckInDetails = (
       contactPreference: savedUserDetails.preferredComs,
       eligibilityChoice: savedUserDetails.eligibilityChoice,
       rationale: savedUserDetails.rationale,
+      eligibilityAnswers: {
+        accreditedProgramme: selections.includes('accreditedProgramme'),
+        recalled: selections.includes('recalled'),
+        deviceRestriction: selections.includes('deviceRestriction'),
+        youthSentence: selections.includes('youthSentence'),
+      },
     }
     logger.info('Checkin Registration started')
     try {

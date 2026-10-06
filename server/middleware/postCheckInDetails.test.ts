@@ -105,6 +105,26 @@ describe('postCheckInDetails', () => {
     expect(mockPostOffenderSetup.mock.calls[0][0].startedAt).toBeUndefined()
   })
 
+  it.each([
+    [['none'], { accreditedProgramme: false, recalled: false, deviceRestriction: false, youthSentence: false }],
+    [
+      'accreditedProgramme',
+      { accreditedProgramme: true, recalled: false, deviceRestriction: false, youthSentence: false },
+    ],
+    [
+      ['accreditedProgramme', 'youthSentence'],
+      { accreditedProgramme: true, recalled: false, deviceRestriction: false, youthSentence: true },
+    ],
+    [undefined, { accreditedProgramme: false, recalled: false, deviceRestriction: false, youthSentence: false }],
+  ])('sends the eligibility answers for %p', async (eligibility, eligibilityAnswers) => {
+    const req = buildRequest()
+    req.session.data.esupervision[crn][id].checkins.eligibility = eligibility
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ eligibilityAnswers }))
+  })
+
   it('leaves the cache untouched when setup fails', async () => {
     mockPostOffenderSetup.mockRejectedValue(Object.assign(new Error('boom'), { data: { status: 500 } }))
     const req = buildRequest()
