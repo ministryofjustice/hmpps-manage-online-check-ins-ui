@@ -8,7 +8,7 @@ import getCheckIn from '../middleware/getCheckIn'
 import validateCrnAndId from '../middleware/validateCrnAndId'
 
 import { getPersonalDetails } from '../middleware/getPersonalDetails'
-import restrictPageAccess from '../middleware/restrictPageAccess'
+import restrictPageAccess, { dateUnlessAdHoc } from '../middleware/restrictPageAccess'
 import postRedirectWizard from '../middleware/checkinCyaRedirect'
 
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
@@ -182,7 +182,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/contact-preference', [
-    restrictPageAccess({ requiredValues: ['interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getContactPreferencePage(hmppsAuthClient),
   ])
@@ -195,7 +195,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/confirm-contact-preference', [
-    restrictPageAccess({ requiredValues: ['interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient),
   ])
@@ -208,7 +208,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/edit-contact-preference', [
-    restrictPageAccess({ requiredValues: ['interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getEditContactPrePage(),
   ])

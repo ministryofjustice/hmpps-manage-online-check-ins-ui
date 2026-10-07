@@ -1,24 +1,29 @@
 {% extends "../../_form.njk" %}
-{% set title = "Online check in settings" %}
+{% set pageTitleText = "How often would you like " + case.name.forename + " to check in?" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
-    pageHeading: ["Error: " + title]
+    pageHeading: ["Error: " + pageTitleText]
   }) %}
 {% else %}
   {% set pageTitle = makePageTitle({
-    pageHeading: [title]
+    pageHeading: [pageTitleText]
   }) %}
 {% endif %}
+
 {% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id if not cya else '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
-{% set radioLabel =  "How often would you like "+ case.name.forename + " to check in?" %}
 {% set buttonText =  "Continue" %}
+
+{% set showAnchorLink = true %}
+{% set formAnchorLink = '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{% set formAnchorText = 'Cancel and go back' %}
 
 {% block form %}
     {{ govukRadios({
         fieldset: {
             legend: {
-                text: radioLabel ,
-                classes: "govuk-label--m govuk-!-font-weight-bold"
+                text: pageTitleText,
+                isPageHeading: true,
+                classes: "govuk-fieldset__legend--l"
             }
         },
         formGroup: {
@@ -42,6 +47,9 @@
             {
                 value: "EIGHT_WEEKS",
                 text: "Every 8 weeks"
+            },
+           {
+                divider: "or"
             },
             {
                 value: "AD_HOC",

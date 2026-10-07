@@ -72,6 +72,8 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
+    {# An ad-hoc restart schedules no first check in, so there is no date to show or change. #}
+    {% if not userDetails.isAdHoc %}
     {% set _ = summaryRows.push(
             { key:
                 { html:  checkInDateLabel  },
@@ -88,6 +90,7 @@
                 ]
             } }
     ) %}
+    {% endif %}
 
     {% set _ = summaryRows.push(
             { key:

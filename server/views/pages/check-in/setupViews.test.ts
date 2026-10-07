@@ -337,9 +337,12 @@ describe('an ad-hoc setup', () => {
     expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
   })
 
-  it('confirms the frequency alone, with no start date', async () => {
+  // The ad-hoc confirmation shows no schedule at all: the practitioner books check ins one at a time.
+  it('offers to schedule a check in instead of showing a start date', async () => {
     const html = await render('confirmation', adHoc)
-    expect(html).toContain('I&#39;ll schedule them one at a time')
     expect(html).not.toMatch(/Starting/)
+    expect(html).not.toContain('I&#39;ll schedule them one at a time')
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in"`)
+    expect(html).toContain('Schedule a check in')
   })
 })

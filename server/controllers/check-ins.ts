@@ -1764,6 +1764,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const cya = req.query?.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'interval'])
+      if (interval === 'AD_HOC') {
+        // As in the setup journey, an ad-hoc restart schedules no first check in, so there is no date
+        // to collect - clear any left over from switching away from a standard interval.
+        setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'], undefined)
+        return res.redirect(
+          cya
+            ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+            : `/case/${crn}/appointments/check-in/manage/${id}/restart-contact`,
+        )
+      }
       return res.redirect(
         `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin-date${cya ? '?cya=true' : ''}`,
       )
@@ -1780,6 +1791,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         SubjectType.CRN,
       )
       const cya = req.query.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'interval'])
+      if (interval === 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin${cya ? '?cya=true' : ''}`)
+      }
       const checkInMinDate = getMinDate()
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const eSupervisionClient = new ESupervisionClient(token)
@@ -1975,6 +1990,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
+        isAdHoc: restartDetails.interval === 'AD_HOC',
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
@@ -2009,7 +2025,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           reason: restartDetails.reason || 'Reactivated via UI',
           checkinSchedule: {
             requestedBy: res.locals.user.username,
-            firstCheckin: formattedDate,
+            // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.
+            ...(restartDetails.interval === 'AD_HOC' ? {} : { firstCheckin: formattedDate }),
             ...toApiSchedule(restartDetails.interval),
           },
           contactPreference: {

@@ -1,23 +1,33 @@
 {% extends "../../_form.njk" %}
-{% set title = "Online check in settings" %}
+{% set pageTitleText = "When would you like " + case.name.forename + " to complete their first online check in?" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
-    pageHeading: ["Error: " + title]
+    pageHeading: ["Error: " + pageTitleText]
   }) %}
 {% else %}
   {% set pageTitle = makePageTitle({
-    pageHeading: [title]
+    pageHeading: [pageTitleText]
   }) %}
 {% endif %}
 {% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin' if not cya else '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
 {% set buttonText =  "Continue" %}
 
+{% set showAnchorLink = true %}
+{% set formAnchorLink = '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{% set formAnchorText = 'Cancel and go back' %}
+
 {% block form %}
+<div class="govuk-form-group">
+  <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
     {{ mojDatePicker({
         name: "date",
         label: {
-            text: "When would you like " + case.name.forename + " to complete their next online check in?",
-            classes: "govuk-label--s govuk-!-margin-bottom-3"
+            text: pageTitleText,
+            classes: "govuk-label--l",
+            isPageHeading: true
+        },
+        hint: {
+            text: "For example, 17/5/2024. They will get a notification to use online check ins from this date."
         },
         formGroup: {
             classes: "govuk-!-margin-bottom-3",
@@ -27,6 +37,5 @@
         },
         minDate: checkInMinDate
     } | decorateFormAttributes(['esupervision', crn, id, 'restartCheckin', 'date'])) }}
-
-    <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
+</div>
 {% endblock %}
