@@ -68,6 +68,9 @@ const views = [
   'checkin-summary',
   'confirmation',
   'instructions',
+  'manage/checkin-settings-frequency',
+  'manage/checkin-settings-date',
+  'manage/schedule-checkin',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -312,6 +315,33 @@ describe('eligibility/not-eligible', () => {
 })
 
 // An ad-hoc setup schedules no first check in, so there is no date to show or change.
+describe('the manage settings pages', () => {
+  it('does not leak template syntax into the frequency page', async () => {
+    const html = await render('manage/checkin-settings-frequency', base)
+    expect(html).not.toMatch(/^\s*}/m)
+    expect(html).toContain('How often would you like Bob to check in?')
+  })
+
+  it('titles the date page after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', base)
+    expect(html).toMatch(/<title>\s*When would you like Bob to complete their first online check in\? - /)
+  })
+
+  it('titles the date page error state after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', {
+      ...base,
+      errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
+    })
+    expect(html).toMatch(/<title>\s*Error: When would you like Bob/)
+  })
+
+  it('links the schedule check in placeholder back to the manage page', async () => {
+    const html = await render('manage/schedule-checkin', base)
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}"`)
+    expect(html).toContain('Schedule an online check in for Bob')
+  })
+})
+
 describe('an ad-hoc setup', () => {
   const adHoc = {
     ...base,

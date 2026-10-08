@@ -219,6 +219,7 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
+  | 'getScheduleCheckinPage'
   | 'getStartQuestionsPage'
   | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
@@ -1606,6 +1607,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
       }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+    }
+  },
+
+  // Placeholder for the ad-hoc "schedule a check in" journey (ESUP-2156 follow-on). The ad-hoc
+  // confirmation pages already link here, so this keeps that call-to-action off a 404 until the
+  // real page lands.
+  getScheduleCheckinPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
+      const checkinRes = res.locals.offenderCheckinsByCRNResponse
+      return res.render('pages/check-in/manage/schedule-checkin.njk', {
+        crn,
+        id,
+        case: checkinRes?.details,
+      })
     }
   },
 

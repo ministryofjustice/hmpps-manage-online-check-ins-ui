@@ -182,6 +182,28 @@ describe('checkInsController', () => {
     })
   })
 
+  describe('getScheduleCheckinPage', () => {
+    it('renders the schedule check in placeholder page', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+      })
+
+      await controllers.checkIns.getScheduleCheckinPage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalled()
+      const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
+
+      expect(template).toBe('pages/check-in/manage/schedule-checkin.njk')
+      expect(context.crn).toBe(crn)
+      expect(context.id).toBe(uuid)
+      expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
+    })
+  })
+
   describe('postManageStopCheckin', () => {
     it('redirects to manage people on probation case page', async () => {
       mockIsValidCrn.mockReturnValue(true)
