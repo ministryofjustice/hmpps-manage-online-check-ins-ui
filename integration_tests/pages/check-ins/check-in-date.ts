@@ -1,9 +1,14 @@
 import { DateTime } from 'luxon'
 import Page from '../page'
 
-export default class DateFrequencyPage extends Page {
+export default class CheckInDatePage extends Page {
   constructor() {
-    super('Set up online check ins')
+    super('to complete their first online check in?')
+  }
+
+  // The question is the page heading, rendered as the date picker's label rather than a separate h2.
+  checkOnPage(): void {
+    cy.contains('label', 'to complete their first online check in?').should('be.visible')
   }
 
   getDatePickerToggle = () => {
@@ -20,7 +25,8 @@ export default class DateFrequencyPage extends Page {
     return cy.get(`[data-testid="${future.toFormat('d/M/yyyy')}"]`)
   }
 
-  getFrequency = () => {
-    return cy.get(`[data-qa="checkInFrequency"]`)
+  enterDateInTwoDays = () => {
+    const future = DateTime.now().plus({ days: 2 })
+    return this.getDatePickerInput().clear().type(future.toFormat('d/M/yyyy'))
   }
 }

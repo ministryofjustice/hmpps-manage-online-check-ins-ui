@@ -1,6 +1,6 @@
-import Page from '../../page'
+import Page from '../page'
 
-export default class RestartCheckinFrequencyPage extends Page {
+export default class CheckInFrequencyPage extends Page {
   constructor() {
     super('to check in?')
   }
