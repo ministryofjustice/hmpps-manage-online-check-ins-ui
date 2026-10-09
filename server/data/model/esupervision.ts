@@ -153,7 +153,8 @@ export interface OffenderByCRNResponse {
   uuid: string
   crn: string
   status: OffenderStatus
-  firstCheckin: string
+  // Null for an ad-hoc person with no check in booked yet.
+  firstCheckin?: string | null
   // Null for ad-hoc, which the API carries as the mode instead.
   checkinInterval?: CheckInterval | null
   mode?: CheckinMode
@@ -188,7 +189,8 @@ export interface CheckinScheduleResponse {
   uuid: string
   crn: string
   status: OffenderStatus
-  firstCheckin: string
+  // Null for an ad-hoc person with no check in booked yet.
+  firstCheckin?: string | null
   // Null for ad-hoc, which the API carries as the mode instead.
   checkinInterval?: CheckInterval | null
   mode?: CheckinMode

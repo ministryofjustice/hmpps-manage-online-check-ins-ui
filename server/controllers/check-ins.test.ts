@@ -367,17 +367,18 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/settings-date`)
     })
 
+    // The upcoming check in carries a time (see the WireMock stub); the update API takes a date only.
     it('submits a change of interval straight away, keeping the next check in date', async () => {
       jest
         .spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions')
-        .mockResolvedValueOnce({ expectedCheckinDate: '2026-01-05', questions: [] })
+        .mockResolvedValueOnce({ expectedCheckinDate: '2099-01-05T10:00:00+01:00', questions: [] })
 
       await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('TWO_WEEKS'), res)
 
       expect(postUpdateOffenderDetailsSpy).toHaveBeenCalledWith(uuid, {
         checkinSchedule: {
           requestedBy: 'user-1',
-          firstCheckin: '2026-01-05',
+          firstCheckin: '2099-01-05',
           mode: 'SCHEDULED',
           checkinInterval: 'TWO_WEEKS',
         },
@@ -392,17 +393,29 @@ describe('checkInsController', () => {
 
     it('falls back to the saved first check in date when there is no upcoming check in', async () => {
       jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions').mockRejectedValueOnce(new Error('404'))
+      res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, firstCheckin: '2099-03-01' }
 
       await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('TWO_WEEKS'), res)
 
       expect(postUpdateOffenderDetailsSpy).toHaveBeenCalledWith(uuid, {
         checkinSchedule: {
           requestedBy: 'user-1',
-          firstCheckin: offenderCheckinsByCRNResponse.firstCheckin,
+          firstCheckin: '2099-03-01',
           mode: 'SCHEDULED',
           checkinInterval: 'TWO_WEEKS',
         },
       })
+    })
+
+    // The API rejects a first check in in the past, so a stale saved date is never sent.
+    it('asks for a date when there is no upcoming check in and the saved date has passed', async () => {
+      jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions').mockRejectedValueOnce(new Error('404'))
+      res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, firstCheckin: '2020-01-01' }
+
+      await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('TWO_WEEKS'), res)
+
+      expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/settings-date`)
     })
 
     // The API takes ad-hoc as a mode with no interval and no date.
@@ -578,6 +591,14 @@ describe('checkInsController', () => {
         expect.objectContaining({ crn, id: uuid }),
       )
       expect(redirectSpy).not.toHaveBeenCalled()
+    })
+
+    it('sends a restart with no interval in session back to the frequency page', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      await controllers.checkIns.getRestartCheckinDatePage(hmppsAuthClient)(baseReq({}), res)
+      expect(renderSpy).not.toHaveBeenCalled()
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-checkin`)
     })
 
     it('sends an ad-hoc restart back to the frequency page instead of rendering, preserving cya', async () => {
@@ -1107,6 +1128,18 @@ describe('checkInsController', () => {
   })
 
   describe('postRestartSummaryPage', () => {
+    it('sends an incomplete scheduled restart back to the frequency page instead of submitting', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { date: '19/2/2026', preferredComs: 'EMAIL' } } } },
+      })
+      await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(postReactivateOffenderSpy).not.toHaveBeenCalled()
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-checkin`)
+    })
+
     it('calls reactivate API with ISO date and redirects to confirmation', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
@@ -1176,7 +1209,9 @@ describe('checkInsController', () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
 
-      const data = { esupervision: { [crn]: { [uuid]: { restartCheckin: { date: '19/2/2026' } } } } }
+      const data = {
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { date: '19/2/2026', interval: 'WEEKLY' } } } },
+      }
       const req = baseReq(data)
 
       postReactivateOffenderSpy.mockRejectedValueOnce(new Error('API failure'))

@@ -110,19 +110,27 @@ const submitCheckinSettings = async (
 
 // The date a scheduled person's next check in falls on, which a change of interval keeps: the API
 // treats firstCheckin as the date the (new) schedule runs from, and rejects a date in the past.
+// Returns undefined when there is no date today or later to keep, so the caller can ask for one.
 const nextScheduledCheckinDate = async (
   hmppsAuthClient: HmppsAuthClient,
   res: Response,
   crn: string,
 ): Promise<string | undefined> => {
+  const today = DateTime.now().startOf('day')
+  // The upcoming check in may carry a time; the update API takes a date only.
+  const asFutureDate = (value?: string | null): string | undefined => {
+    const parsed = DateTime.fromISO(value ?? '')
+    return parsed.isValid && parsed.startOf('day') >= today ? parsed.toISODate() : undefined
+  }
   try {
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const upcoming = await new ESupervisionClient(token).getUpcomingCheckinQuestions(crn)
-    if (upcoming?.expectedCheckinDate) return upcoming.expectedCheckinDate
+    const upcomingDate = asFutureDate(upcoming?.expectedCheckinDate)
+    if (upcomingDate) return upcomingDate
   } catch {
     logger.info(`No upcoming check in found for CRN ${crn}; keeping the saved first check in date`)
   }
-  return res.locals.offenderCheckinsByCRNResponse?.firstCheckin
+  return asFutureDate(res.locals.offenderCheckinsByCRNResponse?.firstCheckin)
 }
 
 // Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
@@ -1626,8 +1634,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
       }
-      const firstCheckin =
-        frequency === 'AD_HOC' ? undefined : await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+      if (frequency === 'AD_HOC') {
+        return submitCheckinSettings(hmppsAuthClient, req, res, frequency)
+      }
+      const firstCheckin = await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+      if (!firstCheckin) {
+        // Nothing to carry forward (no upcoming check in and the saved date has passed): the API
+        // would reject a past date, so ask for one rather than fail silently.
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
+      }
       return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
     }
   },
@@ -1871,7 +1886,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       )
       const cya = req.query.cya === 'true'
       const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'interval'])
-      if (interval === 'AD_HOC') {
+      // No date to collect for ad-hoc, and nothing to date without an interval (deep link or expired
+      // session) - either way the frequency page is the right place to be.
+      if (!interval || interval === 'AD_HOC') {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin${cya ? '?cya=true' : ''}`)
       }
       const checkInMinDate = getMinDate()
@@ -2090,7 +2107,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
-      if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
+      // A scheduled restart needs both an interval and a date; without them the API would be sent a
+      // schedule with no interval, so send the practitioner back to supply them.
+      const incomplete = !restartDetails?.interval || (restartDetails.interval !== 'AD_HOC' && !restartDetails.date)
+      if (incomplete) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
 
       try {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)

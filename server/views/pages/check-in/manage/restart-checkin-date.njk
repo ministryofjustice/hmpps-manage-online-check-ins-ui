@@ -1,5 +1,5 @@
 {% extends "../../_form.njk" %}
-{% set pageTitleText = "When would you like " + case.name.forename + " to complete their first online check in?" %}
+{% set pageTitleText = "When would you like " + case.name.forename + " to complete their next online check in?" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
