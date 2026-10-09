@@ -32,10 +32,10 @@ describe('setup validation re-render', () => {
     expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-checkins-preferredComs`)
   })
 
-  it('preserves checkInMinDate when date-frequency fails', () => {
+  it('preserves checkInMinDate when check-in-date fails', () => {
     const req = httpMocks.createRequest({
       method: 'POST',
-      url: `/case/${crn}/appointments/${id}/check-in/date-frequency`,
+      url: `/case/${crn}/appointments/${id}/check-in/check-in-date`,
       params: { crn, id },
       query: {},
       body: { checkInMinDate: '1/8/2026' },
@@ -44,7 +44,7 @@ describe('setup validation re-render', () => {
     const res: any = { locals: {}, render: jest.fn() }
     validate(req, res, jest.fn())
     const [view, locals] = res.render.mock.calls[0]
-    expect(view).toBe('pages/check-in/date-frequency')
+    expect(view).toBe('pages/check-in/check-in-date')
     expect(locals.checkInMinDate).toBe('1/8/2026')
   })
 

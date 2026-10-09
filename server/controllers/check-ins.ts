@@ -33,6 +33,7 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
+import { CheckinFrequency, fromApiSchedule, toApiSchedule } from '../utils/checkinSchedule'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
@@ -50,6 +51,7 @@ const checkinIntervals: { id: string; label: string }[] = [
   { id: 'TWO_WEEKS', label: 'Every 2 weeks' },
   { id: 'FOUR_WEEKS', label: 'Every 4 weeks' },
   { id: 'EIGHT_WEEKS', label: 'Every 8 weeks' },
+  { id: 'AD_HOC', label: "I'll schedule them one at a time" },
 ]
 
 // getPersonalDetails middleware already fetches practitioner details when the new header flag is
@@ -73,6 +75,62 @@ const getMinDate = (): string => {
   return today.getDate() > 9
     ? DateTime.fromJSDate(today).toFormat('dd/M/yyyy')
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
+}
+
+// Submits a change of check-in settings from the manage flow. Shared by the frequency page, which
+// submits every change except a move from ad-hoc to a scheduled interval, and the date page, which
+// collects the first check-in date that move needs before submitting.
+const submitCheckinSettings = async (
+  hmppsAuthClient: HmppsAuthClient,
+  req: Request,
+  res: Response,
+  frequency: CheckinFrequency,
+  firstCheckin?: string,
+) => {
+  const { crn, id } = req.params as Record<string, string>
+  req.session.data = req.session.data || {}
+  const { data } = req.session
+  const body: CheckinScheduleRequest = {
+    checkinSchedule: {
+      requestedBy: res.locals.user.username,
+      // An ad-hoc person has no schedule: the practitioner books their check ins one at a time.
+      ...(frequency === 'AD_HOC' ? {} : { firstCheckin }),
+      ...toApiSchedule(frequency),
+    },
+  }
+  const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+  const eSupClient = new ESupervisionClient(token)
+  const response = await eSupClient.postUpdateOffenderDetails(id, body)
+  if (response?.crn) {
+    res.locals.success = true
+    setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
+  }
+  return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+}
+
+// The date a scheduled person's next check in falls on, which a change of interval keeps: the API
+// treats firstCheckin as the date the (new) schedule runs from, and rejects a date in the past.
+// Returns undefined when there is no date today or later to keep, so the caller can ask for one.
+const nextScheduledCheckinDate = async (
+  hmppsAuthClient: HmppsAuthClient,
+  res: Response,
+  crn: string,
+): Promise<string | undefined> => {
+  const today = DateTime.now().startOf('day')
+  // The upcoming check in may carry a time; the update API takes a date only.
+  const asFutureDate = (value?: string | null): string | undefined => {
+    const parsed = DateTime.fromISO(value ?? '')
+    return parsed.isValid && parsed.startOf('day') >= today ? parsed.toISODate() : undefined
+  }
+  try {
+    const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+    const upcoming = await new ESupervisionClient(token).getUpcomingCheckinQuestions(crn)
+    const upcomingDate = asFutureDate(upcoming?.expectedCheckinDate)
+    if (upcomingDate) return upcomingDate
+  } catch {
+    logger.info(`No upcoming check in found for CRN ${crn}; keeping the saved first check in date`)
+  }
+  return asFutureDate(res.locals.offenderCheckinsByCRNResponse?.firstCheckin)
 }
 
 // Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
@@ -164,8 +222,10 @@ type CheckInRouteName =
   | 'postAccreditedProgrammeApprovalPage'
   | 'getRationalePage'
   | 'postRationalePage'
-  | 'getDateFrequencyPage'
-  | 'postDateFrequencyPage'
+  | 'getFrequencyPage'
+  | 'postFrequencyPage'
+  | 'getDatePage'
+  | 'postDatePage'
   | 'getContactPreferencePage'
   | 'postContactPreferencePage'
   | 'getConfirmContactPreferencePage'
@@ -196,14 +256,18 @@ type CheckInRouteName =
   | 'getViewCheckIn'
   | 'postViewCheckIn'
   | 'getViewExpiredCheckIn'
-  | 'getManageCheckinDatePage'
-  | 'postManageCheckinDatePage'
+  | 'getSettingsFrequencyPage'
+  | 'postSettingsFrequencyPage'
+  | 'getSettingsDatePage'
+  | 'postSettingsDatePage'
   | 'getManageContactPage'
   | 'postManageContactPage'
   | 'getManageEditContactPage'
   | 'postManageEditContactPage'
   | 'getRestartCheckinPage'
   | 'postRestartCheckinPage'
+  | 'getRestartCheckinDatePage'
+  | 'postRestartCheckinDatePage'
   | 'getRestartContactPage'
   | 'postRestartContactPage'
   | 'getRestartEditContactPage'
@@ -211,6 +275,7 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
+  | 'getScheduleCheckinPage'
   | 'getStartQuestionsPage'
   | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
@@ -478,7 +543,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/discuss-before-signup`)
       }
       // Approval and rationale only apply to the accredited-programme cohort.
-      const next = accreditedProgramme ? 'accredited-programme-approval' : 'date-frequency'
+      const next = accreditedProgramme ? 'accredited-programme-approval' : 'check-in-frequency'
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${next}`)
     }
   },
@@ -611,7 +676,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       ])
       // Rationale only applies to the accredited-programme cohort; everyone else skips it.
       if (!accreditedProgramme) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
       }
       const backLink = cya
         ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
@@ -631,11 +696,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/date-frequency`)
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
     }
   },
 
-  getDateFrequencyPage: () => {
+  getFrequencyPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SETUP_ONLINE_CHECK_INS', crn, SubjectType.CRN)
@@ -659,7 +724,53 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           ? `/case/${crn}/appointments/${id}/check-in/rationale`
           : `/case/${crn}/appointments/${id}/check-in/is-eligible`
       }
-      return res.render('pages/check-in/date-frequency.njk', {
+      return res.render('pages/check-in/check-in-frequency.njk', {
+        crn,
+        id,
+        cya,
+        backLink,
+      })
+    }
+  },
+
+  postFrequencyPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'interval'])
+      if (interval === 'AD_HOC') {
+        // An ad-hoc setup schedules no first check in, so there is no date to collect - clear any
+        // left over from switching away from a standard interval during a check-your-answers edit.
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'], undefined)
+        return res.redirect(
+          cya
+            ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+            : `/case/${crn}/appointments/${id}/check-in/contact-preference`,
+        )
+      }
+      return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-date${cya ? '?cya=true' : ''}`)
+    }
+  },
+
+  getDatePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SETUP_ONLINE_CHECK_INS', crn, SubjectType.CRN)
+      if (!isValidCrn(crn) || !isValidUUID(id)) {
+        return renderError(404)(req, res)
+      }
+      const cya = req.query.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'interval'])
+      if (interval === 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency${cya ? '?cya=true' : ''}`)
+      }
+      const backLink = cya
+        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+        : `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      return res.render('pages/check-in/check-in-date.njk', {
         crn,
         id,
         cya,
@@ -669,7 +780,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postDateFrequencyPage: () => {
+  postDatePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
@@ -701,8 +812,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // Seed the edit page from the record so it can render without another API call.
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'checkins', 'editCheckInEmail'], checkInEmail)
+      const isAdHoc = getDataValue(data, ['esupervision', crn, id, 'checkins', 'interval']) === 'AD_HOC'
 
-      return res.render('pages/check-in/contact-preference.njk', { crn, id, checkInMobile, checkInEmail, cya })
+      return res.render('pages/check-in/contact-preference.njk', {
+        crn,
+        id,
+        checkInMobile,
+        checkInEmail,
+        cya,
+        isAdHoc,
+      })
     }
   },
 
@@ -1093,6 +1212,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         ...savedUserDetails,
         uuid: id,
         interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
+        isAdHoc: savedUserDetails?.interval === 'AD_HOC',
         preferredComs: savedUserDetails?.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         photoUploadOption:
           savedUserDetails?.photoUploadOption === 'TAKE_A_PIC' ? 'Take a photo using this device' : 'Upload a photo',
@@ -1145,18 +1265,23 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // Completing setup creates the offender record, so the uuid to manage them by is
       // only available once the check-in registration has gone through.
       const activeId = res.locals?.offenderCheckinsByCRNResponse?.uuid
+      const hasCheckinDate = Boolean(savedUserDetails?.date)
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: activeId,
         interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
+        isAdHoc: savedUserDetails?.interval === 'AD_HOC',
         displayCommsOption:
           savedUserDetails?.preferredComs === 'EMAIL'
             ? savedUserDetails?.checkInEmail
             : savedUserDetails?.checkInMobile,
-        displayDay: dayOfWeek(DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
+        displayDay: hasCheckinDate
+          ? dayOfWeek(DateTime.fromFormat(savedUserDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd'))
+          : undefined,
       }
-      const checkInDate = DateTime.fromFormat(savedUserDetails?.date, 'd/M/yyyy').startOf('day')
-      const isFutureCheckinDate = checkInDate > DateTime.now().startOf('day')
+      const isFutureCheckinDate =
+        hasCheckinDate &&
+        DateTime.fromFormat(savedUserDetails.date, 'd/M/yyyy').startOf('day') > DateTime.now().startOf('day')
 
       // Flag the setup as completed so a browser back navigation to checkin-summary redirects
       // to the check-in overview instead of re-showing the now-stale check-your-answers page.
@@ -1226,6 +1351,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         email: checkinRes?.details?.email ?? '',
         mobile: checkinRes?.details?.mobile ?? '',
         offenderCheckinsByCRNResponse: checkinRes,
+        // Ad-hoc is a mode with no interval at the API; the page shows it as one more frequency.
+        checkinFrequency: fromApiSchedule(checkinRes),
         showChange,
         upcomingCheckin,
         canEditQuestions,
@@ -1472,24 +1599,106 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getManageCheckinDatePage: () => {
+  getSettingsFrequencyPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_SETTINGS', crn, SubjectType.CRN)
 
       req.session.data = req.session.data || {}
-      const checkInMinDate = getMinDate()
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       const date = checkinRes?.firstCheckin
-      const interval = checkinRes?.checkinInterval
+      const interval = fromApiSchedule(checkinRes)
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], { date, interval })
-      return res.render('pages/check-in/manage/checkin-settings.njk', {
+      return res.render('pages/check-in/manage/checkin-settings-frequency.njk', {
+        crn,
+        id,
+        case: checkinRes?.details,
+      })
+    }
+  },
+
+  postSettingsFrequencyPage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const frequency: CheckinFrequency = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'manageCheckin',
+        'interval',
+      ])
+      const currentFrequency = fromApiSchedule(res.locals.offenderCheckinsByCRNResponse)
+
+      // Only a move from ad-hoc to a scheduled interval needs a date: the person has no schedule to
+      // carry forward, so the practitioner picks when the new one starts.
+      if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
+      }
+      if (frequency === 'AD_HOC') {
+        return submitCheckinSettings(hmppsAuthClient, req, res, frequency)
+      }
+      const firstCheckin = await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+      if (!firstCheckin) {
+        // Nothing to carry forward (no upcoming check in and the saved date has passed): the API
+        // would reject a past date, so ask for one rather than fail silently.
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
+      }
+      return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
+    }
+  },
+
+  getSettingsDatePage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_SETTINGS', crn, SubjectType.CRN)
+      // The interval is only seeded into the session by the frequency page, so a deep link or an
+      // expired session lands here with nothing to submit - send them back to choose one. An ad-hoc
+      // choice has no date to collect either.
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+      if (!interval || interval === 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings`)
+      }
+      const checkInMinDate = getMinDate()
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      return res.render('pages/check-in/manage/checkin-settings-date.njk', {
         crn,
         id,
         case: checkinRes?.details,
         checkInMinDate,
-        date,
-        interval,
+      })
+    }
+  },
+
+  postSettingsDatePage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      req.session.data = req.session.data || {}
+      const { data } = req.session
+      const date = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'date'])
+      const frequency: CheckinFrequency = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+      if (!frequency) {
+        // See getSettingsDatePage: without an interval the API would be sent SCHEDULED with no interval.
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings`)
+      }
+      // date is entered as d/M/yyyy; the API expects yyyy/M/dd
+      const parsedFirstCheckin = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
+      const firstCheckin = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : date
+      return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
+    }
+  },
+
+  // Placeholder for the ad-hoc "schedule a check in" journey (ESUP-2156 follow-on). The ad-hoc
+  // confirmation pages already link here, so this keeps that call-to-action off a 404 until the
+  // real page lands.
+  getScheduleCheckinPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
+      const checkinRes = res.locals.offenderCheckinsByCRNResponse
+      return res.render('pages/check-in/manage/schedule-checkin.njk', {
+        crn,
+        id,
+        case: checkinRes?.details,
       })
     }
   },
@@ -1510,34 +1719,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         data: req.session.data,
         case: offenderDetails.details,
       })
-    }
-  },
-
-  postManageCheckinDatePage: hmppsAuthClient => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      req.session.data = req.session.data || {}
-      const { data } = req.session
-      const previousDate = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'date'])
-      const previousInterval = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
-      // date is entered as d/M/yyyy; the API expects yyyy/M/dd
-      const parsedFirstCheckin = DateTime.fromFormat(previousDate ?? '', 'd/M/yyyy')
-      const formattedDate = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : previousDate
-      const body: CheckinScheduleRequest = {
-        checkinSchedule: {
-          requestedBy: res.locals.user.username,
-          firstCheckin: formattedDate,
-          checkinInterval: previousInterval,
-        },
-      }
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupClient = new ESupervisionClient(token)
-      const response = await eSupClient.postUpdateOffenderDetails(id, body)
-      if (response?.crn) {
-        res.locals.success = true
-        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
-      }
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
     }
   },
 
@@ -1643,14 +1824,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       const { data } = req.session
       const cya = req.query.cya === 'true'
-      const checkInMinDate = getMinDate()
 
       const defaultsLoaded = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'])
       if (!defaultsLoaded) {
         const offenderSettings = res.locals.offenderCheckinsByCRNResponse
 
         setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
-        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval'], offenderSettings.checkinInterval)
+        setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval'], fromApiSchedule(offenderSettings))
         setDataValue(
           data,
           ['esupervision', crn, id, 'restartCheckin', 'preferredComs'],
@@ -1665,7 +1845,61 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
-      return res.render('pages/check-in/manage/restart-date-frequency.njk', {
+      return res.render('pages/check-in/manage/restart-checkin-frequency.njk', {
+        crn,
+        id,
+        case: personalDetails,
+        cya,
+      })
+    }
+  },
+
+  postRestartCheckinPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const cya = req.query?.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'interval'])
+      if (interval === 'AD_HOC') {
+        // As in the setup journey, an ad-hoc restart schedules no first check in, so there is no date
+        // to collect - clear any left over from switching away from a standard interval.
+        setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'], undefined)
+        return res.redirect(
+          cya
+            ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+            : `/case/${crn}/appointments/check-in/manage/${id}/restart-contact`,
+        )
+      }
+      return res.redirect(
+        `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin-date${cya ? '?cya=true' : ''}`,
+      )
+    }
+  },
+
+  getRestartCheckinDatePage: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_WHEN_TO_COMPLETE_ONLINE_CHECK_IN',
+        crn,
+        SubjectType.CRN,
+      )
+      const cya = req.query.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'interval'])
+      // No date to collect for ad-hoc, and nothing to date without an interval (deep link or expired
+      // session) - either way the frequency page is the right place to be.
+      if (!interval || interval === 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin${cya ? '?cya=true' : ''}`)
+      }
+      const checkInMinDate = getMinDate()
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
+
+      if (!personalDetails) {
+        return renderError(404)(req, res)
+      }
+      return res.render('pages/check-in/manage/restart-checkin-date.njk', {
         crn,
         id,
         checkInMinDate,
@@ -1675,7 +1909,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postRestartCheckinPage: () => {
+  postRestartCheckinDatePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const cyaQuery = req.query?.cya === 'true' ? '?cya=true' : ''
@@ -1852,6 +2086,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const userDetails = {
         ...restartDetails,
         interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
+        isAdHoc: restartDetails.interval === 'AD_HOC',
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
@@ -1872,7 +2107,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
-      if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
+      // A scheduled restart needs both an interval and a date; without them the API would be sent a
+      // schedule with no interval, so send the practitioner back to supply them.
+      const incomplete = !restartDetails?.interval || (restartDetails.interval !== 'AD_HOC' && !restartDetails.date)
+      if (incomplete) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
 
       try {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -1886,8 +2124,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           reason: restartDetails.reason || 'Reactivated via UI',
           checkinSchedule: {
             requestedBy: res.locals.user.username,
-            firstCheckin: formattedDate,
-            checkinInterval: restartDetails.interval,
+            // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.
+            ...(restartDetails.interval === 'AD_HOC' ? {} : { firstCheckin: formattedDate }),
+            ...toApiSchedule(restartDetails.interval),
           },
           contactPreference: {
             requestedBy: res.locals.user.username,
@@ -1927,12 +2166,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
       const caseData = res.locals.offenderCheckinsByCRNResponse?.details
 
+      const hasCheckinDate = Boolean(savedDetails.date)
       const userDetails = {
         ...savedDetails,
         interval: checkinIntervals.find(option => option.id === savedDetails.interval)?.label,
+        isAdHoc: savedDetails.interval === 'AD_HOC',
         displayCommsOption:
           savedDetails.preferredComs === 'EMAIL' ? savedDetails.checkInEmail : savedDetails.checkInMobile,
-        displayDay: dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd')),
+        displayDay: hasCheckinDate
+          ? dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd'))
+          : undefined,
       }
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin'], undefined)
       return res.render('pages/check-in/manage/restart-confirmation.njk', {

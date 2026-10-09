@@ -56,7 +56,8 @@ const views = [
   'eligibility/tiers-d-g/is-eligible',
   'rationale',
   'accredited-programme-approval',
-  'date-frequency',
+  'check-in-frequency',
+  'check-in-date',
   'contact-preference',
   'confirm-contact-preference',
   'edit-contact-preference',
@@ -67,6 +68,9 @@ const views = [
   'checkin-summary',
   'confirmation',
   'instructions',
+  'manage/checkin-settings-frequency',
+  'manage/checkin-settings-date',
+  'manage/schedule-checkin',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -307,5 +311,97 @@ describe('eligibility/not-eligible', () => {
       reason: 'is in Tier A and on an accredited programme, but they are in early engagement',
     })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+})
+
+// An ad-hoc setup schedules no first check in, so there is no date to show or change.
+describe('the manage settings pages', () => {
+  it('does not leak template syntax into the frequency page', async () => {
+    const html = await render('manage/checkin-settings-frequency', base)
+    expect(html).not.toMatch(/^\s*}/m)
+    expect(html).toContain('How often would you like Bob to check in?')
+  })
+
+  it('titles the date page after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', base)
+    expect(html).toMatch(/<title>\s*When would you like Bob to complete their first online check in\? - /)
+  })
+
+  // The validator re-renders with the minimum date read back from the posted body, so the page
+  // has to carry it on a hidden input as the setup and restart date pages do.
+  it('carries the minimum date on a hidden input so an error re-render keeps it', async () => {
+    const html = await render('manage/checkin-settings-date', base)
+    expect(html).toContain('<input type="hidden" name="checkInMinDate" value="1/8/2026">')
+    expect(html).toContain('For example, 17/5/2024. They will get a notification')
+  })
+
+  it('titles the date page error state after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', {
+      ...base,
+      errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
+    })
+    expect(html).toMatch(/<title>\s*Error: When would you like Bob/)
+  })
+
+  it('links the schedule check in placeholder back to the manage page', async () => {
+    const html = await render('manage/schedule-checkin', base)
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}"`)
+    expect(html).toContain('Schedule an online check in for Bob')
+  })
+})
+
+describe('a scheduled setup confirmation', () => {
+  it('offers to add questions when the first check in is in the future', async () => {
+    const html = await render('confirmation', base)
+    expect(html).toContain('data-qa="add-additional-questions"')
+  })
+
+  // Questions close at 23:59 the day before, so a first check in today has nothing to add to.
+  it('hides the questions link when the first check in is today', async () => {
+    const html = await render('confirmation', { ...base, isFutureCheckinDate: false })
+    expect(html).not.toContain('data-qa="add-additional-questions"')
+    expect(html).toContain('data-qa="submit-btn"')
+  })
+})
+
+describe('an ad-hoc setup', () => {
+  const adHoc = {
+    ...base,
+    userDetails: {
+      ...(base.userDetails as object),
+      date: undefined as string,
+      displayDay: undefined as string,
+      interval: "I'll schedule them one at a time",
+      isAdHoc: true,
+    },
+    isFutureCheckinDate: false,
+  }
+
+  it('leaves the check-in date off the summary', async () => {
+    const html = await render('checkin-summary', adHoc)
+    expect(html).not.toContain('check-in/check-in-date')
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`)
+  })
+
+  it('shows the date on the summary once for a standard interval', async () => {
+    const html = await render('checkin-summary', base)
+    expect(html.match(/data-qa="dateAction"/g)).toHaveLength(1)
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
+  })
+
+  // An ad-hoc setup has no first check-in date, so this explanation cannot hang off one.
+  it('always explains how ad-hoc scheduling works', async () => {
+    const html = await render('confirmation', adHoc)
+    expect(html).toContain('Schedule an online check in</h3>')
+    expect(html).toContain('You can only schedule one online check in at a time.')
+  })
+
+  // The ad-hoc confirmation shows no schedule at all: the practitioner books check ins one at a time.
+  it('offers to schedule a check in instead of showing a start date', async () => {
+    const html = await render('confirmation', adHoc)
+    expect(html).not.toMatch(/Starting/)
+    expect(html).not.toContain('I&#39;ll schedule them one at a time')
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in"`)
+    expect(html).toContain('Schedule a check in')
   })
 })

@@ -78,8 +78,11 @@ export interface OffenderInfo {
   setupUuid: string
   practitionerId: string
   crn: string
-  firstCheckin: string
-  checkinInterval: string
+  // Absent for an ad-hoc setup, which schedules no first check in.
+  firstCheckin?: string
+  // Absent for ad-hoc, which the API carries as the mode instead.
+  checkinInterval?: string
+  mode?: CheckinMode
   contactPreference: string
   startedAt?: string
   eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
@@ -150,8 +153,11 @@ export interface OffenderByCRNResponse {
   uuid: string
   crn: string
   status: OffenderStatus
-  firstCheckin: string
-  checkinInterval: CheckInterval
+  // Null for an ad-hoc person with no check in booked yet.
+  firstCheckin?: string | null
+  // Null for ad-hoc, which the API carries as the mode instead.
+  checkinInterval?: CheckInterval | null
+  mode?: CheckinMode
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
   details?: {
@@ -168,8 +174,10 @@ export interface OffenderByCRNResponse {
 export interface CheckinScheduleRequest {
   checkinSchedule?: {
     requestedBy: string
-    firstCheckin: string
-    checkinInterval: CheckInterval
+    // Required for SCHEDULED, optional for AD_HOC - see the API's CheckinScheduleUpdateRequest.
+    firstCheckin?: string
+    checkinInterval?: CheckInterval
+    mode?: CheckinMode
   }
   contactPreference?: {
     requestedBy: string
@@ -181,8 +189,11 @@ export interface CheckinScheduleResponse {
   uuid: string
   crn: string
   status: OffenderStatus
-  firstCheckin: string
-  checkinInterval: CheckInterval
+  // Null for an ad-hoc person with no check in booked yet.
+  firstCheckin?: string | null
+  // Null for ad-hoc, which the API carries as the mode instead.
+  checkinInterval?: CheckInterval | null
+  mode?: CheckinMode
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
 }
@@ -199,6 +210,7 @@ export interface ReactivateOffenderRequest {
     requestedBy?: string
     firstCheckin?: string
     checkinInterval?: CheckInterval
+    mode?: CheckinMode
   }
   contactPreference?: {
     requestedBy?: string
@@ -273,6 +285,7 @@ export interface EsupervisionUpcomingQuestionsResponse {
 
 export type OffenderStatus = 'INITIAL' | 'VERIFIED' | 'INACTIVE'
 export type CheckInterval = 'WEEKLY' | 'TWO_WEEKS' | 'FOUR_WEEKS' | 'EIGHT_WEEKS'
+export type CheckinMode = 'SCHEDULED' | 'AD_HOC'
 
 export interface Note {
   id: number

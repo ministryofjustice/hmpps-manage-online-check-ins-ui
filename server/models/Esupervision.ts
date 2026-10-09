@@ -21,6 +21,7 @@ export interface CheckinUserDetails {
   date?: string
   dateDt?: Date
   interval?: string
+  isAdHoc?: boolean
   preferredComs?: string
   checkInMobile?: string
   checkInEmail?: string
