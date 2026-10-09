@@ -16,6 +16,8 @@
 {% set formAnchorText = "Cancel and go back" %}
 
 {% block form %}
+<div class="govuk-form-group">
+    <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
     {{ mojDatePicker({
         label: {
             text: pageTitleText,
@@ -23,7 +25,7 @@
             isPageHeading: true
         },
         hint: {
-            text: "For example, 17/5/2024/ They will get a notification to use online check ins from this date."
+            text: "For example, 17/5/2024. They will get a notification to use online check ins from this date."
         },
         formGroup: {
             classes: "govuk-!-margin-bottom-3",
@@ -33,4 +35,5 @@
         },
         minDate: checkInMinDate
     } | decorateFormAttributes(['esupervision', crn, id, 'manageCheckin', 'date'])) }}
+</div>
 {% endblock %}

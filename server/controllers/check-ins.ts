@@ -33,7 +33,7 @@ import { dateWithYear } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
-import { fromApiSchedule, toApiSchedule } from '../utils/checkinSchedule'
+import { CheckinFrequency, fromApiSchedule, toApiSchedule } from '../utils/checkinSchedule'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
@@ -75,6 +75,54 @@ const getMinDate = (): string => {
   return today.getDate() > 9
     ? DateTime.fromJSDate(today).toFormat('dd/M/yyyy')
     : DateTime.fromJSDate(today).toFormat('d/M/yyyy')
+}
+
+// Submits a change of check-in settings from the manage flow. Shared by the frequency page, which
+// submits every change except a move from ad-hoc to a scheduled interval, and the date page, which
+// collects the first check-in date that move needs before submitting.
+const submitCheckinSettings = async (
+  hmppsAuthClient: HmppsAuthClient,
+  req: Request,
+  res: Response,
+  frequency: CheckinFrequency,
+  firstCheckin?: string,
+) => {
+  const { crn, id } = req.params as Record<string, string>
+  req.session.data = req.session.data || {}
+  const { data } = req.session
+  const body: CheckinScheduleRequest = {
+    checkinSchedule: {
+      requestedBy: res.locals.user.username,
+      // An ad-hoc person has no schedule: the practitioner books their check ins one at a time.
+      ...(frequency === 'AD_HOC' ? {} : { firstCheckin }),
+      ...toApiSchedule(frequency),
+    },
+  }
+  const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+  const eSupClient = new ESupervisionClient(token)
+  const response = await eSupClient.postUpdateOffenderDetails(id, body)
+  if (response?.crn) {
+    res.locals.success = true
+    setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
+  }
+  return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+}
+
+// The date a scheduled person's next check in falls on, which a change of interval keeps: the API
+// treats firstCheckin as the date the (new) schedule runs from, and rejects a date in the past.
+const nextScheduledCheckinDate = async (
+  hmppsAuthClient: HmppsAuthClient,
+  res: Response,
+  crn: string,
+): Promise<string | undefined> => {
+  try {
+    const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+    const upcoming = await new ESupervisionClient(token).getUpcomingCheckinQuestions(crn)
+    if (upcoming?.expectedCheckinDate) return upcoming.expectedCheckinDate
+  } catch {
+    logger.info(`No upcoming check in found for CRN ${crn}; keeping the saved first check in date`)
+  }
+  return res.locals.offenderCheckinsByCRNResponse?.firstCheckin
 }
 
 // Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
@@ -1295,6 +1343,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         email: checkinRes?.details?.email ?? '',
         mobile: checkinRes?.details?.mobile ?? '',
         offenderCheckinsByCRNResponse: checkinRes,
+        // Ad-hoc is a mode with no interval at the API; the page shows it as one more frequency.
+        checkinFrequency: fromApiSchedule(checkinRes),
         showChange,
         upcomingCheckin,
         canEditQuestions,
@@ -1559,11 +1609,26 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postSettingsFrequencyPage: () => {
+  postSettingsFrequencyPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      // Nothing is submitted until the date page: every frequency needs a date, ad-hoc included.
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
+      const frequency: CheckinFrequency = getDataValue(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'manageCheckin',
+        'interval',
+      ])
+      const currentFrequency = fromApiSchedule(res.locals.offenderCheckinsByCRNResponse)
+
+      // Only a move from ad-hoc to a scheduled interval needs a date: the person has no schedule to
+      // carry forward, so the practitioner picks when the new one starts.
+      if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings-date`)
+      }
+      const firstCheckin =
+        frequency === 'AD_HOC' ? undefined : await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+      return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
     }
   },
 
@@ -1571,6 +1636,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_SETTINGS', crn, SubjectType.CRN)
+      // The interval is only seeded into the session by the frequency page, so a deep link or an
+      // expired session lands here with nothing to submit - send them back to choose one. An ad-hoc
+      // choice has no date to collect either.
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+      if (!interval || interval === 'AD_HOC') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings`)
+      }
       const checkInMinDate = getMinDate()
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       return res.render('pages/check-in/manage/checkin-settings-date.njk', {
@@ -1587,26 +1659,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { crn, id } = req.params as Record<string, string>
       req.session.data = req.session.data || {}
       const { data } = req.session
-      const previousDate = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'date'])
-      const previousInterval = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+      const date = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'date'])
+      const frequency: CheckinFrequency = getDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+      if (!frequency) {
+        // See getSettingsDatePage: without an interval the API would be sent SCHEDULED with no interval.
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings`)
+      }
       // date is entered as d/M/yyyy; the API expects yyyy/M/dd
-      const parsedFirstCheckin = DateTime.fromFormat(previousDate ?? '', 'd/M/yyyy')
-      const formattedDate = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : previousDate
-      const body: CheckinScheduleRequest = {
-        checkinSchedule: {
-          requestedBy: res.locals.user.username,
-          firstCheckin: formattedDate,
-          ...toApiSchedule(previousInterval),
-        },
-      }
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const eSupClient = new ESupervisionClient(token)
-      const response = await eSupClient.postUpdateOffenderDetails(id, body)
-      if (response?.crn) {
-        res.locals.success = true
-        setDataValue(data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
-      }
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      const parsedFirstCheckin = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
+      const firstCheckin = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : date
+      return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
     }
   },
 

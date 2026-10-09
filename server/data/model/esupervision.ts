@@ -173,7 +173,8 @@ export interface OffenderByCRNResponse {
 export interface CheckinScheduleRequest {
   checkinSchedule?: {
     requestedBy: string
-    firstCheckin: string
+    // Required for SCHEDULED, optional for AD_HOC - see the API's CheckinScheduleUpdateRequest.
+    firstCheckin?: string
     checkinInterval?: CheckInterval
     mode?: CheckinMode
   }

@@ -212,7 +212,7 @@ export default abstract class Page {
         .should('contain.text', 'Dynamic')
 
       cy.get('[data-test-id=nameAndBand')
-        .should('contain.text', 'RISK OF SERIOUS HARM')
+        .should('contain.text', 'Risk of serious harm')
         .should('contain.text', 'VERY HIGH')
     } else {
       cy.get('[data-test-id=nameAndBand')
