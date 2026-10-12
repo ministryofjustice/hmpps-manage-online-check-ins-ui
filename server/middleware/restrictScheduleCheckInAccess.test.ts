@@ -1,4 +1,5 @@
 import httpMocks from 'node-mocks-http'
+import { DateTime } from 'luxon'
 import restrictScheduleCheckInAccess from './restrictScheduleCheckInAccess'
 import mockAppResponse from '../controllers/mocks/appResponse'
 
@@ -75,8 +76,21 @@ describe('middleware/restrictScheduleCheckInAccess', () => {
       expect(res.redirect).toHaveBeenCalledWith(`${manageUrl}/schedule-check-in`)
     })
 
-    it('continues once a date is in session', async () => {
-      await restrictScheduleCheckInAccess({ requireDate: true })(buildReq({ date: '1/2/2026' }), res, next)
+    it.each([
+      ['malformed', 'not a date'],
+      ['impossible', '31/2/2026'],
+      ['in the past', DateTime.now().minus({ days: 1 }).toFormat('d/M/yyyy')],
+    ])('sends the user back when the stored date is %s', async (_description, date) => {
+      await restrictScheduleCheckInAccess({ requireDate: true })(buildReq({ date }), res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`${manageUrl}/schedule-check-in`)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('continues once a valid future date is in session', async () => {
+      const date = DateTime.now().plus({ days: 1 }).toFormat('d/M/yyyy')
+
+      await restrictScheduleCheckInAccess({ requireDate: true })(buildReq({ date }), res, next)
 
       expect(next).toHaveBeenCalled()
       expect(res.redirect).not.toHaveBeenCalled()

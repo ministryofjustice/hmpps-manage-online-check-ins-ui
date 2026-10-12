@@ -1,5 +1,9 @@
 import { Route } from '../@types'
 import getDataValue from '../utils/getDataValue'
+import { isTodayOrLater, isValidDate, isValidDateFormat } from '../utils/validationUtils'
+
+const isValidScheduleCheckInDate = (date: unknown): date is string =>
+  typeof date === 'string' && isValidDateFormat([date]) && isValidDate([date]) && isTodayOrLater([date])
 
 // Guards the ad hoc ("schedule check-in") journey, which is session-only and feature-flagged.
 //
@@ -25,7 +29,7 @@ const restrictScheduleCheckInAccess = ({ requireDate = false }: { requireDate?: 
 
     if (requireDate) {
       const date = getDataValue(req.session?.data, ['esupervision', crn, id, 'scheduleCheckIn', 'date'])
-      if (!date) {
+      if (!isValidScheduleCheckInDate(date)) {
         return res.redirect(`${manageUrl}/schedule-check-in`)
       }
     }

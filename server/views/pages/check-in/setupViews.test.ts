@@ -70,7 +70,6 @@ const views = [
   'instructions',
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
-  'manage/schedule-checkin',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -97,6 +96,42 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+describe.each([
+  ['questions/edit-question', 'manageQuestions'],
+  ['schedule-check-in/edit-question', 'scheduleCheckIn'],
+])('%s', (view, group) => {
+  const questionId = '1-question'
+  const fieldId = `esupervision-${crn}-${id}-${group}-draftQuestionInput`
+  const renderWithSavedAnswer = (body?: Record<string, unknown>) =>
+    render(view, {
+      ...base,
+      question: { prefix: 'How has ', suffix: '?', questionExamples: ['Example one', 'Example two'] },
+      questionId,
+      ...(body ? { body } : {}),
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: { [group]: { questionTemplateAndInputs: { [questionId]: 'previous answer' } } },
+          },
+        },
+      },
+    })
+
+  it('keeps a submitted blank answer blank instead of restoring the saved answer', async () => {
+    const html = await renderWithSavedAnswer({
+      esupervision: { [crn]: { [id]: { [group]: { draftQuestionInput: '' } } } },
+    })
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value=""`))
+  })
+
+  it('uses the saved answer when the page is rendered without a submission', async () => {
+    const html = await renderWithSavedAnswer()
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value="previous answer"`))
   })
 })
 
@@ -341,12 +376,6 @@ describe('the manage settings pages', () => {
       errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
     })
     expect(html).toMatch(/<title>\s*Error: When would you like Bob/)
-  })
-
-  it('links the schedule check in placeholder back to the manage page', async () => {
-    const html = await render('manage/schedule-checkin', base)
-    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}"`)
-    expect(html).toContain('Schedule an online check in for Bob')
   })
 })
 

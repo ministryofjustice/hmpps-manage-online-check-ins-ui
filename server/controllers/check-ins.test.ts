@@ -240,28 +240,6 @@ describe('checkInsController', () => {
     })
   })
 
-  describe('getScheduleCheckinPage', () => {
-    it('renders the schedule check in placeholder page', async () => {
-      mockIsValidCrn.mockReturnValue(true)
-      mockIsValidUUID.mockReturnValue(true)
-
-      const req = httpMocks.createRequest({
-        params: { crn, id: uuid },
-      })
-
-      await controllers.checkIns.getScheduleCheckinPage(hmppsAuthClient)(req, res)
-
-      expect(renderSpy).toHaveBeenCalled()
-      const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
-
-      expect(template).toBe('pages/check-in/manage/schedule-checkin.njk')
-      expect(context.crn).toBe(crn)
-      expect(context.id).toBe(uuid)
-      expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
-      checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
-    })
-  })
-
   describe('postManageStopCheckin', () => {
     it('redirects to manage people on probation case page', async () => {
       mockIsValidCrn.mockReturnValue(true)
@@ -1679,9 +1657,16 @@ describe('checkInsController', () => {
             [crn]: {
               [uuid]: {
                 manageQuestions: {
-                  availableTemplates: [{ id: '1', responseFormat: 'TEXT', responseSpec: { placeholders: ['thing'] } }],
+                  availableTemplates: [
+                    {
+                      id: '1',
+                      template: 'How has {{thing}} been going recently?',
+                      responseFormat: 'TEXT',
+                      responseSpec: { placeholders: ['thing'] },
+                    },
+                  ],
                   questionTemplateAndInputs: {
-                    '1-f47ac10b-58cc-4372-a567-0e02b2c3d479': 'the housing service',
+                    '1-f47ac10b-58cc-4372-a567-0e02b2c3d479': 'the housing service?',
                   },
                 },
               },
@@ -2342,6 +2327,19 @@ describe('checkInsController', () => {
         )
       })
 
+      it('removes a trailing question mark when the template suffix ends with one', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { '2-uuid': 'work?' } }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: '2-uuid', fullText: 'How has work been going recently?' }],
+          }),
+        )
+      })
+
       it('skips blank answers and unknown templates', async () => {
         const req = baseReq(
           sessionWith({
@@ -2370,7 +2368,7 @@ describe('checkInsController', () => {
           sessionWith({
             date: '1/2/2026',
             availableTemplates: questionTemplates,
-            questionTemplateAndInputs: { '1-uuid': '  work  ', '2-uuid': '   ' },
+            questionTemplateAndInputs: { '1-uuid': '   ', '2-uuid': '  work?  ' },
           }),
         )
 
@@ -2382,7 +2380,7 @@ describe('checkInsController', () => {
           questions: {
             questions: [
               {
-                id: 1,
+                id: 2,
                 params: {
                   placeholders: { text: 'work' },
                   responseFormat: 'TEXT',
@@ -2419,17 +2417,30 @@ describe('checkInsController', () => {
     })
 
     describe('getScheduleCheckInQuestionsList', () => {
-      it('lists every template with its placeholder replaced for display', async () => {
+      it('lists only CUSTOMISABLE templates with their placeholders replaced for display', async () => {
+        const nonCustomisableTemplate = {
+          id: 3,
+          template: 'A fixed question?',
+          responseSpec: { placeholders: [] as string[] },
+          policy$hmpps_esupervision_api: 'STANDARD',
+        }
+        getTemplatesSpy.mockResolvedValueOnce({ templates: [...questionTemplates, nonCustomisableTemplate] } as any)
         const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
 
         await controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient)(req, res)
 
         const [template, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
         expect(template).toBe('pages/check-in/schedule-check-in/list-questions.njk')
+        expect(context.templatesList.templates.map((t: any) => t.id)).toEqual([1, 2])
         expect(context.templatesList.templates.map((t: any) => t.displayTemplate)).toEqual([
           'Have you been able to [insert text]?',
           'How has [insert text] been going recently?',
         ])
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'availableTemplates'],
+          questionTemplates,
+        )
         checkSendAuditMessage(
           res,
           'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_LIST_QUESTIONS',

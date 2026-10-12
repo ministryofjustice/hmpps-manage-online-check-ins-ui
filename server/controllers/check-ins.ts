@@ -215,10 +215,18 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
   return checkIn.autoIdCheck === 'MATCH'
 }
 
-// remove question mark if practitioner adds their own
+const normalizeQuestionPlaceholder = (input: string, suffix: string): string => {
+  const trimmedInput = input.trim()
+  const trimmedSuffix = suffix.trim()
+  if (trimmedSuffix && trimmedInput.endsWith(trimmedSuffix)) {
+    return trimmedInput.slice(0, -trimmedSuffix.length).trimEnd()
+  }
+  return trimmedInput.endsWith('?') && trimmedSuffix.endsWith('?') ? trimmedInput.slice(0, -1).trimEnd() : trimmedInput
+}
+
 const buildQuestionText = (prefix: string, input: string, suffix: string) => {
-  const trailing = input.trim().endsWith(suffix.trim()) ? '' : suffix
-  return `${prefix}${input}${trailing}`.replace(/\s+/g, ' ').trim()
+  const normalizedInput = normalizeQuestionPlaceholder(input, suffix)
+  return `${prefix}${normalizedInput}${suffix}`.replace(/\s+/g, ' ').trim()
 }
 
 type CheckInRouteName =
@@ -292,7 +300,6 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
-  | 'getScheduleCheckinPage'
   | 'getStartQuestionsPage'
   | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
@@ -1755,22 +1762,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  // Placeholder for the ad-hoc "schedule a check in" journey (ESUP-2156 follow-on). The ad-hoc
-  // confirmation pages already link here, so this keeps that call-to-action off a 404 until the
-  // real page lands.
-  getScheduleCheckinPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
-      const checkinRes = res.locals.offenderCheckinsByCRNResponse
-      return res.render('pages/check-in/manage/schedule-checkin.njk', {
-        crn,
-        id,
-        case: checkinRes?.details,
-      })
-    }
-  },
-
   getStartQuestionsPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -2374,12 +2365,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const formattedQuestions = Object.entries(questionTemplateAndInputs).map(([draftId, inputValue]) => {
         const templateId = parseInt(draftId.split('-')[0], 10)
         const originalTemplate = availableTemplates.find((t: any) => String(t.id) === String(templateId))
+        const templateData =
+          typeof originalTemplate?.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
 
         return {
           id: templateId,
           params: {
             placeholders: {
-              [originalTemplate?.responseSpec?.placeholders?.[0] || 'text']: inputValue as string,
+              [originalTemplate?.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                inputValue as string,
+                templateData?.suffix || '',
+              ),
             },
             responseFormat: originalTemplate?.responseFormat || 'TEXT',
           },
@@ -2726,13 +2722,18 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         const templateId = parseInt(draftId.split('-')[0], 10)
         const originalTemplate = availableTemplates.find((template: any) => String(template.id) === String(templateId))
         if (!originalTemplate) return []
+        const templateData =
+          typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
 
         return [
           {
             id: templateId,
             params: {
               placeholders: {
-                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: inputValue.trim(),
+                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                  inputValue,
+                  templateData?.suffix || '',
+                ),
               },
               responseFormat: originalTemplate.responseFormat || 'TEXT',
             },
@@ -2796,7 +2797,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
       }
 
-      const displayTemplates = templatesList.templates.map((q: any) => {
+      const displayTemplates = availableTemplates.map((q: any) => {
         const start = q.template.indexOf('{{')
         const end = q.template.indexOf('}}', start)
         let displayTemplate = q.template
