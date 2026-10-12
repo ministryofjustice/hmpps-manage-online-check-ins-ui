@@ -5,6 +5,7 @@
 }) %}
 {% set checkinLink = '/case/' + crn + '/appointments/check-in/eligibility-check' %}
 {% set changeDtLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/settings' %}
+{% set changeDateLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/settings-date' %}
 {% set changeQuestionsLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/questions/start' %}
 {% set scheduleCheckInLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/schedule-check-in' %}
 {% set changeContactLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/contact' %}
@@ -102,18 +103,37 @@
         {% endif %}
     {% set checkin %}
     {% set nextCheckin = offenderCheckinsByCRNResponse %}
+    {% set settingsRows = [] %}
+    {% if checkinText %}
+        {# Only a scheduled person has a next check in to move; an ad-hoc person books one instead. #}
+        {% set _ = settingsRows.push({
+            key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
+            value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'},
+            actions: {
+                items: [{
+                    href: changeDateLink,
+                    text: 'Change',
+                    visuallyHiddenText: 'next check in date',
+                    attributes: { 'data-qa': 'changeDateAction' }
+                }]
+            } if showChange and checkinFrequency !== 'AD_HOC'
+        }) %}
+    {% endif %}
+    {% set _ = settingsRows.push({
+        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
+        value: { html: '<span data-qa="frequencyValue">' + (checkinFrequency | userFriendlyString) + '</span>'},
+        actions: {
+            items: [{
+                href: changeDtLink,
+                text: 'Change',
+                visuallyHiddenText: 'how often the person checks in',
+                attributes: { 'data-qa': 'changeFrequencyAction' }
+            }]
+        } if showChange
+    }) %}
     {% set nextCheckinText %}
             {{ govukSummaryList({
-                rows: [
-                    {
-                        key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
-                        value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'}
-                    },
-                    {
-                        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
-                        value: { html: '<span data-qa="frequencyValue">' + nextCheckin.checkinInterval | userFriendlyString + '</span>'}
-                    }
-                ]
+                rows: settingsRows
             }) }}
     {% endset %}
     {% endset %}
@@ -122,16 +142,7 @@
         headingLevel: 3,
         classes: ['govuk-!-margin-bottom-6 app-summary-card--large-title'],
         attributes: {'data-qa': 'checkinSettingsCard'},
-        html: nextCheckinText,
-        actions: {
-            items: [
-                {
-                    text: 'Change',
-                    href: changeDtLink,
-                    visuallyHiddenText: 'check in settings'
-                }
-            ]
-        } if showChange
+        html: nextCheckinText
     }) }}
 
     {% set contactDetailsText %}

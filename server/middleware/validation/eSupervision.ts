@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
@@ -8,6 +9,7 @@ import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
+import { fromApiSchedule } from '../../utils/checkinSchedule'
 
 const eSuperVision: Route<void> = (req, res, next) => {
   const { url, params, body } = req
@@ -102,14 +104,19 @@ const eSuperVision: Route<void> = (req, res, next) => {
       localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('accredited-programme-approval')
     }
 
-    validateSetupPage('date-frequency', 'date-frequency', 'date-frequency')
-    if (baseUrl.includes(setup('date-frequency'))) {
+    validateSetupPage('check-in-frequency', 'check-in-frequency', 'check-in-frequency')
+    if (baseUrl.includes(setup('check-in-frequency'))) {
       if (cya === 'true') {
         localParams.backLink = setup('checkin-summary')
       } else {
         // Only the accredited-programme cohort passes through rationale on the way here.
         localParams.backLink = sessionVal('checkins', 'accreditedProgramme') ? setup('rationale') : setup('is-eligible')
       }
+    }
+
+    validateSetupPage('check-in-date', 'check-in-date', 'check-in-date')
+    if (baseUrl.includes(setup('check-in-date'))) {
+      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('check-in-frequency')
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
@@ -118,6 +125,8 @@ const eSuperVision: Route<void> = (req, res, next) => {
     // go and fix their details; only the main Continue submit is checked.
     if (body?.change === 'main') {
       validateSetupPage('contact-preference', 'contact-preference', 'contact-preference')
+      // The page's Back goes to the frequency page for an ad-hoc setup, which has no date page.
+      localParams.isAdHoc = sessionVal('checkins', 'interval') === 'AD_HOC'
     }
 
     if (baseUrl.includes(setup('confirm-contact-preference'))) {
@@ -159,19 +168,39 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   const validateCheckinSettings = () => {
-    if (baseUrl.includes(manage('settings'))) {
-      render = `pages/check-in/manage/checkin-settings`
+    if (baseUrl.endsWith(manage('settings'))) {
+      render = `pages/check-in/manage/checkin-settings-frequency`
       localParams.id = id
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'checkin-settings' }))
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'settings' }))
       if (Object.keys(errorMessages).length) {
-        // autoStoreSessionData has already overwritten the session's manageCheckin date/interval
-        // with the invalid submission by this point - restore the real values fetched from the
-        // API so the re-rendered form shows the saved check-in date, not the rejected input.
+        // autoStoreSessionData has already overwritten the session's manageCheckin interval with
+        // the invalid submission by this point - restore the real value fetched from the API so
+        // the re-rendered form shows the saved interval, not the rejected input. The date field
+        // (set by a separate page) is left alone.
         const offenderDetails = res.locals.offenderCheckinsByCRNResponse
-        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], {
-          date: offenderDetails?.firstCheckin,
-          interval: offenderDetails?.checkinInterval,
-        })
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'manageCheckin', 'interval'],
+          fromApiSchedule(offenderDetails),
+        )
+      }
+    } else if (baseUrl.endsWith(manage('settings-date'))) {
+      render = `pages/check-in/manage/checkin-settings-date`
+      localParams.id = id
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'settings-date' }))
+      if (Object.keys(errorMessages).length) {
+        const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+        // See getSettingsDatePage: a scheduled person came from the manage card, an ad-hoc person
+        // from the frequency page.
+        const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+        localParams.backLink = fromApiSchedule(offenderDetails) === 'AD_HOC' ? `${managePage}/settings` : managePage
+        // The record holds an ISO date; the picker and its validator want d/M/yyyy.
+        const savedDate = DateTime.fromISO(offenderDetails?.firstCheckin ?? '')
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'manageCheckin', 'date'],
+          savedDate.isValid ? savedDate.toFormat('d/M/yyyy') : undefined,
+        )
       }
     }
   }
@@ -242,10 +271,17 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   const validateRestartCheckin = () => {
-    if (baseUrl.includes(manage('restart-checkin'))) {
-      render = `pages/check-in/manage/restart-date-frequency`
+    if (baseUrl.endsWith(manage('restart-checkin'))) {
+      render = `pages/check-in/manage/restart-checkin-frequency`
       localParams.id = id
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-date-frequency' }))
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin' }))
+      localParams.backLink =
+        cya === 'true' ? `/${manage('restart-summary')}` : `/case/${crn}/appointments/check-in/manage/${id}`
+    } else if (baseUrl.endsWith(manage('restart-checkin-date'))) {
+      render = `pages/check-in/manage/restart-checkin-date`
+      localParams.id = id
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin-date' }))
+      localParams.backLink = cya === 'true' ? `/${manage('restart-summary')}` : `/${manage('restart-checkin')}`
     }
   }
 

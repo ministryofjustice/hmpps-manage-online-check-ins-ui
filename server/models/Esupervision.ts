@@ -21,6 +21,7 @@ export interface CheckinUserDetails {
   date?: string
   dateDt?: Date
   interval?: string
+  isAdHoc?: boolean
   preferredComs?: string
   checkInMobile?: string
   checkInEmail?: string
@@ -60,6 +61,7 @@ export interface LocalParams {
   contactPreference?: string
   contactValue?: string
   hasContactDetails?: boolean
+  isAdHoc?: boolean
   tierBand?: string
   questionId?: string
   question?: {
