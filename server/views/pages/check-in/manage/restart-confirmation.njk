@@ -14,9 +14,9 @@
     pageHeading: [title]
   }) %}
 {% endif %}
-{% set cases = "/case/" %}
+{% set cases = managePeopleOnProbationUrl + "/case/" %}
 {% set hideButton = true %}
-{% set anotherAppointment = "/case/"+ crn + "/appointments/appointment/" + responseContactId + "/next-appointment"%}
+{% set anotherAppointment = managePeopleOnProbationUrl + "/case/"+ crn + "/appointments/appointment/" + responseContactId + "/next-appointment" %}
 {% set overViewPage = managePeopleOnProbationUrl + "/case/" + crn %}
 {% set questionsStartPage = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions/start" %}
 {% set scheduleCheckIn = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in" %}
@@ -55,11 +55,14 @@
            </p>
          <p class="govuk-body">You will get an email when they have submitted a check in or if they miss a check in. The email will include a link to review the check in or add any actions you will take for a missed check in.</p>
 
-         <h2 class="govuk-heading-m govuk-!-margin-top-6">Add additional questions to {{case.name.forename}}'s online check in</h2>
-         <p class="govuk-body">You can add up to 3 additional questions to each of {{case.name.forename}}'s online check ins. You will have until 23:59 the day before the next check in to add questions. We will send you a reminder before their next check in.</p>
-         <p class="govuk-body">
-           <a class="govuk-link" data-qa="add-additional-questions" href="{{questionsStartPage}}">Add additional questions to {{case.name.forename}}'s online check in</a>
-         </p>
+         {# Questions close at 23:59 the day before a check in, so there is nothing to add when the next one is today. #}
+         {% if isFutureCheckinDate %}
+           <h2 class="govuk-heading-m govuk-!-margin-top-6">Add additional questions to {{case.name.forename}}'s online check in</h2>
+           <p class="govuk-body">You can add up to 3 additional questions to each of {{case.name.forename}}'s online check ins. You will have until 23:59 the day before the next check in to add questions. We will send you a reminder before their next check in.</p>
+           <p class="govuk-body">
+             <a class="govuk-link" data-qa="add-additional-questions" href="{{questionsStartPage}}">Add additional questions to {{case.name.forename}}'s online check in</a>
+           </p>
+         {% endif %}
 
          <div class="govuk-button-group">
            <a href="{{ overViewPage }}" class="govuk-button" data-qa="submit-btn">{{ buttonText }}</a>

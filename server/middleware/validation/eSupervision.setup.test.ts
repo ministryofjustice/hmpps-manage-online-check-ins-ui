@@ -32,6 +32,28 @@ describe('setup validation re-render', () => {
     expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-checkins-preferredComs`)
   })
 
+  // The template builds its Back link from this flag; without it an ad-hoc setup would be sent to
+  // the date page it never visited.
+  it.each([
+    ['AD_HOC', true],
+    ['WEEKLY', false],
+  ])('tells contact-preference whether the setup is ad-hoc (%s) when it fails', (interval, isAdHoc) => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url: `/case/${crn}/appointments/${id}/check-in/contact-preference`,
+      params: { crn, id },
+      query: {},
+      body: { change: 'main' },
+      session: { data: { esupervision: { [crn]: { [id]: { checkins: { interval } } } } } },
+    })
+    const res: any = { locals: {}, render: jest.fn() }
+    validate(req, res, jest.fn())
+
+    const [view, locals] = res.render.mock.calls[0]
+    expect(view).toBe('pages/check-in/contact-preference')
+    expect(locals.isAdHoc).toBe(isAdHoc)
+  })
+
   it('preserves checkInMinDate when check-in-date fails', () => {
     const req = httpMocks.createRequest({
       method: 'POST',

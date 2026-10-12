@@ -61,6 +61,7 @@ export interface LocalParams {
   contactPreference?: string
   contactValue?: string
   hasContactDetails?: boolean
+  isAdHoc?: boolean
   tierBand?: string
   questionId?: string
   question?: {

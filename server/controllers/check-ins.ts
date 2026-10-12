@@ -127,7 +127,15 @@ const nextScheduledCheckinDate = async (
     const upcoming = await new ESupervisionClient(token).getUpcomingCheckinQuestions(crn)
     const upcomingDate = asFutureDate(upcoming?.expectedCheckinDate)
     if (upcomingDate) return upcomingDate
-  } catch {
+  } catch (error: any) {
+    // The API answers 404 when no check in is booked, which is a normal state to fall back from.
+    // Anything else is an outage: guessing the schedule from the saved date could move the person's
+    // check ins, so let the error page show instead.
+    const status = error?.status || error?.response?.status
+    if (status !== 404) {
+      logger.error(`Failed to fetch the upcoming check in for CRN ${crn}:`, error)
+      throw error
+    }
     logger.info(`No upcoming check in found for CRN ${crn}; keeping the saved first check in date`)
   }
   return asFutureDate(res.locals.offenderCheckinsByCRNResponse?.firstCheckin)
@@ -1655,24 +1663,41 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getSettingsDatePage: () => {
+  getSettingsDatePage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CHECK_IN_SETTINGS', crn, SubjectType.CRN)
-      // The interval is only seeded into the session by the frequency page, so a deep link or an
-      // expired session lands here with nothing to submit - send them back to choose one. An ad-hoc
-      // choice has no date to collect either.
-      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
-      if (!interval || interval === 'AD_HOC') {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/settings`)
+      req.session.data = req.session.data || {}
+      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
+      const currentFrequency = fromApiSchedule(checkinRes)
+      const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+      let backLink = `${managePage}/settings`
+      if (currentFrequency && currentFrequency !== 'AD_HOC') {
+        // A scheduled person gets here from the manage card to move their next check in, keeping
+        // their interval. Seed it from the record so the submit has one, and pre-fill the date they
+        // are moving in the form's d/M/yyyy, so the picker shows it and resubmitting unchanged is valid.
+        const nextCheckin = await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], {
+          interval: currentFrequency,
+          date: nextCheckin ? DateTime.fromISO(nextCheckin).toFormat('d/M/yyyy') : undefined,
+        })
+        backLink = managePage
+      } else {
+        // An ad-hoc person only gets here from the frequency page, which seeds the interval they
+        // chose. A deep link or an expired session has nothing to submit - send them back to choose
+        // one. An ad-hoc choice has no date to collect either.
+        const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'interval'])
+        if (!interval || interval === 'AD_HOC') {
+          return res.redirect(backLink)
+        }
       }
       const checkInMinDate = getMinDate()
-      const checkinRes = res.locals?.offenderCheckinsByCRNResponse
       return res.render('pages/check-in/manage/checkin-settings-date.njk', {
         crn,
         id,
         case: checkinRes?.details,
         checkInMinDate,
+        backLink,
       })
     }
   },
@@ -2185,12 +2210,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           ? dayOfWeek(DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').toFormat('yyyy-MM-dd'))
           : undefined,
       }
+      // Questions close at 23:59 the day before a check in, so a restart dated today has none to add.
+      const isFutureCheckinDate =
+        hasCheckinDate &&
+        DateTime.fromFormat(savedDetails.date, 'd/M/yyyy').startOf('day') > DateTime.now().startOf('day')
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin'], undefined)
       return res.render('pages/check-in/manage/restart-confirmation.njk', {
         crn,
         id,
         case: caseData,
         userDetails,
+        isFutureCheckinDate,
       })
     }
   },

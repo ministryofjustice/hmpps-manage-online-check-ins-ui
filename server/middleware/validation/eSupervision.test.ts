@@ -174,9 +174,31 @@ describe('Test eSuperVision validation', () => {
       validation.eSuperVision(req, res, next)
       expect(res.render).toHaveBeenCalled()
       expect(req.session.data.esupervision[crn][id].manageCheckin).toEqual({
-        date: '2026-09-01',
+        date: '1/9/2026',
         interval: 'WEEKLY',
       })
+      // A scheduled person came from the manage card, so that is where Back goes.
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/manage/checkin-settings-date',
+        expect.objectContaining({ backLink: manageBase }),
+      )
+    })
+
+    it('sends an ad-hoc person back to the frequency page from a date error', () => {
+      const esupervision = { [crn]: { [id]: { manageCheckin: { date: '', interval: 'WEEKLY' } } } }
+      const req = makeReq({
+        url: manageSettingsDateUrl,
+        body: { esupervision },
+        session: { data: { esupervision } },
+      })
+      const res = mockAppResponse({
+        offenderCheckinsByCRNResponse: { firstCheckin: null, checkinInterval: null, mode: 'AD_HOC' },
+      })
+      validation.eSuperVision(req, res, next)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/manage/checkin-settings-date',
+        expect.objectContaining({ backLink: manageSettingsUrl }),
+      )
     })
   })
 

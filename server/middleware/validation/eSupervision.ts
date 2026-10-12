@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
@@ -124,6 +125,8 @@ const eSuperVision: Route<void> = (req, res, next) => {
     // go and fix their details; only the main Continue submit is checked.
     if (body?.change === 'main') {
       validateSetupPage('contact-preference', 'contact-preference', 'contact-preference')
+      // The page's Back goes to the frequency page for an ad-hoc setup, which has no date page.
+      localParams.isAdHoc = sessionVal('checkins', 'interval') === 'AD_HOC'
     }
 
     if (baseUrl.includes(setup('confirm-contact-preference'))) {
@@ -187,10 +190,16 @@ const eSuperVision: Route<void> = (req, res, next) => {
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'settings-date' }))
       if (Object.keys(errorMessages).length) {
         const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+        // See getSettingsDatePage: a scheduled person came from the manage card, an ad-hoc person
+        // from the frequency page.
+        const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+        localParams.backLink = fromApiSchedule(offenderDetails) === 'AD_HOC' ? `${managePage}/settings` : managePage
+        // The record holds an ISO date; the picker and its validator want d/M/yyyy.
+        const savedDate = DateTime.fromISO(offenderDetails?.firstCheckin ?? '')
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageCheckin', 'date'],
-          offenderDetails?.firstCheckin,
+          savedDate.isValid ? savedDate.toFormat('d/M/yyyy') : undefined,
         )
       }
     }

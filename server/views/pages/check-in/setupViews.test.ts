@@ -324,7 +324,7 @@ describe('the manage settings pages', () => {
 
   it('titles the date page after its heading', async () => {
     const html = await render('manage/checkin-settings-date', base)
-    expect(html).toMatch(/<title>\s*When would you like Bob to complete their first online check in\? - /)
+    expect(html).toMatch(/<title>\s*When would you like Bob to complete their next online check in\? - /)
   })
 
   // The validator re-renders with the minimum date read back from the posted body, so the page
@@ -361,6 +361,80 @@ describe('a scheduled setup confirmation', () => {
     const html = await render('confirmation', { ...base, isFutureCheckinDate: false })
     expect(html).not.toContain('data-qa="add-additional-questions"')
     expect(html).toContain('data-qa="submit-btn"')
+  })
+})
+
+describe('a scheduled restart confirmation', () => {
+  it('offers to add questions when the next check in is in the future', async () => {
+    const html = await render('manage/restart-confirmation', base)
+    expect(html).toContain('data-qa="add-additional-questions"')
+  })
+
+  // Questions close at 23:59 the day before, so a restart dated today has nothing to add to.
+  it('hides the questions link when the next check in is today', async () => {
+    const html = await render('manage/restart-confirmation', { ...base, isFutureCheckinDate: false })
+    expect(html).not.toContain('data-qa="add-additional-questions"')
+    expect(html).toContain('data-qa="submit-btn"')
+  })
+
+  // The case list and overview live in Manage People on Probation, not this service.
+  it('sends both finishing links to Manage People on Probation', async () => {
+    const mpop = 'https://mpop.example.com'
+    const html = await render('manage/restart-confirmation', { ...base, managePeopleOnProbationUrl: mpop })
+    expect(html).toContain(`href="${mpop}/case/" data-qa="returnToAllCases"`)
+    expect(html).toContain(`href="${mpop}/case/${crn}" class="govuk-button" data-qa="submit-btn"`)
+  })
+})
+
+describe('the manage page settings card', () => {
+  const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+  const scheduled = {
+    ...base,
+    offenderCheckinsByCRNResponse: {
+      status: 'VERIFIED',
+      firstCheckin: '2026-08-01',
+      checkinInterval: 'WEEKLY',
+      contactPreference: 'EMAIL',
+    },
+    checkinFrequency: 'WEEKLY',
+    showChange: true,
+    email: 'bob@example.com',
+    mobile: '07700900000',
+  }
+
+  it('lets a scheduled person change their next check in date and their frequency', async () => {
+    const html = await render('manage/manage-checkin', scheduled)
+    // govukSummaryList leaves whitespace between the href and the data attributes.
+    expect(html).toMatch(new RegExp(`href="${managePage}/settings-date"\\s+data-qa="changeDateAction"`))
+    expect(html).toMatch(new RegExp(`href="${managePage}/settings"\\s+data-qa="changeFrequencyAction"`))
+  })
+
+  // An ad-hoc person has no next check in to move: they book one from the schedule page instead.
+  it('offers only the frequency change to an ad-hoc person', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+    })
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  it('offers no changes once check ins are stopped', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, status: 'INACTIVE' },
+      showChange: false,
+    })
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).not.toContain('data-qa="changeFrequencyAction"')
+  })
+})
+
+describe('the settings date page back link', () => {
+  it('goes wherever the controller says, for both Back and Cancel', async () => {
+    const html = await render('manage/checkin-settings-date', { ...base, backLink: '/somewhere' })
+    expect(html.match(/href="\/somewhere"/g)).toHaveLength(2)
   })
 })
 

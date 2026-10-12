@@ -18,6 +18,7 @@ import AccreditedProgrammeApprovalPage from '../pages/check-ins/accredited-progr
 import CheckInDatePage from '../pages/check-ins/check-in-date'
 import CheckInFrequencyPage from '../pages/check-ins/check-in-frequency'
 import EditContactPreferencePage from '../pages/check-ins/edit-contact-preference'
+import ScheduleCheckinPage from '../pages/check-ins/schedule-checkin.page'
 import EligibilityCheckPage from '../pages/check-ins/eligibility/eligibility-check'
 import TiersABEligibilityCheckPage from '../pages/check-ins/eligibility/tiers-a-b-eligibility-check'
 import PilotCheckPage from '../pages/check-ins/eligibility/pilot-check'
@@ -1448,5 +1449,117 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionInList('at home')
     addQuestionsPage.verifyQuestionInList('your physical health')
     addQuestionsPage.verifyAddQuestionButtonHidden()
+  })
+})
+
+// Ad-hoc is the frequency radio for a person whose check ins the practitioner books one at a
+// time. It schedules no first check in, so the date page is skipped and nothing dated is shown.
+context('ad-hoc check-ins setup', () => {
+  const AD_HOC_OPTION = 4
+
+  const chooseAdHoc = () => {
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(AD_HOC_OPTION)
+    frequencyPage.getSubmitBtn().click()
+  }
+
+  // Contact preference through to check your answers, uploading a photo.
+  const completeContactAndPhoto = () => {
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage
+      .getCheckInPreferredComs()
+      .find('.govuk-radios__item')
+      .eq(0)
+      .find('.govuk-radios__input')
+      .click()
+    contactPreferencePage.getSubmitBtn().click()
+    confirmContactPreference()
+    const takeAPhotoOptionsPage = new TakeAPhotoOptionsPage()
+    takeAPhotoOptionsPage.checkOnPage()
+    takeAPhotoOptionsPage.getPhotoOptions().find('.govuk-radios__item').eq(1).find('.govuk-radios__input').click()
+    takeAPhotoOptionsPage.getSubmitBtn().click()
+    const uploadAPhoto = new UploadAPhotoPage()
+    uploadAPhoto.checkOnPage()
+    uploadAPhoto.uploadPhoto('person.jpg')
+    uploadAPhoto.continueButton().click()
+    const photoRules = new PhotoRulesPage()
+    photoRules.checkOnPage()
+    photoRules.getSubmitBtn().click()
+    const checkYourAnswersPage = new CheckYourAnswersPage()
+    checkYourAnswersPage.checkOnPage()
+    return checkYourAnswersPage
+  }
+
+  it('skips the date page and goes straight to contact preference', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getBackLink().should('have.attr', 'href').and('include', '/check-in/check-in-frequency')
+  })
+
+  // The validator re-renders the page itself, so it has to know the setup is ad-hoc too.
+  it('keeps the back link on the frequency page when contact preference fails validation', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getSubmitBtn().click()
+    contactPreferencePage.checkErrorSummaryBox(['Select how the person wants us to send a link to the service'])
+    contactPreferencePage.getBackLink().should('have.attr', 'href').and('include', '/check-in/check-in-frequency')
+  })
+
+  it('leaves the date off check your answers and confirms with a call to schedule a check in', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const checkYourAnswersPage = completeContactAndPhoto()
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', "I'll schedule them one at a time")
+    cy.get('[data-qa="dateAction"]').should('not.exist')
+
+    // Completing setup creates the offender record the confirmation page links through to.
+    cy.task('stubGetAdHocOffenderByCRN', CRN_TIER_DG)
+    checkYourAnswersPage.getSubmitBtn().click()
+    const confirmationPage = new CheckinConfirmationPage()
+    confirmationPage.checkOnPage()
+    confirmationPage.getPanel().should('not.contain.text', 'Starting')
+    confirmationPage.getWhatHappensNext().should('contain.text', 'You can only schedule one online check in at a time.')
+    cy.contains('a', 'Schedule a check in').click()
+    const schedulePage = new ScheduleCheckinPage()
+    schedulePage.checkOnPage()
+    schedulePage.getPlaceholder().should('be.visible')
+  })
+
+  it('asks for a date when a change of answer moves to an interval, and drops it on moving back', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const checkYourAnswersPage = completeContactAndPhoto()
+
+    checkYourAnswersPage.getElementData('intervalAction').click()
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(0)
+    frequencyPage.getSubmitBtn().click()
+    const datePage = new CheckInDatePage()
+    datePage.checkOnPage()
+    datePage.enterDateInTwoDays()
+    datePage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Every week')
+    cy.get('[data-qa="dateAction"]').should('exist')
+
+    checkYourAnswersPage.getElementData('intervalAction').click()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(AD_HOC_OPTION)
+    frequencyPage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    cy.get('[data-qa="dateAction"]').should('not.exist')
   })
 })
