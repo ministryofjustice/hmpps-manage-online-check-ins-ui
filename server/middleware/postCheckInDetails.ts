@@ -5,6 +5,7 @@ import ESupervisionClient from '../data/eSupervisionClient'
 import { OffenderInfo, OffenderSetup, UploadLocationResponse } from '../data/model/esupervision'
 import { ProbationPractitioner } from '../data/model/personalDetails'
 import logger from '../../logger'
+import { toApiSchedule } from '../utils/checkinSchedule'
 
 export const postCheckInDetails = (
   hmppsAuthClient: HmppsAuthClient,
@@ -37,8 +38,10 @@ export const postCheckInDetails = (
       setupUuid: id,
       practitionerId,
       crn,
-      firstCheckin: firstCheckinDate,
-      checkinInterval: savedUserDetails.interval,
+      // An ad-hoc setup schedules no first check in. The date is normally cleared when ad-hoc is
+      // chosen, but a stale date-page submission can put one back, so decide here from the mode.
+      ...(savedUserDetails.interval === 'AD_HOC' ? {} : { firstCheckin: firstCheckinDate }),
+      ...toApiSchedule(savedUserDetails.interval),
       // Recorded by getStartSetup. Left unset if the session lost it, rather than defaulting to now,
       // which would record a setup time of zero.
       startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
