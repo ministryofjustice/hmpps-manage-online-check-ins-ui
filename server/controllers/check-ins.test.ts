@@ -68,6 +68,10 @@ const postReactivateOffenderSpy = jest
   .spyOn(ESupervisionClient.prototype, 'postReactivateOffender')
   .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
 
+const postScheduleAdHocCheckinSpy = jest
+  .spyOn(ESupervisionClient.prototype, 'postScheduleAdHocCheckin')
+  .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
+
 jest
   .spyOn(ESupervisionClient.prototype, 'postUpdateOffenderDetails')
   .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
@@ -1840,10 +1844,34 @@ describe('checkInsController', () => {
     })
 
     describe('postScheduleCheckInAddQuestions', () => {
-      it('clears the draft and carries the date over for the manage page banner', async () => {
-        const req = baseReq(sessionWith({ date: '1/2/2026', questionTemplateAndInputs: { '1-uuid': 'work' } }))
+      it('schedules the check-in with the selected date and formatted questions', async () => {
+        const req = baseReq(
+          sessionWith({
+            date: '1/2/2026',
+            availableTemplates: questionTemplates,
+            questionTemplateAndInputs: { '1-uuid': '  work  ', '2-uuid': '   ' },
+          }),
+        )
 
-        await controllers.checkIns.postScheduleCheckInAddQuestions()(req, res)
+        await controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(postScheduleAdHocCheckinSpy).toHaveBeenCalledWith(crn, {
+          requestedBy: res.locals.user.username,
+          firstCheckin: '2026-02-01',
+          questions: {
+            questions: [
+              {
+                id: 1,
+                params: {
+                  placeholders: { text: 'work' },
+                  responseFormat: 'TEXT',
+                },
+              },
+            ],
+            language: 'en-GB',
+            author: res.locals.user.username,
+          },
+        })
 
         expect(mockSetDataValue).toHaveBeenCalledWith(
           req.session.data,
@@ -1856,6 +1884,16 @@ describe('checkInsController', () => {
           '1/2/2026',
         )
         expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+      })
+
+      it('preserves the draft and renders an error when scheduling fails', async () => {
+        postScheduleAdHocCheckinSpy.mockRejectedValueOnce(new Error('API failure'))
+        const req = baseReq(sessionWith({ date: '1/2/2026', questionTemplateAndInputs: {} }))
+
+        await controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(mockRenderError).toHaveBeenCalledWith(500)
       })
     })
 

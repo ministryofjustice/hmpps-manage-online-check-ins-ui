@@ -11,6 +11,7 @@ import {
   ESupervisionNote,
   ESupervisionReview,
   ReactivateOffenderRequest,
+  ScheduleAdHocCheckinRequest,
 } from '../data/model/esupervision'
 import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
@@ -2393,19 +2394,67 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postScheduleCheckInAddQuestions: () => {
+  postScheduleCheckInAddQuestions: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (isScheduleCheckInFlagOff(res)) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
       }
-      // TODO
-      // No backend support for ad hoc check ins yet - nothing to assign, just clear the draft.
-      // The date is carried over so the manage page can name it in its success banner.
-      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckIn', 'date'])
-      setDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckIn'], undefined)
-      setDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckInCreated'], date)
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+      const scheduleCheckIn = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn']) || {}
+      const { date } = scheduleCheckIn
+      const parsedDate = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
+      const firstCheckin = parsedDate.isValid ? parsedDate.toISODate() : null
+
+      if (!firstCheckin) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in`)
+      }
+
+      const availableTemplates = scheduleCheckIn.availableTemplates || []
+      const questionTemplateAndInputs = scheduleCheckIn.questionTemplateAndInputs || {}
+      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(([draftId, inputValue]) => {
+        if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
+        const templateId = parseInt(draftId.split('-')[0], 10)
+        const originalTemplate = availableTemplates.find((template: any) => String(template.id) === String(templateId))
+        if (!originalTemplate) return []
+
+        return [
+          {
+            id: templateId,
+            params: {
+              placeholders: {
+                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: inputValue.trim(),
+              },
+              responseFormat: originalTemplate.responseFormat || 'TEXT',
+            },
+          },
+        ]
+      })
+      const { username } = res.locals.user
+      const request: ScheduleAdHocCheckinRequest = {
+        requestedBy: username,
+        firstCheckin,
+        ...(formattedQuestions.length > 0 && {
+          questions: {
+            questions: formattedQuestions,
+            language: 'en-GB',
+            author: username,
+          },
+        }),
+      }
+
+      try {
+        const token = await hmppsAuthClient.getSystemClientToken(username)
+        const eSupClient = new ESupervisionClient(token)
+        await eSupClient.postScheduleAdHocCheckin(crn, request)
+        setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn'], undefined)
+        setDataValue(data, ['esupervision', crn, id, 'scheduleCheckInCreated'], date)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      } catch (error: any) {
+        logger.error(`Failed to schedule ad hoc check-in for CRN ${crn}:`, error)
+        return renderError(error?.status || 500)(req, res)
+      }
     }
   },
 

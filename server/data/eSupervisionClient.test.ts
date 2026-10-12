@@ -11,6 +11,7 @@ import {
   EsupervisionUpcomingQuestionItemsResponse,
   EsupervisionUpcomingQuestionsResponse,
   OffenderByCRNResponse,
+  ScheduleAdHocCheckinRequest,
 } from './model/esupervision'
 import { ProbationPractitioner } from './model/personalDetails'
 
@@ -222,6 +223,39 @@ describe('ESupervisionClient', () => {
         .reply(200, response)
 
       const output = await client.postDeactivateOffender(checkInUuid, body)
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('postScheduleAdHocCheckin', () => {
+    it('should POST an ad hoc check-in request by CRN', async () => {
+      const crn = 'X000001'
+      const body: ScheduleAdHocCheckinRequest = {
+        requestedBy: 'requestedBy',
+        firstCheckin: '2026-02-01',
+        questions: {
+          questions: [
+            {
+              id: 1,
+              params: {
+                placeholders: { text: 'your keyworker' },
+                responseFormat: 'TEXT',
+              },
+            },
+          ],
+          language: 'en-GB',
+          author: 'requestedBy',
+        },
+      }
+      const response = { crn, mode: 'AD_HOC' }
+
+      fakeESupervisionApi
+        .post(`/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`, JSON.stringify(body))
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.postScheduleAdHocCheckin(crn, body)
+
       expect(output).toEqual(response)
     })
   })

@@ -21,6 +21,7 @@ import {
   OffenderHeaderDetails,
   PractitionerAlertsResponse,
   SupervisionPackageStatus,
+  ScheduleAdHocCheckinRequest,
 } from './model/esupervision'
 import { PersonalDetails, PersonalDetailsUpdateRequest, ProbationPractitioner } from './model/personalDetails'
 import RestClient from './restClient'
@@ -207,5 +208,13 @@ export default class ESupervisionClient extends RestClient {
   // package
   async getSupervisionPackageStatus(crn: string): Promise<SupervisionPackageStatus | null> {
     return this.get({ path: `/v2/offenders/crn/${crn}/supervision-package`, handle404: true })
+  }
+
+  // POST /v2/offenders/crn/{crn}/schedule-ad-hoc-check-in
+  async postScheduleAdHocCheckin(crn: string, request: ScheduleAdHocCheckinRequest): Promise<CheckinScheduleResponse> {
+    return this.post({
+      path: `/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`,
+      data: request,
+    })
   }
 }

@@ -181,12 +181,18 @@ export interface CheckinScheduleResponse {
   uuid: string
   crn: string
   status: OffenderStatus
-  firstCheckin: string
-  checkinInterval: CheckInterval
+  firstCheckin: string | null
+  checkinInterval: CheckInterval | null
+  mode: 'SCHEDULED' | 'AD_HOC'
   contactPreference: 'PHONE' | 'EMAIL'
-  photoUrl?: string
+  photoUrl?: string | null
 }
 
+export interface ScheduleAdHocCheckinRequest {
+  requestedBy: ExternalUserId
+  firstCheckin: string
+  questions?: EsupervisionAssignQuestionsRequest | null
+}
 export interface DeactivateOffenderRequest {
   requestedBy: string
   reason: string
