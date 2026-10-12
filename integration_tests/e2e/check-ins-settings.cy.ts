@@ -161,12 +161,12 @@ context('check in settings for an ad-hoc person', () => {
     })
   })
 
-  it('shows the schedule a check in placeholder', () => {
+  it('starts scheduling an ad-hoc check in at the date page', () => {
     cy.visit(`${manageById}/schedule-check-in`)
     const schedulePage = new ScheduleCheckinPage()
     schedulePage.checkOnPage()
-    schedulePage.getPlaceholder().should('contain.text', 'not available yet')
-    schedulePage.getReturnLink().should('have.attr', 'href', manageById)
+    schedulePage.getDatePickerInput().should('be.visible')
+    schedulePage.getSubmitBtn().should('be.visible')
   })
 })
 
