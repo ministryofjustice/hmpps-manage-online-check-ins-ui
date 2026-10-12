@@ -22,10 +22,11 @@
 {% set buttonText = "Continue" %}
 {% set currentEligibility = data.esupervision[crn][id].checkins.eligibility or [] %}
 
-{# The accredited programme, youth sentence and early engagement questions are Tier A/B rules -
-   see nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The
-   three boxes below them apply to every tier. The supervision package is no longer asked about
-   here: it comes from the ESUP API via the getSupervisionPackageStatus middleware. #}
+{# The accredited programme and youth sentence questions are Tier A/B rules - see
+   nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The two
+   boxes below them apply to every tier. The supervision package, the final third of the sentence and
+   early engagement are no longer asked about here: they come from the ESUP API via the
+   getSupervisionPackageStatus middleware. #}
 {% set eligibilityItems = [] %}
 {% if tierBand == 'AB' %}
     {% set eligibilityItems = (eligibilityItems.push({
@@ -41,11 +42,6 @@
     checked: currentEligibility.includes("recalled")
     },
     {
-    value: "finalThird",
-    text: "In the final third of their sentence",
-    checked: currentEligibility.includes("finalThird")
-    },
-    {
     value: "deviceRestriction",
     text: "Has a sentence restriction that means they can't use a device or the internet",
     checked: currentEligibility.includes("deviceRestriction")
@@ -57,11 +53,6 @@
         value: "youthSentence",
         text: "Is on a youth sentence",
         checked: currentEligibility.includes("youthSentence")
-        },
-        {
-        value: "earlyEngagement",
-        text: "Is in early engagement",
-        checked: currentEligibility.includes("earlyEngagement")
         }
     ), eligibilityItems) %}
 {% endif %}
@@ -113,8 +104,8 @@
             <h3 class="govuk-heading-m">About online check ins</h3>
             <p class="govuk-body">Online check ins allow people on probation to update you about their needs and how they are feeling. They’ll do this by answering some questions about how they are and if they need any support, and verifying their identity. </p>
             <p class="govuk-body">You can learn more about online check ins in our guidance pages.</p>
-            <p class="govuk-body"><a class="govuk-link" href="{{guidanceUrl}}/practitioner-guidance">Practitioner guidance about online check ins</a>, including setting people up and reviewing completed check ins.</p>
-            <p class="govuk-body"><a class="govuk-link" href="{{guidanceUrl}}/guidance">Guidance for people on probation about online check ins</a>, including how they work and what questions we ask.</p>
+            <p class="govuk-body"><a class="govuk-link" href="{{guidanceUrl}}/practitioner-guidance" target="_blank" rel="noreferrer noopener">Practitioner guidance about online check ins (opens in new tab)</a>, including setting people up and reviewing completed check ins.</p>
+            <p class="govuk-body"><a class="govuk-link" href="{{guidanceUrl}}/guidance" target="_blank" rel="noreferrer noopener">Guidance for people on probation about online check ins (opens in new tab)</a>, including how they work and what questions we ask.</p>
 
             {{ govukCheckboxes({
                 name: "esupervision[" + crn + "][" + id + "][checkins][eligibility]",
