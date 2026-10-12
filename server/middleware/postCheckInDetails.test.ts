@@ -128,6 +128,18 @@ describe('postCheckInDetails', () => {
     expect(body.firstCheckin).toBeUndefined()
   })
 
+  // A date page submitted from a stale tab can store a date after ad-hoc was chosen.
+  it('sends no first check-in date for ad-hoc even when a stale date is in session', async () => {
+    const req = buildRequest()
+    req.session.data.esupervision[crn][id].checkins.interval = 'AD_HOC'
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    const body = mockPostOffenderSetup.mock.calls[0][0]
+    expect(body.mode).toBe('AD_HOC')
+    expect(body.firstCheckin).toBeUndefined()
+  })
+
   it('leaves the cache untouched when setup fails', async () => {
     mockPostOffenderSetup.mockRejectedValue(Object.assign(new Error('boom'), { data: { status: 500 } }))
     const req = buildRequest()

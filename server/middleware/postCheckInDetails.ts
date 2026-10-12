@@ -38,7 +38,9 @@ export const postCheckInDetails = (
       setupUuid: id,
       practitionerId,
       crn,
-      firstCheckin: firstCheckinDate,
+      // An ad-hoc setup schedules no first check in. The date is normally cleared when ad-hoc is
+      // chosen, but a stale date-page submission can put one back, so decide here from the mode.
+      ...(savedUserDetails.interval === 'AD_HOC' ? {} : { firstCheckin: firstCheckinDate }),
       ...toApiSchedule(savedUserDetails.interval),
       // Recorded by getStartSetup. Left unset if the session lost it, rather than defaulting to now,
       // which would record a setup time of zero.

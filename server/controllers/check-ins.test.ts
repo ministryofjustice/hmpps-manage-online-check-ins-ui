@@ -123,6 +123,37 @@ describe('checkInsController', () => {
     res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
   })
 
+  describe('postDatePage', () => {
+    const withInterval = (interval: string) =>
+      baseReq({ esupervision: { [crn]: { [uuid]: { checkins: { interval, date: '1/8/2026' } } } } })
+
+    it('moves a scheduled setup on to contact preference', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+
+      await controllers.checkIns.postDatePage()(withInterval('WEEKLY'), res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/contact-preference`)
+    })
+
+    // A stale date page tab submitted after ad-hoc was chosen must not leave a date in session.
+    it('drops the date and returns to the frequency page when the setup is ad-hoc', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = withInterval('AD_HOC')
+      req.query = { cya: 'true' }
+
+      await controllers.checkIns.postDatePage()(req, res)
+
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        expect.anything(),
+        ['esupervision', crn, uuid, 'checkins', 'date'],
+        undefined,
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/check-in-frequency?cya=true`)
+    })
+  })
+
   describe('getManageCheckinPage', () => {
     it('renders the manage check in page', async () => {
       ;(ESupervisionClient.prototype.getOffenderByCRN as jest.Mock).mockResolvedValueOnce(offenderCheckinsByCRNResponse)

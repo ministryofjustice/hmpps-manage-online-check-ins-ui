@@ -786,6 +786,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const cya = req.query.cya === 'true'
+      const interval = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'interval'])
+      if (interval === 'AD_HOC') {
+        // A date page left open in another tab and submitted after ad-hoc was chosen: drop the date
+        // it just stored, as getDatePage would never have shown the form.
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'], undefined)
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency${cya ? '?cya=true' : ''}`)
+      }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/contact-preference`)
     }
   },
