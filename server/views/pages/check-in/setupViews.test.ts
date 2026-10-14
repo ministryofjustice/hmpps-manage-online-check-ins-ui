@@ -324,7 +324,7 @@ describe('the manage settings pages', () => {
 
   it('titles the date page after its heading', async () => {
     const html = await render('manage/checkin-settings-date', base)
-    expect(html).toMatch(/<title>\s*When would you like Bob to complete their next online check in\? - /)
+    expect(html).toMatch(/<title>\s*When would you like the person to complete their next online check in\? - /)
   })
 
   // The validator re-renders with the minimum date read back from the posted body, so the page
@@ -340,7 +340,7 @@ describe('the manage settings pages', () => {
       ...base,
       errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
     })
-    expect(html).toMatch(/<title>\s*Error: When would you like Bob/)
+    expect(html).toMatch(/<title>\s*Error: When would you like the person/)
   })
 
   it('links the schedule check in placeholder back to the manage page', async () => {
