@@ -1,12 +1,13 @@
 import Page, { PageElement } from '../page'
 
-// Placeholder for the ad-hoc "schedule a check in" journey, which the confirmation pages link to.
 export default class ScheduleCheckinPage extends Page {
   constructor() {
-    super('Schedule an online check in')
+    super()
   }
 
-  getPlaceholder = (): PageElement => this.getElementData('schedulePlaceholder')
+  checkOnPage(): void {
+    cy.contains('label', 'When would you like the person to complete their online check in?').should('be.visible')
+  }
 
-  getReturnLink = (): PageElement => this.getElementData('returnToManage')
+  getDatePickerInput = (): PageElement => this.getElementData('checkInDate')
 }

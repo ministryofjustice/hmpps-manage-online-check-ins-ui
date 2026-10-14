@@ -70,13 +70,27 @@ const views = [
   'instructions',
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
-  'manage/schedule-checkin',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
   new Promise((resolve, reject) => {
     app.render(`pages/check-in/${view}.njk`, locals, (err: Error, html: string) => (err ? reject(err) : resolve(html)))
   })
+
+describe('schedule-check-in/add-questions', () => {
+  it('posts question deletion with a CSRF token', async () => {
+    const html = await render('schedule-check-in/add-questions', {
+      ...base,
+      addedQuestions: [{ id: '1-question', fullText: 'How is work?' }],
+      expectedCheckinDate: '1/8/2026',
+    })
+    const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/1-question/delete`
+
+    expect(html).toContain(
+      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+    )
+  })
+})
 
 describe.each(views)('%s', view => {
   it('renders', async () => {
@@ -97,6 +111,42 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+describe.each([
+  ['questions/edit-question', 'manageQuestions'],
+  ['schedule-check-in/edit-question', 'scheduleCheckIn'],
+])('%s', (view, group) => {
+  const questionId = '1-question'
+  const fieldId = `esupervision-${crn}-${id}-${group}-draftQuestionInput`
+  const renderWithSavedAnswer = (body?: Record<string, unknown>) =>
+    render(view, {
+      ...base,
+      question: { prefix: 'How has ', suffix: '?', questionExamples: ['Example one', 'Example two'] },
+      questionId,
+      ...(body ? { body } : {}),
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: { [group]: { questionTemplateAndInputs: { [questionId]: 'previous answer' } } },
+          },
+        },
+      },
+    })
+
+  it('keeps a submitted blank answer blank instead of restoring the saved answer', async () => {
+    const html = await renderWithSavedAnswer({
+      esupervision: { [crn]: { [id]: { [group]: { draftQuestionInput: '' } } } },
+    })
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value=""`))
+  })
+
+  it('uses the saved answer when the page is rendered without a submission', async () => {
+    const html = await renderWithSavedAnswer()
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value="previous answer"`))
   })
 })
 
@@ -342,12 +392,6 @@ describe('the manage settings pages', () => {
     })
     expect(html).toMatch(/<title>\s*Error: When would you like the person/)
   })
-
-  it('links the schedule check in placeholder back to the manage page', async () => {
-    const html = await render('manage/schedule-checkin', base)
-    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}"`)
-    expect(html).toContain('Schedule an online check in for Bob')
-  })
 })
 
 describe('a scheduled setup confirmation', () => {
@@ -401,6 +445,59 @@ describe('the manage page settings card', () => {
     email: 'bob@example.com',
     mobile: '07700900000',
   }
+
+  it.each([
+    ['SCHEDULED', true, false],
+    ['AD_HOC', true, true],
+    ['AD_HOC', false, false],
+  ])('shows the scheduling button for mode %s with flag %s: %s', async (mode, enabled, visible) => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: enabled },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+    })
+
+    expect(html.includes('data-qa="schedule-check-in-btn"')).toBe(visible)
+  })
+
+  it('shows an unbooked ad-hoc check in without a settings date or stale questions', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: true },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+      upcomingCheckin: { questions: [{ question: 'Stale question' }] },
+    })
+
+    expect(html).toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="checkinQuestionsCard"')
+    expect(html).toContain('No online check in scheduled')
+    expect(html).toContain("I'll schedule them one at a time")
+    expect(html).not.toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).not.toContain('Stale question')
+    expect(html).not.toContain('Change questions')
+  })
+
+  it.each(['AD_HOC', 'SCHEDULED'])('shows the upcoming date and questions for a booked %s check in', async mode => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: true },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+      checkinFrequency: mode === 'AD_HOC' ? 'AD_HOC' : 'WEEKLY',
+      upcomingCheckin: {
+        expectedCheckinDate: '2026-10-20',
+        questions: [{ question: 'How is work?' }],
+      },
+      canEditQuestions: true,
+    })
+
+    expect(html).not.toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).toContain('How is work?')
+    expect(html).toContain('Change questions')
+    expect(html).not.toContain('No online check in scheduled')
+    if (mode === 'AD_HOC') expect(html).toContain("I'll schedule them one at a time")
+  })
 
   it('lets a scheduled person change their next check in date and their frequency', async () => {
     const html = await render('manage/manage-checkin', scheduled)

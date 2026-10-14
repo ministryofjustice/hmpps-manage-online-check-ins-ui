@@ -1531,7 +1531,7 @@ context('ad-hoc check-ins setup', () => {
     cy.contains('a', 'Schedule a check in').click()
     const schedulePage = new ScheduleCheckinPage()
     schedulePage.checkOnPage()
-    schedulePage.getPlaceholder().should('be.visible')
+    schedulePage.getDatePickerInput().should('be.visible')
   })
 
   it('asks for a date when a change of answer moves to an interval, and drops it on moving back', () => {

@@ -57,14 +57,14 @@
                     text: "How have you been feeling since we last spoke?"
                 },
                 {
-                    html: '<a href="' + previewFeelingPageLink + '" class="govuk-link" data-qa="preview-feeling-link">Preview</a>'                }
+                    html: '<form method="get" action="' + previewFeelingPageLink + '"><button type="submit" class="app-link-button" data-qa="preview-feeling-link">Preview</button></form>'                }
                 ],
                 [
                 {
                     text: "Is there anything you need support with or want to let us know about?"
                 },
                 {
-                    html: '<a href="' + previewSupportPageLink + '" class="govuk-link" data-qa="preview-support-link">Preview</a>'
+                    html: '<form method="get" action="' + previewSupportPageLink + '"><button type="submit" class="app-link-button" data-qa="preview-support-link">Preview</button></form>'
                 }
                 ]
             ]
@@ -94,7 +94,7 @@
                         },
                         {
                             html: '<a href="' + editLink + '" class="govuk-link govuk-!-display-inline-block" data-qa="edit-question-link">Edit</a> | ' +
-                                '<a href="' + deleteLink + '" class="govuk-link govuk-!-display-inline-block" data-qa="delete-question-link">Delete</a>'
+                                '<form method="get" action="' + deleteLink + '" class="govuk-!-display-inline-block"><button type="submit" class="app-link-button" data-qa="delete-question-link">Delete</button></form>'
                         }
                     ]) %}
                 {% endfor %}

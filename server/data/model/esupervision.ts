@@ -195,9 +195,14 @@ export interface CheckinScheduleResponse {
   checkinInterval?: CheckInterval | null
   mode?: CheckinMode
   contactPreference: 'PHONE' | 'EMAIL'
-  photoUrl?: string
+  photoUrl?: string | null
 }
 
+export interface ScheduleAdHocCheckinRequest {
+  requestedBy: ExternalUserId
+  firstCheckin: string
+  questions?: EsupervisionAssignQuestionsRequest | null
+}
 export interface DeactivateOffenderRequest {
   requestedBy: string
   reason: string

@@ -11,6 +11,7 @@ import {
   ESupervisionNote,
   ESupervisionReview,
   ReactivateOffenderRequest,
+  ScheduleAdHocCheckinRequest,
   SupervisionPackageStatus,
 } from '../data/model/esupervision'
 import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
@@ -29,7 +30,7 @@ import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import { postCheckInDetails } from '../middleware/postCheckInDetails'
 import { postCheckinInComplete } from '../middleware/postCheckinComplete'
 import logger from '../../logger'
-import { dateWithYear } from '../utils/dateWithYear'
+import { dateWithYear, dateToLongDate } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
@@ -186,6 +187,8 @@ function requireBand(req: Request, res: Response, crn: string, id: string): Tier
   return status
 }
 
+const isScheduleCheckInFlagOff = (res: Response): boolean => !res.locals.flags?.enableAdHocCheckIns
+
 // The three facts the ESUP supervision-package call supplies, in place of the checkboxes that used to
 // ask the practitioner for them. getSupervisionPackageStatus leaves res.locals null on a 404, and an
 // older API build may not send every field, so each is read as a definite boolean - an unknown fact
@@ -210,6 +213,20 @@ export function systemIdCheckPass(checkIn: ESupervisionCheckIn): boolean {
     return checkIn.livenessResult === 'LIVE' && checkIn.autoIdCheck === 'MATCH'
   }
   return checkIn.autoIdCheck === 'MATCH'
+}
+
+const normalizeQuestionPlaceholder = (input: string, suffix: string): string => {
+  const trimmedInput = input.trim()
+  const trimmedSuffix = suffix.trim()
+  if (trimmedSuffix && trimmedInput.endsWith(trimmedSuffix)) {
+    return trimmedInput.slice(0, -trimmedSuffix.length).trimEnd()
+  }
+  return trimmedInput.endsWith('?') && trimmedSuffix.endsWith('?') ? trimmedInput.slice(0, -1).trimEnd() : trimmedInput
+}
+
+const buildQuestionText = (prefix: string, input: string, suffix: string) => {
+  const normalizedInput = normalizeQuestionPlaceholder(input, suffix)
+  return `${prefix}${normalizedInput}${suffix}`.replace(/\s+/g, ' ').trim()
 }
 
 type CheckInRouteName =
@@ -283,7 +300,6 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
-  | 'getScheduleCheckinPage'
   | 'getStartQuestionsPage'
   | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
@@ -296,6 +312,18 @@ type CheckInRouteName =
   | 'postEditQuestionPage'
   | 'getSelectQuestionPage'
   | 'getDeleteQuestion'
+  | 'getScheduleCheckInDate'
+  | 'postScheduleCheckInDate'
+  | 'getScheduleCheckInAddQuestions'
+  | 'postScheduleCheckInAddQuestions'
+  | 'getScheduleCheckInQuestionsList'
+  | 'postScheduleCheckInQuestionsList'
+  | 'getScheduleCheckInEditQuestion'
+  | 'postScheduleCheckInEditQuestion'
+  | 'getScheduleCheckInSelectQuestion'
+  | 'getScheduleCheckInDeleteQuestion'
+  | 'getScheduleCheckInPreviewFeeling'
+  | 'getScheduleCheckInPreviewSupport'
 
 const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // The setup flow keys its session data on a uuid minted here, before the person exists in
@@ -1359,6 +1387,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         `
         setDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'], undefined)
       }
+
+      const scheduleCheckInCreated = getDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckInCreated'])
+      if (scheduleCheckInCreated) {
+        res.locals.success = true
+        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const adHocDate = dateToLongDate(scheduleCheckInCreated)
+        successMessageHtml = `
+          <strong>Single online check in for ${forename} has been created for ${adHocDate}</strong>
+          <br>
+          ${forename} will get a notification with a link to complete their online check in on ${adHocDate}.
+        `
+        setDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckInCreated'], undefined)
+      }
+
       return res.render('pages/check-in/manage/manage-checkin.njk', {
         crn,
         // the /manage route has no :id param; the check-in id is the offender uuid
@@ -1717,22 +1759,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const parsedFirstCheckin = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
       const firstCheckin = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : date
       return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
-    }
-  },
-
-  // Placeholder for the ad-hoc "schedule a check in" journey (ESUP-2156 follow-on). The ad-hoc
-  // confirmation pages already link here, so this keeps that call-to-action off a 404 until the
-  // real page lands.
-  getScheduleCheckinPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_SCHEDULE_CHECK_IN', crn, SubjectType.CRN)
-      const checkinRes = res.locals.offenderCheckinsByCRNResponse
-      return res.render('pages/check-in/manage/schedule-checkin.njk', {
-        crn,
-        id,
-        case: checkinRes?.details,
-      })
     }
   },
 
@@ -2313,7 +2339,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
           return {
             id: qId,
-            fullText: `${templateData.prefix}${inputValue}${templateData.suffix}`.replace(/\s+/g, ' ').trim(),
+            fullText: buildQuestionText(templateData.prefix, inputValue, templateData.suffix),
           }
         })
         .filter(q => q !== null)
@@ -2339,12 +2365,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const formattedQuestions = Object.entries(questionTemplateAndInputs).map(([draftId, inputValue]) => {
         const templateId = parseInt(draftId.split('-')[0], 10)
         const originalTemplate = availableTemplates.find((t: any) => String(t.id) === String(templateId))
+        const templateData =
+          typeof originalTemplate?.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
 
         return {
           id: templateId,
           params: {
             placeholders: {
-              [originalTemplate?.responseSpec?.placeholders?.[0] || 'text']: inputValue as string,
+              [originalTemplate?.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                inputValue as string,
+                templateData?.suffix || '',
+              ),
             },
             responseFormat: originalTemplate?.responseFormat || 'TEXT',
           },
@@ -2574,6 +2605,386 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
 
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+    }
+  },
+
+  getScheduleCheckInDate: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DATE', crn, SubjectType.CRN)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+      const checkInMinDate = getMinDate()
+      return res.render('pages/check-in/schedule-check-in/date.njk', {
+        crn,
+        id,
+        case: offenderDetails.details,
+        checkInMinDate,
+        data: req.session.data,
+      })
+    }
+  },
+
+  postScheduleCheckInDate: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+    }
+  },
+
+  getScheduleCheckInAddQuestions: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+
+      let availableTemplates =
+        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates']) || []
+      if (availableTemplates.length === 0) {
+        const eSupClient = new ESupervisionClient(token)
+        const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+        availableTemplates = templatesList.templates.filter(
+          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+        )
+        setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
+      }
+
+      const questionTemplateAndInputs =
+        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+
+      const addedQuestions = Object.entries(questionTemplateAndInputs)
+        .map(([qId, inputValue]) => {
+          if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          const templateId = parseInt(qId.split('-')[0], 10)
+          const templateData = parseQuestionTemplate(availableTemplates, templateId)
+          if (!templateData) return null
+          return {
+            id: qId,
+            fullText: buildQuestionText(templateData.prefix, inputValue, templateData.suffix),
+          }
+        })
+        .filter(q => q !== null)
+
+      const expectedCheckinDate = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'date'])
+
+      return res.render('pages/check-in/schedule-check-in/add-questions.njk', {
+        crn,
+        id,
+        back,
+        case: offenderDetails.details,
+        addedQuestions,
+        expectedCheckinDate,
+        data,
+      })
+    }
+  },
+
+  postScheduleCheckInAddQuestions: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+      const scheduleCheckIn = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn']) || {}
+      const { date } = scheduleCheckIn
+      const parsedDate = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
+      const firstCheckin = parsedDate.isValid ? parsedDate.toISODate() : null
+
+      if (!firstCheckin) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in`)
+      }
+
+      const availableTemplates = scheduleCheckIn.availableTemplates || []
+      const questionTemplateAndInputs = scheduleCheckIn.questionTemplateAndInputs || {}
+      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(([draftId, inputValue]) => {
+        if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
+        const templateId = parseInt(draftId.split('-')[0], 10)
+        const originalTemplate = availableTemplates.find((template: any) => String(template.id) === String(templateId))
+        if (!originalTemplate) return []
+        const templateData =
+          typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
+
+        return [
+          {
+            id: templateId,
+            params: {
+              placeholders: {
+                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                  inputValue,
+                  templateData?.suffix || '',
+                ),
+              },
+              responseFormat: originalTemplate.responseFormat || 'TEXT',
+            },
+          },
+        ]
+      })
+      const { username } = res.locals.user
+      const request: ScheduleAdHocCheckinRequest = {
+        requestedBy: username,
+        firstCheckin,
+        ...(formattedQuestions.length > 0 && {
+          questions: {
+            questions: formattedQuestions,
+            language: 'en-GB',
+            author: username,
+          },
+        }),
+      }
+
+      try {
+        const token = await hmppsAuthClient.getSystemClientToken(username)
+        const eSupClient = new ESupervisionClient(token)
+        await eSupClient.postScheduleAdHocCheckin(crn, request)
+        setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn'], undefined)
+        setDataValue(data, ['esupervision', crn, id, 'scheduleCheckInCreated'], date)
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      } catch (error: any) {
+        logger.error(`Failed to schedule ad hoc check-in for CRN ${crn}:`, error)
+        return renderError(error?.status || 500)(req, res)
+      }
+    }
+  },
+
+  getScheduleCheckInQuestionsList: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupClient = new ESupervisionClient(token)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+
+      const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+      const availableTemplates = templatesList.templates.filter(
+        (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+      )
+      setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
+
+      const questionTemplateAndInputs =
+        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+      }
+
+      const displayTemplates = availableTemplates.map((q: any) => {
+        const start = q.template.indexOf('{{')
+        const end = q.template.indexOf('}}', start)
+        let displayTemplate = q.template
+        if (start !== -1 && end !== -1) {
+          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
+        }
+        return { ...q, displayTemplate }
+      })
+
+      return res.render('pages/check-in/schedule-check-in/list-questions.njk', {
+        crn,
+        id,
+        back,
+        case: offenderDetails.details,
+        templatesList: { templates: displayTemplates },
+        data,
+      })
+    }
+  },
+
+  postScheduleCheckInQuestionsList: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+    }
+  },
+
+  getScheduleCheckInEditQuestion: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      const { back } = req.query
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_EDIT_QUESTION', crn, SubjectType.CRN)
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      if (!offenderDetails) {
+        return renderError(404)(req, res)
+      }
+
+      let availableTemplates =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates']) || []
+      if (availableTemplates.length === 0) {
+        const eSupClient = new ESupervisionClient(token)
+        const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
+        availableTemplates = templatesList.templates.filter(
+          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'],
+          availableTemplates,
+        )
+      }
+
+      const templateId = questionId.split('-')[0]
+      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
+      if (!questionForView) return renderError(404)(req, res)
+
+      return res.render('pages/check-in/schedule-check-in/edit-question.njk', {
+        crn,
+        id,
+        questionId,
+        back,
+        case: offenderDetails.details,
+        question: questionForView,
+        data: req.session.data,
+      })
+    }
+  },
+
+  postScheduleCheckInEditQuestion: () => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+
+      const inputValue = req.body?.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput
+
+      if (inputValue && inputValue.trim() !== '') {
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs', questionId],
+          inputValue.trim(),
+        )
+        if (data.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput !== undefined) {
+          delete data.esupervision[crn][id].scheduleCheckIn.draftQuestionInput
+        }
+      }
+
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+    }
+  },
+
+  getScheduleCheckInSelectQuestion: () => {
+    return async (req, res) => {
+      const { crn, id, templateId } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_SELECT_QUESTION',
+        crn,
+        SubjectType.CRN,
+      )
+      const questionTemplateAndInputs =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+      }
+
+      const draftId = `${templateId}-${uuidv4()}`
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/${draftId}/edit`)
+    }
+  },
+
+  getScheduleCheckInDeleteQuestion: () => {
+    return async (req, res) => {
+      const { crn, id, questionId } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DELETE_QUESTION',
+        crn,
+        SubjectType.CRN,
+      )
+      if (data.esupervision?.[crn]?.[id]?.scheduleCheckIn?.questionTemplateAndInputs?.[questionId]) {
+        delete data.esupervision[crn][id].scheduleCheckIn.questionTemplateAndInputs[questionId]
+      }
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+    }
+  },
+
+  getScheduleCheckInPreviewFeeling: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      const { back } = req.query
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_PREVIEW_FEELING_QUESTIONS',
+        crn,
+        SubjectType.CRN,
+      )
+      return res.render('pages/check-in/schedule-check-in/preview/feeling.njk', {
+        crn,
+        id,
+        back,
+        data: req.session.data,
+      })
+    }
+  },
+
+  getScheduleCheckInPreviewSupport: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      if (isScheduleCheckInFlagOff(res)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      const { back } = req.query
+      await sendAuditMessage(
+        res,
+        'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_PREVIEW_SUPPORT_QUESTIONS',
+        crn,
+        SubjectType.CRN,
+      )
+      return res.render('pages/check-in/schedule-check-in/preview/support.njk', {
+        crn,
+        id,
+        back,
+        data: req.session.data,
+      })
     }
   },
 }
