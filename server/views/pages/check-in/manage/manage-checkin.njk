@@ -38,6 +38,7 @@
 {% endblock %}
 
 {% block pageContent %}
+
   {% if offenderCheckinsByCRNResponse.status === 'VERIFIED' %}
           {% set checkinLabel = 'Next check in' %}
           {% if upcomingCheckin and upcomingCheckin.expectedCheckinDate %}
@@ -57,7 +58,7 @@
                 <a href="{{ restartCheckinLink }}" class="govuk-button govuk-!-margin-left"  data-qa="restart-checkin-btn">Restart online check ins</a>
             </div>
     {% endif %}
-        {% set nextCheckinText = upcomingCheckin.expectedCheckinDate | dateWithYear %}
+        {% set nextCheckinText = upcomingCheckin.expectedCheckinDate | dateWithYear if upcomingCheckin.expectedCheckinDate else "No online check in scheduled" %}
         {% set rows = [
             {
                 key: { html: '<span data-qa="nextCheckInDueLabel">Next check in</span>' },
@@ -98,7 +99,6 @@
     {% set nextCheckin = offenderCheckinsByCRNResponse %}
     {% set settingsRows = [] %}
     {% if checkinText %}
-        {# Only a scheduled person has a next check in to move; an ad-hoc person books one instead. #}
         {% set _ = settingsRows.push({
             key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
             value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'},

@@ -1,5 +1,7 @@
 {% extends "../../_form.njk" %}
-{% set pageTitleText = "When would you like " + case.name.forename + " to complete their next online check in?" %}
+{% set pageTitleText = "When would you like the person to complete their next online check in?" %}
+{% set pageTitleTextWithName = "When would you like " + case.name.forename + " to complete their next online check in?" %}
+
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
@@ -22,9 +24,12 @@
     {{ mojDatePicker({
         name: "date",
         label: {
-            text: pageTitleText,
+            text: pageTitleTextWithName,
             classes: "govuk-label--l",
-            isPageHeading: true
+            isPageHeading: true,
+            attributes: {
+                'data-qa': 'pageHeading'
+            }
         },
         hint: {
             text: "For example, 17/5/2024. They will get a notification to use online check ins from this date."

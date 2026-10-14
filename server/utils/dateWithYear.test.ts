@@ -15,6 +15,8 @@ describe('utils/dateToLongDate', () => {
     [null, null, ''],
     ['Empty string', '', ''],
     ['Valid DMY', '29/11/2025', '29 November 2025'],
+    ['Valid DMY without zero padding', '1/11/2026', '1 November 2026'],
+    ['Valid DMY with single-digit month', '14/3/2026', '14 March 2026'],
     ['Invalid format returns original', '29-11-2025', '29-11-2025'],
   ])('%s dateToLongDate(%s) => %s', (_: string, input: string, expected: string) => {
     expect(dateToLongDate(input as unknown as string)).toEqual(expected)
