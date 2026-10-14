@@ -313,7 +313,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       ],
     },
 
-    // schedule-check-in — ad hoc check-in date page (session-only, feature-flagged)
+    // schedule-check-in — ad hoc check-in date page
     [`[esupervision][${crn}][${id}][scheduleCheckIn][date]`]: {
       optional: page !== 'schedule-check-in-date',
       checks: [

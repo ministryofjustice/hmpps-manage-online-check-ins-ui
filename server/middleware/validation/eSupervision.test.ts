@@ -552,8 +552,6 @@ describe('Test eSuperVision validation', () => {
     const scheduleDateUrl = `${manageBase}/schedule-check-in`
     const scheduleEditQuestionUrl = `${scheduleDateUrl}/questions/1-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`
 
-    const adHocRes = (enableAdHocCheckIns: boolean) => mockAppResponse({ flags: { enableAdHocCheckIns } })
-
     const scheduleSession = (scheduleCheckIn: Record<string, unknown>) => ({
       [crn]: { [id]: { scheduleCheckIn } },
     })
@@ -566,7 +564,7 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision },
           session: { data: { esupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
@@ -581,7 +579,7 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision },
           session: { data: { esupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
@@ -595,27 +593,12 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision },
           session: { data: { esupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
         expect(next).toHaveBeenCalled()
         expect(res.render).not.toHaveBeenCalled()
-      })
-
-      it('does not validate or render when the feature flag is off', () => {
-        const esupervision = scheduleSession({ date: '' })
-        const req = makeReq({
-          url: scheduleDateUrl,
-          body: { esupervision },
-          session: { data: { esupervision } },
-        })
-        const res = adHocRes(false)
-
-        validation.eSuperVision(req, res, next)
-
-        expect(res.render).not.toHaveBeenCalled()
-        expect(next).toHaveBeenCalled()
       })
     })
 
@@ -630,7 +613,7 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision: bodyEsupervision },
           session: { data: { esupervision: sessionEsupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
@@ -645,7 +628,7 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision: bodyEsupervision },
           session: { data: { esupervision: bodyEsupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
@@ -662,29 +645,14 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision },
           session: { data: { esupervision } },
         })
-        const res = adHocRes(true)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
         expect(next).toHaveBeenCalled()
       })
 
-      it('does not validate or render when the feature flag is off', () => {
-        const esupervision = scheduleSession({ draftQuestionInput: '' })
-        const req = makeReq({
-          url: scheduleEditQuestionUrl,
-          body: { esupervision },
-          session: { data: { esupervision } },
-        })
-        const res = adHocRes(false)
-
-        validation.eSuperVision(req, res, next)
-
-        expect(res.render).not.toHaveBeenCalled()
-        expect(next).toHaveBeenCalled()
-      })
-
-      it('still validates the manage flow edit question page when the ad hoc flag is off', () => {
+      it('validates the manage flow edit question page', () => {
         const esupervision = {
           [crn]: { [id]: { manageQuestions: { draftQuestionInput: '' } } },
         }
@@ -693,7 +661,7 @@ describe('Test eSuperVision validation', () => {
           body: { esupervision },
           session: { data: { esupervision } },
         })
-        const res = adHocRes(false)
+        const res = makeRes()
 
         validation.eSuperVision(req, res, next)
 
