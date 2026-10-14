@@ -50,7 +50,7 @@
               {% set checkinText = offenderCheckinsByCRNResponse.firstCheckin | dateWithYear %}
           {% endif %}
         <div class="moj-button-group">
-                        {% if flags.enableAdHocCheckIns and isAdHoc and not hasUpcomingCheckin %}
+                        {% if isAdHoc and not hasUpcomingCheckin %}
                 <div class="moj-button-group__item">
                     <a href="{{ scheduleCheckInLink }}" class="govuk-button govuk-button--primary govuk-!-margin-left" data-qa="schedule-check-in-btn">Schedule a check in</a>
                 </div>

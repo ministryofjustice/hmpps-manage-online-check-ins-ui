@@ -26,7 +26,6 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'newDesignPopHeader', type: 'boolean' },
   { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
-  { key: 'enableAdHocCheckIns', type: 'boolean' },
 ]
 
 export type FeatureFlags = Record<string, boolean | string | undefined>

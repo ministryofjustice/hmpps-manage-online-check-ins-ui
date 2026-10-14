@@ -285,10 +285,6 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
-  // The ad hoc journey is feature-flagged. The routes guard it too, but these validators render
-  // its views directly on a failed submission, so they must not fire when the flag is off.
-  const adHocCheckInsEnabled = Boolean(res.locals.flags?.enableAdHocCheckIns)
-
   // Handles both the real /questions/:id/edit flow and the ad hoc /schedule-check-in/questions/:id/edit
   // flow - each has its own view, differing in session group and validation page key.
   const validateEditQuestion = () => {
@@ -297,9 +293,6 @@ const eSuperVision: Route<void> = (req, res, next) => {
       return
     }
     const isScheduleCheckIn = Boolean(questionMatch[1])
-    if (isScheduleCheckIn && !adHocCheckInsEnabled) {
-      return
-    }
     const draftId = questionMatch[2]
     const templateId = draftId.split('-')[0]
     render = isScheduleCheckIn
@@ -331,9 +324,6 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
   // schedule-check-in - ad hoc check-in flow
   const validateScheduleCheckInDate = () => {
-    if (!adHocCheckInsEnabled) {
-      return
-    }
     if (/\/schedule-check-in\/?$/.test(baseUrl)) {
       render = `pages/check-in/schedule-check-in/date`
       localParams.id = id

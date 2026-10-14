@@ -684,7 +684,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.getPreviewSupportPage(hmppsAuthClient),
   ])
 
-  // Ad hoc check-in ("schedule a check in") - feature-flagged
+  // Ad hoc check-in ("schedule a check in")
   router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in', [
     validateCrnAndId,
     getCheckinOffenderDetails(hmppsAuthClient),

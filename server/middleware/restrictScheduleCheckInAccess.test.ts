@@ -29,7 +29,6 @@ describe('middleware/restrictScheduleCheckInAccess', () => {
 
   describe('offender mode', () => {
     it.each(['SCHEDULED', undefined] as const)('redirects when mode is %s', async mode => {
-      res.locals.flags = { enableAdHocCheckIns: true }
       res.locals.offenderCheckinsByCRNResponse.mode = mode
 
       await restrictScheduleCheckInAccess()(buildReq(), res, next)
@@ -39,46 +38,14 @@ describe('middleware/restrictScheduleCheckInAccess', () => {
     })
   })
 
-  describe('feature flag', () => {
-    it('redirects to the manage page when the flag is off', async () => {
-      res.locals.flags = { enableAdHocCheckIns: false }
+  it('allows an ad-hoc person without feature flags', async () => {
+    await restrictScheduleCheckInAccess()(buildReq(), res, next)
 
-      await restrictScheduleCheckInAccess()(buildReq(), res, next)
-
-      expect(res.redirect).toHaveBeenCalledWith(manageUrl)
-      expect(next).not.toHaveBeenCalled()
-    })
-
-    it('redirects when no flags have been evaluated at all', async () => {
-      await restrictScheduleCheckInAccess()(buildReq(), res, next)
-
-      expect(res.redirect).toHaveBeenCalledWith(manageUrl)
-      expect(next).not.toHaveBeenCalled()
-    })
-
-    it('takes precedence over the date check, so a missing date does not leak the flag state', async () => {
-      res.locals.flags = { enableAdHocCheckIns: false }
-
-      await restrictScheduleCheckInAccess({ requireDate: true })(buildReq(), res, next)
-
-      expect(res.redirect).toHaveBeenCalledWith(manageUrl)
-    })
-
-    it('continues when the flag is on', async () => {
-      res.locals.flags = { enableAdHocCheckIns: true }
-
-      await restrictScheduleCheckInAccess()(buildReq(), res, next)
-
-      expect(next).toHaveBeenCalled()
-      expect(res.redirect).not.toHaveBeenCalled()
-    })
+    expect(next).toHaveBeenCalled()
+    expect(res.redirect).not.toHaveBeenCalled()
   })
 
   describe('requireDate', () => {
-    beforeEach(() => {
-      res.locals.flags = { enableAdHocCheckIns: true }
-    })
-
     it('sends the user back to pick a date when none has been chosen', async () => {
       await restrictScheduleCheckInAccess({ requireDate: true })(buildReq(), res, next)
 

@@ -2200,48 +2200,13 @@ describe('checkInsController', () => {
     let getTemplatesSpy: jest.SpyInstance
 
     beforeEach(() => {
-      res.locals.flags = { enableAdHocCheckIns: true }
       getTemplatesSpy = jest
         .spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates')
         .mockResolvedValue({ templates: questionTemplates } as any)
     })
 
-    afterEach(() => {
-      res.locals.flags = undefined
-    })
-
     const sessionWith = (scheduleCheckIn: Record<string, unknown>) => ({
       esupervision: { [crn]: { [uuid]: { scheduleCheckIn } } },
-    })
-
-    describe('feature flag', () => {
-      // Every ad hoc handler is behind enableAdHocCheckIns, and falls back to the manage page when it is off.
-      const handlers: [string, Record<string, string>][] = [
-        ['getScheduleCheckInDate', {}],
-        ['postScheduleCheckInDate', {}],
-        ['getScheduleCheckInAddQuestions', {}],
-        ['postScheduleCheckInAddQuestions', {}],
-        ['getScheduleCheckInQuestionsList', {}],
-        ['postScheduleCheckInQuestionsList', {}],
-        ['getScheduleCheckInEditQuestion', { questionId: '1-uuid' }],
-        ['postScheduleCheckInEditQuestion', { questionId: '1-uuid' }],
-        ['getScheduleCheckInSelectQuestion', { templateId: '1' }],
-        ['getScheduleCheckInDeleteQuestion', { questionId: '1-uuid' }],
-        ['getScheduleCheckInPreviewFeeling', {}],
-        ['getScheduleCheckInPreviewSupport', {}],
-      ]
-
-      it.each(handlers)('%s redirects to the manage page when the flag is off', async (method, extraParams) => {
-        res.locals.flags = { enableAdHocCheckIns: false }
-
-        const req = baseReq({})
-        Object.assign(req.params, extraParams)
-
-        await (controllers.checkIns as any)[method](hmppsAuthClient)(req, res)
-
-        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
-        expect(renderSpy).not.toHaveBeenCalled()
-      })
     })
 
     describe('getScheduleCheckInDate', () => {

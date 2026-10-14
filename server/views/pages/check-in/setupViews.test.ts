@@ -447,13 +447,11 @@ describe('the manage page settings card', () => {
   }
 
   it.each([
-    ['SCHEDULED', true, false],
-    ['AD_HOC', true, true],
-    ['AD_HOC', false, false],
-  ])('shows the scheduling button for mode %s with flag %s: %s', async (mode, enabled, visible) => {
+    ['SCHEDULED', false],
+    ['AD_HOC', true],
+  ])('shows the scheduling button for mode %s: %s', async (mode, visible) => {
     const html = await render('manage/manage-checkin', {
       ...scheduled,
-      flags: { enableAdHocCheckIns: enabled },
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
     })
 
@@ -463,7 +461,6 @@ describe('the manage page settings card', () => {
   it('shows an unbooked ad-hoc check in without a settings date or stale questions', async () => {
     const html = await render('manage/manage-checkin', {
       ...scheduled,
-      flags: { enableAdHocCheckIns: true },
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
       checkinFrequency: 'AD_HOC',
       upcomingCheckin: { questions: [{ question: 'Stale question' }] },
@@ -481,7 +478,6 @@ describe('the manage page settings card', () => {
   it.each(['AD_HOC', 'SCHEDULED'])('shows the upcoming date and questions for a booked %s check in', async mode => {
     const html = await render('manage/manage-checkin', {
       ...scheduled,
-      flags: { enableAdHocCheckIns: true },
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
       checkinFrequency: mode === 'AD_HOC' ? 'AD_HOC' : 'WEEKLY',
       upcomingCheckin: {

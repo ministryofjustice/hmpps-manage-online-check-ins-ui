@@ -187,8 +187,6 @@ function requireBand(req: Request, res: Response, crn: string, id: string): Tier
   return status
 }
 
-const isScheduleCheckInFlagOff = (res: Response): boolean => !res.locals.flags?.enableAdHocCheckIns
-
 // The three facts the ESUP supervision-package call supplies, in place of the checkboxes that used to
 // ask the practitioner for them. getSupervisionPackageStatus leaves res.locals null on a 404, and an
 // older API build may not send every field, so each is read as a definite boolean - an unknown fact
@@ -2611,9 +2609,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInDate: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DATE', crn, SubjectType.CRN)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
       if (!offenderDetails) {
@@ -2633,9 +2628,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postScheduleCheckInDate: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
     }
   },
@@ -2643,9 +2635,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInAddQuestions: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       const { back } = req.query
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_ADD_QUESTIONS', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -2701,9 +2690,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postScheduleCheckInAddQuestions: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       req.session.data = req.session.data ?? {}
       const { data } = req.session
       const scheduleCheckIn = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn']) || {}
@@ -2770,9 +2756,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInQuestionsList: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       const { back } = req.query
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -2821,9 +2804,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postScheduleCheckInQuestionsList: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
     }
   },
@@ -2831,9 +2811,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInEditQuestion: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       const { back } = req.query
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_EDIT_QUESTION', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
@@ -2876,9 +2853,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postScheduleCheckInEditQuestion: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       req.session.data = req.session.data ?? {}
       const { data } = req.session
 
@@ -2902,9 +2876,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInSelectQuestion: () => {
     return async (req, res) => {
       const { crn, id, templateId } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       await sendAuditMessage(
         res,
         'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_SELECT_QUESTION',
@@ -2926,9 +2897,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInDeleteQuestion: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       req.session.data = req.session.data ?? {}
       const { data } = req.session
       await sendAuditMessage(
@@ -2947,9 +2915,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInPreviewFeeling: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       const { back } = req.query
       await sendAuditMessage(
         res,
@@ -2969,9 +2934,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInPreviewSupport: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      if (isScheduleCheckInFlagOff(res)) {
-        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
-      }
       const { back } = req.query
       await sendAuditMessage(
         res,
