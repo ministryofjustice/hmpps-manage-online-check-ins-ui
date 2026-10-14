@@ -460,6 +460,45 @@ describe('the manage page settings card', () => {
     expect(html.includes('data-qa="schedule-check-in-btn"')).toBe(visible)
   })
 
+  it('shows an unbooked ad-hoc check in without a settings date or stale questions', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: true },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+      upcomingCheckin: { questions: [{ question: 'Stale question' }] },
+    })
+
+    expect(html).toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="checkinQuestionsCard"')
+    expect(html).toContain('No online check in scheduled')
+    expect(html).toContain("I'll schedule them one at a time")
+    expect(html).not.toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).not.toContain('Stale question')
+    expect(html).not.toContain('Change questions')
+  })
+
+  it.each(['AD_HOC', 'SCHEDULED'])('shows the upcoming date and questions for a booked %s check in', async mode => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: true },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+      checkinFrequency: mode === 'AD_HOC' ? 'AD_HOC' : 'WEEKLY',
+      upcomingCheckin: {
+        expectedCheckinDate: '2026-10-20',
+        questions: [{ question: 'How is work?' }],
+      },
+      canEditQuestions: true,
+    })
+
+    expect(html).not.toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).toContain('How is work?')
+    expect(html).toContain('Change questions')
+    expect(html).not.toContain('No online check in scheduled')
+    if (mode === 'AD_HOC') expect(html).toContain("I'll schedule them one at a time")
+  })
+
   it('lets a scheduled person change their next check in date and their frequency', async () => {
     const html = await render('manage/manage-checkin', scheduled)
     // govukSummaryList leaves whitespace between the href and the data attributes.
