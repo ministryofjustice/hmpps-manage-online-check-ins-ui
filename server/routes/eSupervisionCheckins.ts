@@ -767,7 +767,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.getScheduleCheckInSelectQuestion(),
   ])
 
-  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:questionId/delete', [
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:questionId/delete', [
     validateCrnAndId,
     restrictScheduleCheckInAccess({ requireDate: true }),
     getCheckinOffenderDetails(hmppsAuthClient),

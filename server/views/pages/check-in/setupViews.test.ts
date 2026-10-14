@@ -77,6 +77,21 @@ const render = (view: string, locals: Record<string, unknown>): Promise<string> 
     app.render(`pages/check-in/${view}.njk`, locals, (err: Error, html: string) => (err ? reject(err) : resolve(html)))
   })
 
+describe('schedule-check-in/add-questions', () => {
+  it('posts question deletion with a CSRF token', async () => {
+    const html = await render('schedule-check-in/add-questions', {
+      ...base,
+      addedQuestions: [{ id: '1-question', fullText: 'How is work?' }],
+      expectedCheckinDate: '1/8/2026',
+    })
+    const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/1-question/delete`
+
+    expect(html).toContain(
+      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+    )
+  })
+})
+
 describe.each(views)('%s', view => {
   it('renders', async () => {
     const html = await render(view, base)

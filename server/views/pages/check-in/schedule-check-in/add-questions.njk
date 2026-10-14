@@ -93,7 +93,7 @@
                         },
                         {
                             html: '<a href="' + editLink + '" class="govuk-link govuk-!-display-inline-block" data-qa="edit-question-link">Edit</a> | ' +
-                                '<form method="get" action="' + deleteLink + '" class="govuk-!-display-inline-block"><button type="submit" class="app-link-button" data-qa="delete-question-link">Delete</button></form>'
+                                '<form method="post" action="' + deleteLink + '" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="' + csrfToken + '"><button type="submit" class="app-link-button" data-qa="delete-question-link">Delete</button></form>'
                         }
                     ]) %}
                 {% endfor %}
