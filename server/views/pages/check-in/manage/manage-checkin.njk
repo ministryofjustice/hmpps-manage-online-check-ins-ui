@@ -41,6 +41,7 @@
 {% endblock %}
 
 {% block pageContent %}
+
   {% if offenderCheckinsByCRNResponse.status === 'VERIFIED' %}
           {% set checkinLabel = 'Next check in' %}
                     {% if hasUpcomingCheckin %}

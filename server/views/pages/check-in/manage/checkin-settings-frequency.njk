@@ -1,5 +1,6 @@
 {% extends "../../_form.njk" %}
-{% set pageTitleText = "How often would you like " + case.name.forename + " to check in?" %}
+{% set pageTitleText = "How often would you like the person to check in?" %}
+{% set pageTitleTextWithName = "How often would you like " + case.name.forename + " to check in?" %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
@@ -19,9 +20,12 @@
     {{ govukRadios({
         fieldset: {
             legend: {
-                text: pageTitleText,
+                text: pageTitleTextWithName,
                 isPageHeading: true,
-                classes: "govuk-fieldset__legend--l"
+                classes: "govuk-fieldset__legend--l",
+                attributes: {
+                    'data-qa': 'pageHeading'
+                }
             }
         },
         formGroup: {
