@@ -446,6 +446,20 @@ describe('the manage page settings card', () => {
     mobile: '07700900000',
   }
 
+  it.each([
+    ['SCHEDULED', true, false],
+    ['AD_HOC', true, true],
+    ['AD_HOC', false, false],
+  ])('shows the scheduling button for mode %s with flag %s: %s', async (mode, enabled, visible) => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      flags: { enableAdHocCheckIns: enabled },
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+    })
+
+    expect(html.includes('data-qa="schedule-check-in-btn"')).toBe(visible)
+  })
+
   it('lets a scheduled person change their next check in date and their frequency', async () => {
     const html = await render('manage/manage-checkin', scheduled)
     // govukSummaryList leaves whitespace between the href and the data attributes.

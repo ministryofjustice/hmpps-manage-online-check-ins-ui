@@ -23,7 +23,7 @@ const restrictScheduleCheckInAccess = ({ requireDate = false }: { requireDate?: 
     const { crn, id } = req.params as Record<string, string>
     const manageUrl = `/case/${crn}/appointments/check-in/manage/${id}`
 
-    if (!res.locals.flags?.enableAdHocCheckIns) {
+    if (!res.locals.flags?.enableAdHocCheckIns || res.locals.offenderCheckinsByCRNResponse?.mode !== 'AD_HOC') {
       return res.redirect(manageUrl)
     }
 

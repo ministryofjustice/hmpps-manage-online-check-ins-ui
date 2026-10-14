@@ -20,7 +20,23 @@ describe('middleware/restrictScheduleCheckInAccess', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     res = mockAppResponse()
+    res.locals.offenderCheckinsByCRNResponse = {
+      ...res.locals.offenderCheckinsByCRNResponse,
+      mode: 'AD_HOC',
+    }
     next = jest.fn()
+  })
+
+  describe('offender mode', () => {
+    it.each(['SCHEDULED', undefined] as const)('redirects when mode is %s', async mode => {
+      res.locals.flags = { enableAdHocCheckIns: true }
+      res.locals.offenderCheckinsByCRNResponse.mode = mode
+
+      await restrictScheduleCheckInAccess()(buildReq(), res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(manageUrl)
+      expect(next).not.toHaveBeenCalled()
+    })
   })
 
   describe('feature flag', () => {

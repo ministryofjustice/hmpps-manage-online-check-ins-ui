@@ -43,6 +43,22 @@ context('check in settings for a scheduled person', () => {
     clearApiRequests()
   })
 
+  it('does not offer ad-hoc scheduling and redirects a direct visit to manage', () => {
+    openManagePage()
+    cy.get('[data-qa="schedule-check-in-btn"]').should('not.exist')
+
+    cy.visit(`${manageById}/schedule-check-in`)
+
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    cy.request('POST', `${wiremockAdmin}/requests/find`, {
+      method: 'POST',
+      urlPathPattern: `/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`,
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length(0)
+    })
+  })
+
   it('offers a change of next check in date and of frequency', () => {
     const manageCheckins = openManagePage()
     manageCheckins.getFrequencyValue().should('contain.text', 'Every week')
@@ -161,12 +177,24 @@ context('check in settings for an ad-hoc person', () => {
     })
   })
 
-  it('starts scheduling an ad-hoc check in at the date page', () => {
+  it('creates an ad-hoc check in for the selected date', () => {
+    const checkinDate = DateTime.now().plus({ days: 2 })
     cy.visit(`${manageById}/schedule-check-in`)
     const schedulePage = new ScheduleCheckinPage()
     schedulePage.checkOnPage()
-    schedulePage.getDatePickerInput().should('be.visible')
-    schedulePage.getSubmitBtn().should('be.visible')
+    schedulePage.getDatePickerInput().find('input').clear().type(checkinDate.toFormat('d/M/yyyy'))
+    schedulePage.getSubmitBtn().click()
+
+    cy.location('pathname').should('equal', `${manageById}/schedule-check-in/questions/add`)
+    cy.get('[data-qa="save-questions-btn"]').click()
+
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getUpdateBanner().should('contain.text', 'Single online check in for Joe has been created')
+    lastApiRequestBody(`/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`).then(sent => {
+      expect(sent).to.deep.equal({ requestedBy: 'USER1', firstCheckin: checkinDate.toISODate() })
+    })
   })
 })
 
