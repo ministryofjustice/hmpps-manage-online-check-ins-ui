@@ -76,9 +76,9 @@ export interface OffenderSetup {
 
 // To send to the ESUP API so it can store practitioner's checkbox results
 export interface EligibilityAnswers {
-  accreditedProgramme: boolean
+  accreditedProgramme: boolean | null
   deviceRestriction: boolean
-  youthSentence: boolean
+  youthSentence: boolean | null
 }
 
 export interface OffenderSetupAnswers {

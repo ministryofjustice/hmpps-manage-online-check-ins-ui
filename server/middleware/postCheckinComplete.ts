@@ -13,7 +13,7 @@ export const postCheckinInComplete = (hmppsAuthClient: HmppsAuthClient): Route<P
     const savedUserDetails = req.session.data?.esupervision?.[crn]?.[id]?.checkins
     const answers: OffenderSetupAnswers = {
       rationale: savedUserDetails?.rationale,
-      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility),
+      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility, savedUserDetails?.tierBand),
     }
     await eSupervisionClient.postOffenderSetupComplete(id, answers)
     logger.info('Checkin Registration completed successfully.')

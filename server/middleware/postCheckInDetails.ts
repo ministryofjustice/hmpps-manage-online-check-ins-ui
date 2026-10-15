@@ -47,7 +47,7 @@ export const postCheckInDetails = (
       startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
       contactPreference: savedUserDetails.preferredComs,
       rationale: savedUserDetails.rationale,
-      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility),
+      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility, savedUserDetails?.tierBand),
     }
     logger.info('Checkin Registration started')
     try {

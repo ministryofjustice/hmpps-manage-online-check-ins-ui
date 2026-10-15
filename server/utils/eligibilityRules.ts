@@ -224,11 +224,14 @@ export const toSelections = (value: unknown): string[] => {
   return (Array.isArray(value) ? value : [value]).map(String)
 }
 
-export const eligibilityAnswersFromSelections = (eligibility: unknown): EligibilityAnswers => {
+export const eligibilityAnswersFromSelections = (
+  eligibility: unknown,
+  tierBand?: 'AB' | 'C' | 'DG',
+): EligibilityAnswers => {
   const selections = toSelections(eligibility)
   return {
-    accreditedProgramme: selections.includes('accreditedProgramme'),
+    accreditedProgramme: tierBand === 'AB' ? selections.includes('accreditedProgramme') : null,
     deviceRestriction: selections.includes('deviceRestriction'),
-    youthSentence: selections.includes('youthSentence'),
+    youthSentence: tierBand === 'AB' ? selections.includes('youthSentence') : null,
   }
 }

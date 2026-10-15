@@ -31,6 +31,7 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
+  tierBand?: 'AB' | 'C' | 'DG'
   eligibilitySPOApproval?: any
   rationale?: string
 }

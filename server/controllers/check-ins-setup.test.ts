@@ -992,6 +992,7 @@ describe('check-in setup flow', () => {
                 [id]: {
                   checkins: {
                     eligibility: ['accreditedProgramme', 'youthSentence'],
+                    tierBand: 'AB',
                     rationale: 'Stable and low risk',
                   },
                 },

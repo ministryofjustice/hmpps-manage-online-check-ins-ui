@@ -52,6 +52,7 @@ const buildRequest = () =>
                 date: '1/8/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
+                tierBand: 'AB',
                 rationale: 'Stable and low risk',
               },
               setupStartedAt: startedAt,
@@ -119,6 +120,21 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(req, res)
 
     expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ eligibilityAnswers }))
+  })
+
+  it.each(['C', 'DG'])('sends null for A/B-only answers for tier band %s', async tierBand => {
+    const req = buildRequest()
+    const { checkins } = req.session.data.esupervision[crn][id]
+    checkins.tierBand = tierBand
+    checkins.eligibility = ['accreditedProgramme', 'youthSentence']
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
+      }),
+    )
   })
 
   it('sends a standard interval with the scheduled mode and its first check-in date', async () => {
