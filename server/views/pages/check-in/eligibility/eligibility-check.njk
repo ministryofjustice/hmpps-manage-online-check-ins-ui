@@ -20,7 +20,8 @@
 {% set backLink =  '/case/' + crn + '/'  + back %}
 {% set notStandardForm = true %}
 {% set buttonText = "Continue" %}
-{% set currentEligibility = data.esupervision[crn][id].checkins.eligibility or [] %}
+{% set sessionKey = sessionKey or 'checkins' %}
+{% set currentEligibility = data.esupervision[crn][id][sessionKey].eligibility or [] %}
 
 {# The accredited programme and youth sentence questions are Tier A/B rules - see
    nextAfterEligibilityCheck in utils/eligibilityRules - so only that band is asked them. The two
@@ -108,8 +109,8 @@
             <p class="govuk-body"><a class="govuk-link" href="{{guidanceUrl}}/guidance" target="_blank" rel="noreferrer noopener">Guidance for people on probation about online check ins (opens in new tab)</a>, including how they work and what questions we ask.</p>
 
             {{ govukCheckboxes({
-                name: "esupervision[" + crn + "][" + id + "][checkins][eligibility]",
-                idPrefix: "esupervision-" + crn + "-" + id + "-checkins-eligibility",
+                name: "esupervision[" + crn + "][" + id + "][" + sessionKey + "][eligibility]",
+                idPrefix: "esupervision-" + crn + "-" + id + "-" + sessionKey + "-eligibility",
                 fieldset: {
                     legend: {
                         text: checkboxTitle,
@@ -118,13 +119,13 @@
                     }
                 },
                 errorMessage: {
-                  text: errorMessages["esupervision-" + crn + "-" + id + "-checkins-eligibility"]
-                } if errorMessages["esupervision-" + crn + "-" + id + "-checkins-eligibility"],
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-eligibility"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-eligibility"],
                 hint: {
                     text: "Select all that apply."
                 },
                 items: eligibilityItems
-            }) | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'eligibility']) }}
+            }) | decorateFormAttributes(['esupervision', crn, id, sessionKey, 'eligibility']) }}
               <div class="govuk-button-group">
                 {{ govukButton({
                     text: buttonText,

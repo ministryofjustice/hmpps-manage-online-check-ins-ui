@@ -3,6 +3,8 @@ import ManageCheckins from '../pages/check-ins/manage-checkins'
 import CheckinSettingsDatePage from '../pages/check-ins/settings/checkin-settings-date.page'
 import CheckinSettingsFrequencyPage from '../pages/check-ins/settings/checkin-settings-frequency.page'
 import ScheduleCheckinPage from '../pages/check-ins/schedule-checkin.page'
+import EligibilityCheckPage from '../pages/check-ins/eligibility/eligibility-check'
+import IsEligiblePage from '../pages/check-ins/eligibility/is-eligible'
 import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-checkin-frequency.page'
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
 import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
@@ -35,6 +37,19 @@ const openManagePage = () => {
   const manageCheckins = new ManageCheckins()
   manageCheckins.checkOnPage()
   return manageCheckins
+}
+
+const startRestartJourney = () => {
+  cy.visit(`${manageById}/restart-eligibility-check`)
+  const eligibilityPage = new EligibilityCheckPage()
+  eligibilityPage.checkOnPage()
+  eligibilityPage.getNone().click()
+  eligibilityPage.getSubmitBtn().click()
+
+  const isEligiblePage = new IsEligiblePage()
+  isEligiblePage.checkOnPage()
+  isEligiblePage.confirmDiscussion()
+  isEligiblePage.getSubmitBtn().click()
 }
 
 context('check in settings for a scheduled person', () => {
@@ -203,11 +218,12 @@ context('restarting check ins as ad-hoc', () => {
     cy.task('resetMocks')
     // A weekly person with a mobile number on file, so contact can be confirmed as it stands.
     cy.task('stubGetScheduledOffenderByCRN', crn)
+    cy.task('stubGetOffenderHeaderByCRN', crn)
     clearApiRequests()
   })
 
   it('skips the date page and restarts with no schedule', () => {
-    cy.visit(`${manageById}/restart-checkin`)
+    startRestartJourney()
     const frequencyPage = new RestartCheckinFrequencyPage()
     frequencyPage.checkOnPage()
     frequencyPage.selectFrequency(AD_HOC)
@@ -229,6 +245,12 @@ context('restarting check ins as ad-hoc', () => {
     confirmationPage.getPanel().should('not.contain.text', 'Starting')
     confirmationPage.getWhatHappensNext().should('contain.text', 'Schedule an online check in')
     lastApiRequestBody('/v2/offenders/.+?/reactivate').then(sent => {
+      expect(sent.eligibilityAnswers).to.deep.equal({
+        accreditedProgramme: false,
+        recalled: false,
+        deviceRestriction: false,
+        youthSentence: false,
+      })
       expect(sent.checkinSchedule).to.include({ mode: 'AD_HOC' })
       expect(sent.checkinSchedule).not.to.have.property('checkinInterval')
       expect(sent.checkinSchedule).not.to.have.property('firstCheckin')

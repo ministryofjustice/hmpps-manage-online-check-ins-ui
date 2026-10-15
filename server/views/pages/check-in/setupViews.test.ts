@@ -70,6 +70,7 @@ const views = [
   'instructions',
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
+  'manage/restart-checkin-summary',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -111,6 +112,36 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+describe('shared eligibility templates in reactivation', () => {
+  it('posts eligibility, pilot, discussion, approval, and rationale under restartCheckin', async () => {
+    const restartBase = {
+      ...base,
+      sessionKey: 'restartCheckin',
+      flowPathPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: { restartCheckin: { eligibility: ['none'], pilotCheck: 'true', discussion: [] as string[] } },
+          },
+        },
+        features: {},
+      },
+    }
+
+    const eligibility = await render('eligibility/eligibility-check', restartBase)
+    const pilot = await render('eligibility/pilot-check', restartBase)
+    const isEligible = await render('eligibility/pilot-is-eligible', restartBase)
+    const approval = await render('accredited-programme-approval', restartBase)
+    const rationale = await render('rationale', { ...restartBase, accreditedProgramme: true })
+
+    expect(eligibility).toContain(`[${id}][restartCheckin][eligibility]`)
+    expect(pilot).toContain(`[${id}][restartCheckin][pilotCheck]`)
+    expect(isEligible).toContain(`[${id}][restartCheckin][discussion]`)
+    expect(approval).toContain(`[${id}][restartCheckin][accreditedProgrammeApproval]`)
+    expect(rationale).toContain('Why is the person suitable to use online check ins?')
   })
 })
 
@@ -391,6 +422,22 @@ describe('the manage settings pages', () => {
       errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
     })
     expect(html).toMatch(/<title>\s*Error: When would you like the person/)
+  })
+})
+
+describe('a reactivation summary', () => {
+  it('shows the rationale for the accredited-programme cohort', async () => {
+    const html = await render('manage/restart-checkin-summary', {
+      ...base,
+      userDetails: {
+        ...(base.userDetails as Record<string, unknown>),
+        accreditedProgramme: true,
+        rationale: 'Stable and low risk',
+      },
+    })
+    expect(html).toContain('Why is Bob suitable to use online check ins?')
+    expect(html).toContain('Stable and low risk')
+    expect(html).toContain('data-qa="rationaleAction"')
   })
 })
 

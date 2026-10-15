@@ -21,6 +21,7 @@ export interface ESupervisionValidationArgs {
   editCheckInEmail?: string
   editCheckInMobile?: string
   preferredComs?: string
+  sessionKey?: 'checkins' | 'restartCheckin'
   change?: string
   stopCheckIn?: string
 }
@@ -35,12 +36,13 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     editCheckInEmail = '',
     editCheckInMobile = '',
     preferredComs = '',
+    sessionKey = 'checkins',
     change = '',
   } = args
   return {
     // Setup flow — eligibility through to the photo.
     //
-    [`[esupervision][${crn}][${id}][checkins][eligibility]`]: {
+    [`[esupervision][${crn}][${id}][${sessionKey}][eligibility]`]: {
       optional: page !== 'eligibility-check',
       checks: [
         {
@@ -50,7 +52,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][checkins][pilotCheck]`]: {
+    [`[esupervision][${crn}][${id}][${sessionKey}][pilotCheck]`]: {
       optional: page !== 'pilot-check',
       checks: [
         {
@@ -60,7 +62,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][checkins][discussion]`]: {
+    [`[esupervision][${crn}][${id}][${sessionKey}][discussion]`]: {
       optional: page !== 'is-eligible',
       checks: [
         {
@@ -70,7 +72,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][checkins][accreditedProgrammeApproval]`]: {
+    [`[esupervision][${crn}][${id}][${sessionKey}][accreditedProgrammeApproval]`]: {
       optional: page !== 'accredited-programme-approval',
       checks: [
         {
@@ -80,7 +82,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][checkins][rationale]`]: {
+    [`[esupervision][${crn}][${id}][${sessionKey}][rationale]`]: {
       optional: page !== 'rationale',
       checks: [{ validator: isNotEmpty, msg: 'Enter why the person is suitable to use online check ins' }],
     },

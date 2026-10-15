@@ -2,7 +2,7 @@
 // Kept free of Express so the decision table can be tested directly, and shared with the
 // validation middleware, which needs the same template map when re-rendering with errors.
 import { TierBand } from './getTierBand'
-import { SupervisionPackageStatus } from '../data/model/esupervision'
+import { EligibilityAnswers, SupervisionPackageStatus } from '../data/model/esupervision'
 
 // The eligibility check asks the practitioner about the person's circumstances; these are the
 // answers it can come back with. Three of them rule the person out whatever their tier. 'none' is
@@ -222,4 +222,14 @@ export const toSelections = (value: unknown): string[] => {
     return []
   }
   return (Array.isArray(value) ? value : [value]).map(String)
+}
+
+export const toEligibilityAnswers = (value: unknown): EligibilityAnswers => {
+  const selections = toSelections(value)
+  return {
+    accreditedProgramme: selections.includes('accreditedProgramme'),
+    recalled: selections.includes('recalled'),
+    deviceRestriction: selections.includes('deviceRestriction'),
+    youthSentence: selections.includes('youthSentence'),
+  }
 }

@@ -85,4 +85,23 @@ describe('setup validation re-render', () => {
     expect(next).toHaveBeenCalled()
     expect(res.render).not.toHaveBeenCalled()
   })
+
+  it('validates restart eligibility under restartCheckin and re-renders the shared eligibility view', () => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { restartCheckin: {} } } } },
+      session: { data: {} },
+    })
+    const res: any = { locals: { tierScore: 'A' }, render: jest.fn() }
+    validate(req, res, jest.fn())
+
+    const [view, locals] = res.render.mock.calls[0]
+    expect(view).toBe('pages/check-in/eligibility/eligibility-check')
+    expect(locals.sessionKey).toBe('restartCheckin')
+    expect(locals.flowPathPrefix).toBe(`/case/${crn}/appointments/check-in/manage/${id}/restart-`)
+    expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-restartCheckin-eligibility`)
+  })
 })

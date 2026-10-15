@@ -206,6 +206,25 @@ const stubGetVerifiedOffenderByCRN = (
 export const stubGetScheduledOffenderByCRN = (crn: string) =>
   stubGetVerifiedOffenderByCRN(crn, { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' })
 
+export const stubGetOffenderHeaderByCRN = (crn: string, tierScore: string = 'D') =>
+  superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPath: `/v2/offenders/header/${crn}`,
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      jsonBody: {
+        crn,
+        dateOfBirth: '1979-08-18',
+        tierScore,
+        tierDetailsLink: 'https://example.com/tier',
+        overallRisk: 'MEDIUM',
+      },
+    },
+  })
+
 // An ad-hoc person: the API carries ad-hoc as a mode with no interval, and no check in is booked
 // until the practitioner schedules one, so there is no first check-in date either.
 export const stubGetAdHocOffenderByCRN = (crn: string) =>
@@ -367,6 +386,7 @@ export default {
   stubUpdatePersonalContact500Response,
   stubGetQuestionsTemplates,
   stubGetOffenderByCRN,
+  stubGetOffenderHeaderByCRN,
   stubGetAdHocOffenderByCRN,
   stubGetScheduledOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,

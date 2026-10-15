@@ -11,6 +11,7 @@ import {
   EsupervisionUpcomingQuestionItemsResponse,
   EsupervisionUpcomingQuestionsResponse,
   OffenderByCRNResponse,
+  ReactivateOffenderRequest,
   ScheduleAdHocCheckinRequest,
 } from './model/esupervision'
 import { ProbationPractitioner } from './model/personalDetails'
@@ -224,6 +225,42 @@ describe('ESupervisionClient', () => {
 
       const output = await client.postDeactivateOffender(checkInUuid, body)
       expect(output).toEqual(response)
+    })
+  })
+
+  describe('postReactivateOffender', () => {
+    it('sends the practitioner eligibility answers with the reactivation request', async () => {
+      const offenderUuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
+      const body: ReactivateOffenderRequest = {
+        requestedBy: 'practitioner-1',
+        reason: 'Back on supervision',
+        eligibilityAnswers: {
+          accreditedProgramme: true,
+          recalled: false,
+          deviceRestriction: false,
+          youthSentence: true,
+        },
+        pilotCheck: 'true',
+        rationale: 'Suitable for online check ins',
+        checkinSchedule: {
+          requestedBy: 'practitioner-1',
+          firstCheckin: '2026-11-01',
+          checkinInterval: 'WEEKLY',
+          mode: 'SCHEDULED',
+        },
+        contactPreference: {
+          requestedBy: 'practitioner-1',
+          contactPreference: 'EMAIL',
+        },
+      }
+      const response = { crn: 'X000001' }
+
+      fakeESupervisionApi
+        .post(`/v2/offenders/${offenderUuid}/reactivate`, JSON.stringify(body))
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      await expect(client.postReactivateOffender(offenderUuid, body)).resolves.toEqual(response)
     })
   })
 

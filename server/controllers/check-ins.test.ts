@@ -1232,6 +1232,9 @@ describe('checkInsController', () => {
                 date: '19/2/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
+                eligibility: ['accreditedProgramme', 'youthSentence'],
+                pilotCheck: 'true',
+                rationale: 'Discussed with the programme treatment manager',
                 reason: 'Back on supervision',
               },
             },
@@ -1253,6 +1256,14 @@ describe('checkInsController', () => {
             requestedBy: res.locals.user.username,
             contactPreference: 'EMAIL',
           }),
+          eligibilityAnswers: {
+            accreditedProgramme: true,
+            recalled: false,
+            deviceRestriction: false,
+            youthSentence: true,
+          },
+          pilotCheck: 'true',
+          rationale: 'Discussed with the programme treatment manager',
         }),
       )
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-confirmation`)

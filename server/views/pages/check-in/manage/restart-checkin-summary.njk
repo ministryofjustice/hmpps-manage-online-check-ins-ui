@@ -15,10 +15,12 @@
 {% set checkInDateLabel = "When would you like " + case.name.forename + " to complete their next online check in?"  %}
 {% set checkInDateVal = userDetails.date | dmyToLongDate  %}
 {% set dateFrequencyLabel = "How often would you like " + case.name.forename + " to check in?"  %}
+{% set rationaleLabel = "Why is " + case.name.forename + " suitable to use online check ins?" %}
 {% set sendLinkLabel = "How does " + case.name.forename + " want us to send a link to the service?"  %}
 {% set name = "Image of " + case.name.forename + " added for identification" %}
 {% set confirmEndUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
 {% set changeFrequencyUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin?cya=true' %}
+{% set changeRationaleUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-rationale?cya=true' %}
 {% set changeDateUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin-date?cya=true' %}
 {% set contactPreUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-contact?cya=true' %}
 
@@ -90,6 +92,21 @@
                 ]
             } }
     ) %}
+    {% endif %}
+
+    {% if userDetails.accreditedProgramme %}
+    {% set _ = summaryRows.push({
+        key: { html: rationaleLabel },
+        value: { html: userDetails.rationale | escape | nl2br },
+        actions: {
+            items: [{
+                href: changeRationaleUrl,
+                text: "Change",
+                visuallyHiddenText: "why the person is suitable to use online check ins",
+                attributes: { 'data-qa': 'rationaleAction' }
+            }]
+        }
+    }) %}
     {% endif %}
 
     {% set _ = summaryRows.push(
