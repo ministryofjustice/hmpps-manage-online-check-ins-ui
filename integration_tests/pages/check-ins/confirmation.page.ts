@@ -2,7 +2,7 @@ import Page from '../page'
 
 export default class CheckinConfirmationPage extends Page {
   constructor() {
-    super(`Online check ins added`)
+    super('Online check ins set up')
   }
 
   getPanel = () => {

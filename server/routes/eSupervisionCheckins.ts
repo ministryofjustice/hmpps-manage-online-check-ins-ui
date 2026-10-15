@@ -8,7 +8,8 @@ import getCheckIn from '../middleware/getCheckIn'
 import validateCrnAndId from '../middleware/validateCrnAndId'
 
 import { getPersonalDetails } from '../middleware/getPersonalDetails'
-import restrictPageAccess from '../middleware/restrictPageAccess'
+import restrictPageAccess, { dateUnlessAdHoc } from '../middleware/restrictPageAccess'
+import restrictScheduleCheckInAccess from '../middleware/restrictScheduleCheckInAccess'
 import postRedirectWizard from '../middleware/checkinCyaRedirect'
 
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
@@ -150,24 +151,39 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postRationalePage(),
   )
 
-  router.get('/case/:crn/appointments/:id/check-in/date-frequency', [
+  router.get('/case/:crn/appointments/:id/check-in/check-in-frequency', [
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getDateFrequencyPage(),
+    controllers.checkIns.getFrequencyPage(),
   ])
   router.post(
-    '/case/:crn/appointments/:id/check-in/date-frequency',
+    '/case/:crn/appointments/:id/check-in/check-in-frequency',
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postFrequencyPage(),
+  )
+
+  router.get('/case/:crn/appointments/:id/check-in/check-in-date', [
+    restrictPageAccess({ requiredValues: ['interval'] }),
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getDatePage(),
+  ])
+  router.post(
+    '/case/:crn/appointments/:id/check-in/check-in-date',
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
     postRedirectWizard(),
-    controllers.checkIns.postDateFrequencyPage(),
+    controllers.checkIns.postDatePage(),
   )
 
   router.get('/case/:crn/appointments/:id/check-in/contact-preference', [
-    restrictPageAccess({ requiredValues: ['date', 'interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getContactPreferencePage(hmppsAuthClient),
   ])
@@ -180,7 +196,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/confirm-contact-preference', [
-    restrictPageAccess({ requiredValues: ['date', 'interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getConfirmContactPreferencePage(hmppsAuthClient),
   ])
@@ -193,7 +209,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/:id/check-in/edit-contact-preference', [
-    restrictPageAccess({ requiredValues: ['date', 'interval'] }),
+    restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getEditContactPrePage(),
   ])
@@ -313,7 +329,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getManageCheckinDatePage(hmppsAuthClient),
+    controllers.checkIns.getSettingsFrequencyPage(hmppsAuthClient),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/settings',
@@ -323,7 +339,25 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
-    controllers.checkIns.postManageCheckinDatePage(hmppsAuthClient),
+    controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/settings-date', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getSettingsDatePage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/settings-date',
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postSettingsDatePage(hmppsAuthClient),
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/contact', [
@@ -378,6 +412,24 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartCheckinPage(hmppsAuthClient),
+  )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-checkin-date', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getRestartCheckinDatePage(hmppsAuthClient),
+  ])
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/restart-checkin-date',
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postRestartCheckinDatePage(hmppsAuthClient),
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-contact', [
@@ -630,5 +682,114 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     getCheckInQuestionsRedirect(hmppsAuthClient),
     controllers.checkIns.getPreviewSupportPage(hmppsAuthClient),
+  ])
+
+  // Ad hoc check-in ("schedule a check in")
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess(),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInDate(),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess(),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
+    controllers.checkIns.postScheduleCheckInDate(),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/add', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/add', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/list', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInQuestionsList(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/list', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    autoStoreSessionData(hmppsAuthClient),
+    controllers.checkIns.postScheduleCheckInQuestionsList(),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:questionId/edit', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:questionId/edit', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    controllers.checkIns.postScheduleCheckInEditQuestion(),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:templateId/select', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInSelectQuestion(),
+  ])
+
+  router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/:questionId/delete', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInDeleteQuestion(),
+  ])
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/preview/feeling', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInPreviewFeeling(),
+  ])
+  router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/preview/support', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictScheduleCheckInAccess({ requireDate: true }),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getScheduleCheckInPreviewSupport(),
   ])
 }

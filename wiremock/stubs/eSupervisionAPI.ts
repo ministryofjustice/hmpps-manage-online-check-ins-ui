@@ -162,6 +162,55 @@ export const stubGetOffenderByCRN = (crn: string) => {
   })
 }
 
+// A VERIFIED person with contact details on file, so the manage and restart journeys can confirm
+// contact without editing it. Takes the schedule, which is what the ad-hoc journeys vary.
+const stubGetVerifiedOffenderByCRN = (
+  crn: string,
+  schedule: { mode: 'SCHEDULED' | 'AD_HOC'; checkinInterval: string | null; firstCheckin: string | null },
+) => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPath: `/v2/offenders/crn/${crn}`,
+      queryParameters: {
+        'include-personal-details': {
+          equalTo: 'true',
+        },
+      },
+    },
+    response: {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+      },
+      jsonBody: {
+        uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
+        crn,
+        status: 'VERIFIED',
+        ...schedule,
+        contactPreference: 'PHONE',
+        photoUrl: '/assets/images/placeholder.png',
+        details: {
+          name: {
+            forename: 'Joe',
+            surname: 'Bloggs',
+          },
+          mobile: '071838893',
+          email: 'address1@gmail.com',
+        },
+      },
+    },
+  })
+}
+
+export const stubGetScheduledOffenderByCRN = (crn: string) =>
+  stubGetVerifiedOffenderByCRN(crn, { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' })
+
+// An ad-hoc person: the API carries ad-hoc as a mode with no interval, and no check in is booked
+// until the practitioner schedules one, so there is no first check-in date either.
+export const stubGetAdHocOffenderByCRN = (crn: string) =>
+  stubGetVerifiedOffenderByCRN(crn, { mode: 'AD_HOC', checkinInterval: null, firstCheckin: null })
+
 const stubAssignQuestions = () => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
@@ -318,6 +367,8 @@ export default {
   stubUpdatePersonalContact500Response,
   stubGetQuestionsTemplates,
   stubGetOffenderByCRN,
+  stubGetAdHocOffenderByCRN,
+  stubGetScheduledOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubAssignQuestions,

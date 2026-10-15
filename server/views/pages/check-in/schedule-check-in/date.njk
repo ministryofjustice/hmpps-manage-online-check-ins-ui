@@ -1,0 +1,36 @@
+{% extends "../../_form.njk" %}
+{% set pageTitleText = "When would you like the person to complete their online check in?" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set backLink = "/case/" + crn + "/appointments/check-in/manage/" + id %}
+{% set showAnchorLink = true %}
+{% set formAnchorText = "Cancel and go back" %}
+{% set formAnchorLink = managePeopleOnProbationUrl + "/case/" + crn + "/appointments/check-in/manage/" + id %}
+
+{% block form %}
+    <input type="hidden" name="checkInMinDate" value="{{checkInMinDate}}">
+    {{ mojDatePicker({
+        name: "date",
+        label: {
+            text: pageTitleText,
+            classes: "govuk-label--l govuk-!-margin-bottom-5"
+        },
+        formGroup: {
+            classes: "govuk-!-margin-bottom-5",
+            attributes: {
+                'data-qa': 'checkInDate'
+            }
+        },
+        hint: {
+            text: "For example, 17/5/2024."
+        },
+        minDate: checkInMinDate
+    } | decorateFormAttributes(['esupervision', crn, id, 'scheduleCheckIn', 'date'])) }}
+{% endblock %}

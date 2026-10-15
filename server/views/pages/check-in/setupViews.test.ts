@@ -56,7 +56,8 @@ const views = [
   'eligibility/tiers-d-g/is-eligible',
   'rationale',
   'accredited-programme-approval',
-  'date-frequency',
+  'check-in-frequency',
+  'check-in-date',
   'contact-preference',
   'confirm-contact-preference',
   'edit-contact-preference',
@@ -67,12 +68,29 @@ const views = [
   'checkin-summary',
   'confirmation',
   'instructions',
+  'manage/checkin-settings-frequency',
+  'manage/checkin-settings-date',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
   new Promise((resolve, reject) => {
     app.render(`pages/check-in/${view}.njk`, locals, (err: Error, html: string) => (err ? reject(err) : resolve(html)))
   })
+
+describe('schedule-check-in/add-questions', () => {
+  it('posts question deletion with a CSRF token', async () => {
+    const html = await render('schedule-check-in/add-questions', {
+      ...base,
+      addedQuestions: [{ id: '1-question', fullText: 'How is work?' }],
+      expectedCheckinDate: '1/8/2026',
+    })
+    const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/1-question/delete`
+
+    expect(html).toContain(
+      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+    )
+  })
+})
 
 describe.each(views)('%s', view => {
   it('renders', async () => {
@@ -93,6 +111,42 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+describe.each([
+  ['questions/edit-question', 'manageQuestions'],
+  ['schedule-check-in/edit-question', 'scheduleCheckIn'],
+])('%s', (view, group) => {
+  const questionId = '1-question'
+  const fieldId = `esupervision-${crn}-${id}-${group}-draftQuestionInput`
+  const renderWithSavedAnswer = (body?: Record<string, unknown>) =>
+    render(view, {
+      ...base,
+      question: { prefix: 'How has ', suffix: '?', questionExamples: ['Example one', 'Example two'] },
+      questionId,
+      ...(body ? { body } : {}),
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: { [group]: { questionTemplateAndInputs: { [questionId]: 'previous answer' } } },
+          },
+        },
+      },
+    })
+
+  it('keeps a submitted blank answer blank instead of restoring the saved answer', async () => {
+    const html = await renderWithSavedAnswer({
+      esupervision: { [crn]: { [id]: { [group]: { draftQuestionInput: '' } } } },
+    })
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value=""`))
+  })
+
+  it('uses the saved answer when the page is rendered without a submission', async () => {
+    const html = await renderWithSavedAnswer()
+
+    expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value="previous answer"`))
   })
 })
 
@@ -307,5 +361,214 @@ describe('eligibility/not-eligible', () => {
       reason: 'is in Tier A and on an accredited programme, but they are in early engagement',
     })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+})
+
+// An ad-hoc setup schedules no first check in, so there is no date to show or change.
+describe('the manage settings pages', () => {
+  it('does not leak template syntax into the frequency page', async () => {
+    const html = await render('manage/checkin-settings-frequency', base)
+    expect(html).not.toMatch(/^\s*}/m)
+    expect(html).toContain('How often would you like Bob to check in?')
+  })
+
+  it('titles the date page after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', base)
+    expect(html).toMatch(/<title>\s*When would you like the person to complete their next online check in\? - /)
+  })
+
+  // The validator re-renders with the minimum date read back from the posted body, so the page
+  // has to carry it on a hidden input as the setup and restart date pages do.
+  it('carries the minimum date on a hidden input so an error re-render keeps it', async () => {
+    const html = await render('manage/checkin-settings-date', base)
+    expect(html).toContain('<input type="hidden" name="checkInMinDate" value="1/8/2026">')
+    expect(html).toContain('For example, 17/5/2024. They will get a notification')
+  })
+
+  it('titles the date page error state after its heading', async () => {
+    const html = await render('manage/checkin-settings-date', {
+      ...base,
+      errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
+    })
+    expect(html).toMatch(/<title>\s*Error: When would you like the person/)
+  })
+})
+
+describe('a scheduled setup confirmation', () => {
+  it('offers to add questions when the first check in is in the future', async () => {
+    const html = await render('confirmation', base)
+    expect(html).toContain('data-qa="add-additional-questions"')
+  })
+
+  // Questions close at 23:59 the day before, so a first check in today has nothing to add to.
+  it('hides the questions link when the first check in is today', async () => {
+    const html = await render('confirmation', { ...base, isFutureCheckinDate: false })
+    expect(html).not.toContain('data-qa="add-additional-questions"')
+    expect(html).toContain('data-qa="submit-btn"')
+  })
+})
+
+describe('a scheduled restart confirmation', () => {
+  it('offers to add questions when the next check in is in the future', async () => {
+    const html = await render('manage/restart-confirmation', base)
+    expect(html).toContain('data-qa="add-additional-questions"')
+  })
+
+  // Questions close at 23:59 the day before, so a restart dated today has nothing to add to.
+  it('hides the questions link when the next check in is today', async () => {
+    const html = await render('manage/restart-confirmation', { ...base, isFutureCheckinDate: false })
+    expect(html).not.toContain('data-qa="add-additional-questions"')
+    expect(html).toContain('data-qa="submit-btn"')
+  })
+
+  // The case list and overview live in Manage People on Probation, not this service.
+  it('sends both finishing links to Manage People on Probation', async () => {
+    const mpop = 'https://mpop.example.com'
+    const html = await render('manage/restart-confirmation', { ...base, managePeopleOnProbationUrl: mpop })
+    expect(html).toContain(`href="${mpop}/case/" data-qa="returnToAllCases"`)
+    expect(html).toContain(`href="${mpop}/case/${crn}" class="govuk-button" data-qa="submit-btn"`)
+  })
+})
+
+describe('the manage page settings card', () => {
+  const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+  const scheduled = {
+    ...base,
+    offenderCheckinsByCRNResponse: {
+      status: 'VERIFIED',
+      firstCheckin: '2026-08-01',
+      checkinInterval: 'WEEKLY',
+      contactPreference: 'EMAIL',
+    },
+    checkinFrequency: 'WEEKLY',
+    showChange: true,
+    email: 'bob@example.com',
+    mobile: '07700900000',
+  }
+
+  it.each([
+    ['SCHEDULED', false],
+    ['AD_HOC', true],
+  ])('shows the scheduling button for mode %s: %s', async (mode, visible) => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+    })
+
+    expect(html.includes('data-qa="schedule-check-in-btn"')).toBe(visible)
+  })
+
+  it('shows an unbooked ad-hoc check in without a settings date or stale questions', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+      upcomingCheckin: { questions: [{ question: 'Stale question' }] },
+    })
+
+    expect(html).toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="checkinQuestionsCard"')
+    expect(html).toContain('No online check in scheduled')
+    expect(html).toContain("I'll schedule them one at a time")
+    expect(html).not.toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).not.toContain('Stale question')
+    expect(html).not.toContain('Change questions')
+  })
+
+  it.each(['AD_HOC', 'SCHEDULED'])('shows the upcoming date and questions for a booked %s check in', async mode => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode },
+      checkinFrequency: mode === 'AD_HOC' ? 'AD_HOC' : 'WEEKLY',
+      upcomingCheckin: {
+        expectedCheckinDate: '2026-10-20',
+        questions: [{ question: 'How is work?' }],
+      },
+      canEditQuestions: true,
+    })
+
+    expect(html).not.toContain('data-qa="schedule-check-in-btn"')
+    expect(html).toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).toContain('How is work?')
+    expect(html).toContain('Change questions')
+    expect(html).not.toContain('No online check in scheduled')
+    if (mode === 'AD_HOC') expect(html).toContain("I'll schedule them one at a time")
+  })
+
+  it('lets a scheduled person change their next check in date and their frequency', async () => {
+    const html = await render('manage/manage-checkin', scheduled)
+    // govukSummaryList leaves whitespace between the href and the data attributes.
+    expect(html).toMatch(new RegExp(`href="${managePage}/settings-date"\\s+data-qa="changeDateAction"`))
+    expect(html).toMatch(new RegExp(`href="${managePage}/settings"\\s+data-qa="changeFrequencyAction"`))
+  })
+
+  // An ad-hoc person has no next check in to move: they book one from the schedule page instead.
+  it('offers only the frequency change to an ad-hoc person', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+    })
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  it('offers no changes once check ins are stopped', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, status: 'INACTIVE' },
+      showChange: false,
+    })
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).not.toContain('data-qa="changeFrequencyAction"')
+  })
+})
+
+describe('the settings date page back link', () => {
+  it('goes wherever the controller says, for both Back and Cancel', async () => {
+    const html = await render('manage/checkin-settings-date', { ...base, backLink: '/somewhere' })
+    expect(html.match(/href="\/somewhere"/g)).toHaveLength(2)
+  })
+})
+
+describe('an ad-hoc setup', () => {
+  const adHoc = {
+    ...base,
+    userDetails: {
+      ...(base.userDetails as object),
+      date: undefined as string,
+      displayDay: undefined as string,
+      interval: "I'll schedule them one at a time",
+      isAdHoc: true,
+    },
+    isFutureCheckinDate: false,
+  }
+
+  it('leaves the check-in date off the summary', async () => {
+    const html = await render('checkin-summary', adHoc)
+    expect(html).not.toContain('check-in/check-in-date')
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`)
+  })
+
+  it('shows the date on the summary once for a standard interval', async () => {
+    const html = await render('checkin-summary', base)
+    expect(html.match(/data-qa="dateAction"/g)).toHaveLength(1)
+    expect(html).toContain(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
+  })
+
+  // An ad-hoc setup has no first check-in date, so this explanation cannot hang off one.
+  it('always explains how ad-hoc scheduling works', async () => {
+    const html = await render('confirmation', adHoc)
+    expect(html).toContain('Schedule an online check in</h3>')
+    expect(html).toContain('You can only schedule one online check in at a time.')
+  })
+
+  // The ad-hoc confirmation shows no schedule at all: the practitioner books check ins one at a time.
+  it('offers to schedule a check in instead of showing a start date', async () => {
+    const html = await render('confirmation', adHoc)
+    expect(html).not.toMatch(/Starting/)
+    expect(html).not.toContain('I&#39;ll schedule them one at a time')
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in"`)
+    expect(html).toContain('Schedule a check in')
   })
 })

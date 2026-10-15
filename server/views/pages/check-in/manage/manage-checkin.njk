@@ -5,13 +5,17 @@
 }) %}
 {% set checkinLink = '/case/' + crn + '/appointments/check-in/eligibility-check' %}
 {% set changeDtLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/settings' %}
+{% set changeDateLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/settings-date' %}
 {% set changeQuestionsLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/questions/start' %}
+{% set scheduleCheckInLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/schedule-check-in' %}
 {% set changeContactLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/contact' %}
 {% set stopCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/stop-checkin' %}
 {% set restartCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/restart-checkin' %}
 {% set photoLabel = "Photo of " + case.name.forename %}
 {% set photoUrl = offenderCheckinsByCRNResponse.photoUrl %}
 {% set backLink = '/case/' + crn %}
+{% set isAdHoc = offenderCheckinsByCRNResponse.mode === 'AD_HOC' %}
+{% set hasUpcomingCheckin = upcomingCheckin and upcomingCheckin.expectedCheckinDate %}
 
 {% if offenderCheckinsByCRNResponse.contactPreference === 'EMAIL' %}
     {% set methodLabel = '<span data-qa="methodLabel">Email address</span>' %}
@@ -37,16 +41,23 @@
 {% endblock %}
 
 {% block pageContent %}
+
   {% if offenderCheckinsByCRNResponse.status === 'VERIFIED' %}
           {% set checkinLabel = 'Next check in' %}
-          {% if upcomingCheckin and upcomingCheckin.expectedCheckinDate %}
+                    {% if hasUpcomingCheckin %}
               {% set checkinText = upcomingCheckin.expectedCheckinDate | dateWithYear %}
-          {% else %}
+                    {% elif not isAdHoc %}
               {% set checkinText = offenderCheckinsByCRNResponse.firstCheckin | dateWithYear %}
           {% endif %}
-
-        <div class="moj-button-group__item">
-            <a href="{{ stopCheckinLink }}" class="govuk-button govuk-button--warning govuk-!-margin-left"  data-qa="stop-checkin-btn" >Stop online check ins</a>
+        <div class="moj-button-group">
+                        {% if isAdHoc and not hasUpcomingCheckin %}
+                <div class="moj-button-group__item">
+                    <a href="{{ scheduleCheckInLink }}" class="govuk-button govuk-button--primary govuk-!-margin-left" data-qa="schedule-check-in-btn">Schedule a check in</a>
+                </div>
+            {% endif %}
+            <div class="moj-button-group__item">
+                <a href="{{ stopCheckinLink }}" class="govuk-button govuk-button--warning govuk-!-margin-left"  data-qa="stop-checkin-btn" >Stop online check ins</a>
+            </div>
         </div>
     {% endif %}
     {% if offenderCheckinsByCRNResponse.status === 'INACTIVE' %}
@@ -56,15 +67,15 @@
                 <a href="{{ restartCheckinLink }}" class="govuk-button govuk-!-margin-left"  data-qa="restart-checkin-btn">Restart online check ins</a>
             </div>
     {% endif %}
-        {% set nextCheckinText = upcomingCheckin.expectedCheckinDate | dateWithYear %}
+        {% set nextCheckinText = (upcomingCheckin.expectedCheckinDate | dateWithYear) if hasUpcomingCheckin else 'No online check in scheduled' %}
         {% set rows = [
             {
                 key: { html: '<span data-qa="nextCheckInDueLabel">Next check in</span>' },
                 value: { html: '<span data-qa="nextCheckInValue">' + nextCheckinText + '</span>' }
             }
         ] %}
-        {% if upcomingCheckin %}
-            {% for item in upcomingCheckin.questions %}
+        {% if hasUpcomingCheckin or offenderCheckinsByCRNResponse.status === 'VERIFIED' %}
+            {% for item in upcomingCheckin.questions if hasUpcomingCheckin %}
                     {% set questionNumber = loop.index %}
                     {% set rows = (rows.push({
                         key: { html: '<span data-qa="question' + questionNumber + 'Label">Question ' + questionNumber + '</span>' },
@@ -90,23 +101,41 @@
                             visuallyHiddenText: 'for upcoming check in'
                         }
                     ]
-                } if showChange and canEditQuestions
+                } if hasUpcomingCheckin and showChange and canEditQuestions
             }) }}
         {% endif %}
     {% set checkin %}
     {% set nextCheckin = offenderCheckinsByCRNResponse %}
+    {% set settingsRows = [] %}
+    {% if checkinText %}
+        {% set _ = settingsRows.push({
+            key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
+            value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'},
+            actions: {
+                items: [{
+                    href: changeDateLink,
+                    text: 'Change',
+                    visuallyHiddenText: 'next check in date',
+                    attributes: { 'data-qa': 'changeDateAction' }
+                }]
+            } if showChange and checkinFrequency !== 'AD_HOC'
+        }) %}
+    {% endif %}
+    {% set _ = settingsRows.push({
+        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
+        value: { html: '<span data-qa="frequencyValue">' + (checkinFrequency | userFriendlyString) + '</span>'},
+        actions: {
+            items: [{
+                href: changeDtLink,
+                text: 'Change',
+                visuallyHiddenText: 'how often the person checks in',
+                attributes: { 'data-qa': 'changeFrequencyAction' }
+            }]
+        } if showChange
+    }) %}
     {% set nextCheckinText %}
             {{ govukSummaryList({
-                rows: [
-                    {
-                        key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
-                        value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'}
-                    },
-                    {
-                        key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
-                        value: { html: '<span data-qa="frequencyValue">' + nextCheckin.checkinInterval | userFriendlyString + '</span>'}
-                    }
-                ]
+                rows: settingsRows
             }) }}
     {% endset %}
     {% endset %}
@@ -115,16 +144,7 @@
         headingLevel: 3,
         classes: ['govuk-!-margin-bottom-6 app-summary-card--large-title'],
         attributes: {'data-qa': 'checkinSettingsCard'},
-        html: nextCheckinText,
-        actions: {
-            items: [
-                {
-                    text: 'Change',
-                    href: changeDtLink,
-                    visuallyHiddenText: 'check in settings'
-                }
-            ]
-        } if showChange
+        html: nextCheckinText
     }) }}
 
     {% set contactDetailsText %}

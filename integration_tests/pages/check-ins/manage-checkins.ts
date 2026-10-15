@@ -6,4 +6,14 @@ export default class ManageCheckins extends Page {
   }
 
   getImage = (): PageElement => cy.get('[data-qa="photoCard"] img')
+
+  getUpdateBanner = (): PageElement => cy.get('[data-qa="updateBanner"]')
+
+  getNextCheckInValue = (): PageElement => cy.get('[data-qa="nextCheckInValue"]')
+
+  getFrequencyValue = (): PageElement => cy.get('[data-qa="frequencyValue"]')
+
+  getChangeDateLink = (): PageElement => this.getElementData('changeDateAction')
+
+  getChangeFrequencyLink = (): PageElement => this.getElementData('changeFrequencyAction')
 }

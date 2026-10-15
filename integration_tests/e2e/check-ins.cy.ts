@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon'
 import ManageCheckins from '../pages/check-ins/manage-checkins'
 import AddQuestionsPage from '../pages/check-ins/questions/add-questions'
 import EditQuestionPage from '../pages/check-ins/questions/edit-question'
@@ -7,7 +6,8 @@ import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 import PreviewFeelingPage from '../pages/check-ins/questions/preview/feeling'
 import PreviewSupportPage from '../pages/check-ins/questions/preview/support'
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
-import RestartDateFrequencyPage from '../pages/check-ins/restart/restart-date-frequency.page'
+import RestartCheckinDatePage from '../pages/check-ins/restart/restart-checkin-date.page'
+import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-checkin-frequency.page'
 import RestartEditContactPreferencePage from '../pages/check-ins/restart/restart-edit-contact-preference.page'
 import StopCheckins from '../pages/check-ins/stop-checkins'
 import CheckYourAnswersPage from '../pages/check-ins/check-your-answers'
@@ -15,8 +15,10 @@ import CheckinConfirmationPage from '../pages/check-ins/confirmation.page'
 import ConfirmContactPreferencePage from '../pages/check-ins/confirm-contact-preference'
 import ContactPreferencePage from '../pages/check-ins/contact-preference'
 import AccreditedProgrammeApprovalPage from '../pages/check-ins/accredited-programme-approval'
-import DateFrequencyPage from '../pages/check-ins/date-frequencey'
+import CheckInDatePage from '../pages/check-ins/check-in-date'
+import CheckInFrequencyPage from '../pages/check-ins/check-in-frequency'
 import EditContactPreferencePage from '../pages/check-ins/edit-contact-preference'
+import ScheduleCheckinPage from '../pages/check-ins/schedule-checkin.page'
 import EligibilityCheckPage from '../pages/check-ins/eligibility/eligibility-check'
 import TiersABEligibilityCheckPage from '../pages/check-ins/eligibility/tiers-a-b-eligibility-check'
 import PilotCheckPage from '../pages/check-ins/eligibility/pilot-check'
@@ -36,7 +38,7 @@ import { getCheckinUuid } from '../utils/common'
 // the tier band the eligibility rules will apply. See wiremock/mappings/eSupervisionAPI.json.
 //
 // X000001 is the primary case, with the full fixture the downstream specs assert against, and
-// the stub's default tier is D1 so that it lands in D-G - the band that reaches date-frequency
+// the stub's default tier is D1 so that it lands in D-G - the band that reaches the check-in frequency page
 // in the fewest steps.
 const CRN_TIER_AB = 'X000004'
 const CRN_TIER_C = 'X000002'
@@ -76,7 +78,7 @@ const loadPage = (crn: string = CRN_TIER_DG, failOnStatusCode = true) => {
 }
 
 // Every setup spec starts here: the eligibility check is the wizard's opening page, and the only
-// way through to rationale, date-frequency and beyond.
+// way through to rationale, check-in frequency and beyond.
 const startSetup = (crn: string = CRN_TIER_DG) => {
   loadPage(crn)
   return new EligibilityCheckPage()
@@ -91,7 +93,7 @@ const startSetupTiersAB = (crn: string = CRN_TIER_AB) => {
 }
 
 // Tiers D-G are eligible on the ESUP supervision-package answer alone and go straight from
-// is-eligible to date-frequency - the shortest route to the pages that follow eligibility.
+// is-eligible to check-in frequency - the shortest route to the pages that follow eligibility.
 // "None of these apply" is how an eligible person is submitted now that every other box is a
 // disqualifier; validation still requires an answer.
 const completeEligibilityCheck = () => {
@@ -123,6 +125,19 @@ const passEligibilityCheckToRationale = () => {
   const approvalPage = new AccreditedProgrammeApprovalPage()
   approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
   approvalPage.getSubmitBtn().click()
+}
+
+// Answers the frequency and first check-in date questions with a weekly interval, landing on the
+// contact preference page.
+const completeFrequencyAndDate = () => {
+  const frequencyPage = new CheckInFrequencyPage()
+  frequencyPage.checkOnPage()
+  frequencyPage.selectFrequency(0)
+  frequencyPage.getSubmitBtn().click()
+  const datePage = new CheckInDatePage()
+  datePage.checkOnPage()
+  datePage.enterDateInTwoDays()
+  datePage.getSubmitBtn().click()
 }
 
 const confirmContactPreference = () => {
@@ -163,7 +178,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.confirmDiscussion({ accreditedProgramme: true })
       isEligiblePage.getSubmitBtn().click()
 
-      // Only this cohort passes through approval and rationale on the way to date-frequency.
+      // Only this cohort passes through approval and rationale on the way to check-in frequency.
       const approvalPage = new AccreditedProgrammeApprovalPage()
       approvalPage.getCheckboxField('accreditedProgrammeApproval').click()
       approvalPage.getSubmitBtn().click()
@@ -172,7 +187,7 @@ context('Appointment check-ins', () => {
       rationalePage.rationaleNotes().find('textarea').type('On an accredited programme')
       rationalePage.getSubmitBtn().click()
 
-      new DateFrequencyPage().checkOnPage()
+      new CheckInFrequencyPage().checkOnPage()
     })
 
     // The accredited programme is the A/B route that skips the pilot question; without it the
@@ -190,7 +205,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.confirmDiscussion()
       isEligiblePage.getSubmitBtn().click()
 
-      new DateFrequencyPage().checkOnPage()
+      new CheckInFrequencyPage().checkOnPage()
     })
 
     // Early engagement comes from the ESUP API rather than a box, but it is still decided on the
@@ -268,7 +283,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.getSubmitBtn().click()
 
       // Outside the accredited programme cohort there is no approval or rationale step.
-      new DateFrequencyPage().checkOnPage()
+      new CheckInFrequencyPage().checkOnPage()
     })
 
     // Tier A/B reaching the pilot question are off the programme branch too, so both facts that
@@ -327,7 +342,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.confirmDiscussion()
       isEligiblePage.getSubmitBtn().click()
 
-      new DateFrequencyPage().checkOnPage()
+      new CheckInFrequencyPage().checkOnPage()
     })
 
     it('rules the person out with the tier C pilot reason', () => {
@@ -354,7 +369,7 @@ context('Appointment check-ins', () => {
       isEligiblePage.confirmDiscussion()
       isEligiblePage.getSubmitBtn().click()
 
-      new DateFrequencyPage().checkOnPage()
+      new CheckInFrequencyPage().checkOnPage()
     })
 
     // The accredited programme route is a Tier A/B rule, so the box is not offered here either.
@@ -652,8 +667,7 @@ context('Appointment check-ins', () => {
     const rationalePage = new RationalePage()
     rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
     rationalePage.getSubmitBtn().click()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
+    new CheckInFrequencyPage().checkOnPage()
   })
 
   it('rationale page should fail with validation errors', () => {
@@ -666,59 +680,53 @@ context('Appointment check-ins', () => {
 
   it('check-in frequency page should fail with validation errors', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    dateFrequencyPage.getSubmitBtn().click()
-    dateFrequencyPage.checkErrorSummaryBox([
-      'Enter the date you would like the person to complete their first check in',
-      'Select how often you would like the person to check in',
-    ])
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.getSubmitBtn().click()
+    frequencyPage.checkErrorSummaryBox(['Select how often you would like the person to check in'])
 
     getCheckinUuid().then(uuid => {
-      dateFrequencyPage.getElement(`#esupervision-X000001-${uuid}-checkins-date-error`).should($error => {
+      frequencyPage.getElement(`#esupervision-X000001-${uuid}-checkins-interval-error`).should($error => {
+        expect($error.text().trim()).to.include('Select how often you would like the person to check in')
+      })
+    })
+  })
+
+  it('check-in date page should fail with validation errors', () => {
+    passEligibilityCheck()
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(0)
+    frequencyPage.getSubmitBtn().click()
+    const datePage = new CheckInDatePage()
+    datePage.checkOnPage()
+    datePage.getSubmitBtn().click()
+    datePage.checkErrorSummaryBox(['Enter the date you would like the person to complete their first check in'])
+
+    getCheckinUuid().then(uuid => {
+      datePage.getElement(`#esupervision-X000001-${uuid}-checkins-date-error`).should($error => {
         expect($error.text().trim()).to.include(
           'Enter the date you would like the person to complete their first check in',
         )
-      })
-      dateFrequencyPage.getElement(`#esupervision-X000001-${uuid}-checkins-interval-error`).should($error => {
-        expect($error.text().trim()).to.include('Select how often you would like the person to check in')
       })
     })
   })
 
   it('should be able to submit check-in frequency details', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
   })
 
   it('contact preference page should fail with validation errors', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage.getSubmitBtn().click()
     getCheckinUuid().then(uuid => {
-      dateFrequencyPage.getElement(`#esupervision-X000001-${uuid}-checkins-preferredComs-error`).should($error => {
+      contactPreferencePage.getElement(`#esupervision-X000001-${uuid}-checkins-preferredComs-error`).should($error => {
         expect($error.text().trim()).to.include('Select how the person wants us to send a link to the service')
       })
     })
@@ -726,16 +734,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to submit contact preference details', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -753,16 +752,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to edit contact preference details', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -781,16 +771,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to choose photo options', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -817,16 +798,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to upload a pic and show rules page', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -857,16 +829,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to show cya and confirm page', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -901,16 +864,7 @@ context('Appointment check-ins', () => {
 
   it('should be able to take a photo and show cya and confirm page', () => {
     passEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -949,16 +903,7 @@ context('Appointment check-ins', () => {
     const rationalePage = new RationalePage()
     rationalePage.rationaleNotes().find('textarea').type('Low risk of reoffending')
     rationalePage.getSubmitBtn().click()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -1004,17 +949,24 @@ context('Appointment check-ins', () => {
 
     // Date change
     checkYourAnswersPage.getElementData('dateAction').click()
-    dateFrequencyPage.checkOnPage()
-    dateFrequencyPage.getSubmitBtn().click()
+    const datePage = new CheckInDatePage()
+    datePage.checkOnPage()
+    datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
+
+    // Frequency change: a standard interval still needs a first check-in date, so the date page is
+    // shown again (pre-filled) on the way back to the summary.
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')
       .find('.govuk-summary-list__value')
       .should('contain.text', 'Every week')
     checkYourAnswersPage.getElementData('intervalAction').click()
-    dateFrequencyPage.checkOnPage()
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(2).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(2)
+    frequencyPage.getSubmitBtn().click()
+    datePage.checkOnPage()
+    datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')
@@ -1082,16 +1034,7 @@ context('check-ins error scenario ', () => {
     loadPage()
     cy.task('stubUpdatePersonalContact404Response')
     completeEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -1112,16 +1055,7 @@ context('check-ins error scenario ', () => {
     loadPage()
     cy.task('stubUpdatePersonalContact500Response')
     completeEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -1142,16 +1076,7 @@ context('check-ins error scenario ', () => {
     loadPage()
     cy.task('stubOffenderSetup422Response')
     completeEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -1192,16 +1117,7 @@ context('check-ins error scenario ', () => {
     loadPage()
     cy.task('stubOffenderSetup500Response')
     completeEligibilityCheck()
-    const dateFrequencyPage = new DateFrequencyPage()
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
     contactPreferencePage
@@ -1238,18 +1154,7 @@ context('check-ins error scenario ', () => {
     cy.task('stubOffenderSetupComplete500Response')
     completeEligibilityCheck()
 
-    const dateFrequencyPage = new DateFrequencyPage()
-
-    dateFrequencyPage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    dateFrequencyPage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    dateFrequencyPage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
-    dateFrequencyPage.getSubmitBtn().click()
-
+    completeFrequencyAndDate()
     const contactPreferencePage = new ContactPreferencePage()
     contactPreferencePage.checkOnPage()
 
@@ -1328,15 +1233,14 @@ context('check-ins overview and manage pages', () => {
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
     cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-checkin`)
-    const restartDatePage = new RestartDateFrequencyPage()
+    const restartFrequencyPage = new RestartCheckinFrequencyPage()
+    restartFrequencyPage.checkOnPage()
+    restartFrequencyPage.selectFrequency(0)
+    restartFrequencyPage.getSubmitBtn().click()
+
+    const restartDatePage = new RestartCheckinDatePage()
     restartDatePage.checkOnPage()
-    const now = DateTime.now()
-    const future = now.plus({ days: 2 })
-    restartDatePage
-      .getDatePickerInput()
-      .clear()
-      .type(`${future.toFormat('d/M/yyyy')}`)
-    restartDatePage.getFrequency().find('.govuk-radios__item').eq(0).find('.govuk-radios__input').click()
+    restartDatePage.enterDateInTwoDays()
     restartDatePage.getSubmitBtn().click()
 
     const restartContactPage = new RestartContactPreferencePage()
@@ -1545,5 +1449,117 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionInList('at home')
     addQuestionsPage.verifyQuestionInList('your physical health')
     addQuestionsPage.verifyAddQuestionButtonHidden()
+  })
+})
+
+// Ad-hoc is the frequency radio for a person whose check ins the practitioner books one at a
+// time. It schedules no first check in, so the date page is skipped and nothing dated is shown.
+context('ad-hoc check-ins setup', () => {
+  const AD_HOC_OPTION = 4
+
+  const chooseAdHoc = () => {
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(AD_HOC_OPTION)
+    frequencyPage.getSubmitBtn().click()
+  }
+
+  // Contact preference through to check your answers, uploading a photo.
+  const completeContactAndPhoto = () => {
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage
+      .getCheckInPreferredComs()
+      .find('.govuk-radios__item')
+      .eq(0)
+      .find('.govuk-radios__input')
+      .click()
+    contactPreferencePage.getSubmitBtn().click()
+    confirmContactPreference()
+    const takeAPhotoOptionsPage = new TakeAPhotoOptionsPage()
+    takeAPhotoOptionsPage.checkOnPage()
+    takeAPhotoOptionsPage.getPhotoOptions().find('.govuk-radios__item').eq(1).find('.govuk-radios__input').click()
+    takeAPhotoOptionsPage.getSubmitBtn().click()
+    const uploadAPhoto = new UploadAPhotoPage()
+    uploadAPhoto.checkOnPage()
+    uploadAPhoto.uploadPhoto('person.jpg')
+    uploadAPhoto.continueButton().click()
+    const photoRules = new PhotoRulesPage()
+    photoRules.checkOnPage()
+    photoRules.getSubmitBtn().click()
+    const checkYourAnswersPage = new CheckYourAnswersPage()
+    checkYourAnswersPage.checkOnPage()
+    return checkYourAnswersPage
+  }
+
+  it('skips the date page and goes straight to contact preference', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getBackLink().should('have.attr', 'href').and('include', '/check-in/check-in-frequency')
+  })
+
+  // The validator re-renders the page itself, so it has to know the setup is ad-hoc too.
+  it('keeps the back link on the frequency page when contact preference fails validation', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getSubmitBtn().click()
+    contactPreferencePage.checkErrorSummaryBox(['Select how the person wants us to send a link to the service'])
+    contactPreferencePage.getBackLink().should('have.attr', 'href').and('include', '/check-in/check-in-frequency')
+  })
+
+  it('leaves the date off check your answers and confirms with a call to schedule a check in', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const checkYourAnswersPage = completeContactAndPhoto()
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', "I'll schedule them one at a time")
+    cy.get('[data-qa="dateAction"]').should('not.exist')
+
+    // Completing setup creates the offender record the confirmation page links through to.
+    cy.task('stubGetAdHocOffenderByCRN', CRN_TIER_DG)
+    checkYourAnswersPage.getSubmitBtn().click()
+    const confirmationPage = new CheckinConfirmationPage()
+    confirmationPage.checkOnPage()
+    confirmationPage.getPanel().should('not.contain.text', 'Starting')
+    confirmationPage.getWhatHappensNext().should('contain.text', 'You can only schedule one online check in at a time.')
+    cy.contains('a', 'Schedule a check in').click()
+    const schedulePage = new ScheduleCheckinPage()
+    schedulePage.checkOnPage()
+    schedulePage.getDatePickerInput().should('be.visible')
+  })
+
+  it('asks for a date when a change of answer moves to an interval, and drops it on moving back', () => {
+    passEligibilityCheck()
+    chooseAdHoc()
+    const checkYourAnswersPage = completeContactAndPhoto()
+
+    checkYourAnswersPage.getElementData('intervalAction').click()
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(0)
+    frequencyPage.getSubmitBtn().click()
+    const datePage = new CheckInDatePage()
+    datePage.checkOnPage()
+    datePage.enterDateInTwoDays()
+    datePage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage
+      .getSummaryListRowByAction('intervalAction')
+      .find('.govuk-summary-list__value')
+      .should('contain.text', 'Every week')
+    cy.get('[data-qa="dateAction"]').should('exist')
+
+    checkYourAnswersPage.getElementData('intervalAction').click()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(AD_HOC_OPTION)
+    frequencyPage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    cy.get('[data-qa="dateAction"]').should('not.exist')
   })
 })
