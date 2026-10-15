@@ -52,7 +52,6 @@ const buildRequest = () =>
                 date: '1/8/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
-                eligibilityChoice: [],
                 rationale: 'Stable and low risk',
               },
               setupStartedAt: startedAt,
@@ -106,16 +105,13 @@ describe('postCheckInDetails', () => {
   })
 
   it.each([
-    [['none'], { accreditedProgramme: false, recalled: false, deviceRestriction: false, youthSentence: false }],
-    [
-      'accreditedProgramme',
-      { accreditedProgramme: true, recalled: false, deviceRestriction: false, youthSentence: false },
-    ],
+    [['none'], { accreditedProgramme: false, deviceRestriction: false, youthSentence: false }],
+    ['accreditedProgramme', { accreditedProgramme: true, deviceRestriction: false, youthSentence: false }],
     [
       ['accreditedProgramme', 'youthSentence'],
-      { accreditedProgramme: true, recalled: false, deviceRestriction: false, youthSentence: true },
+      { accreditedProgramme: true, deviceRestriction: false, youthSentence: true },
     ],
-    [undefined, { accreditedProgramme: false, recalled: false, deviceRestriction: false, youthSentence: false }],
+    [undefined, { accreditedProgramme: false, deviceRestriction: false, youthSentence: false }],
   ])('sends the eligibility answers for %p', async (eligibility, eligibilityAnswers) => {
     const req = buildRequest()
     req.session.data.esupervision[crn][id].checkins.eligibility = eligibility

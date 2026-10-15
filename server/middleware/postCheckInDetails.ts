@@ -4,7 +4,7 @@ import { Route } from '../@types'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { OffenderInfo, OffenderSetup, UploadLocationResponse } from '../data/model/esupervision'
 import { ProbationPractitioner } from '../data/model/personalDetails'
-import { toSelections } from '../utils/eligibilityRules'
+import { eligibilityAnswersFromSelections } from '../utils/eligibilityRules'
 import logger from '../../logger'
 import { toApiSchedule } from '../utils/checkinSchedule'
 
@@ -34,8 +34,6 @@ export const postCheckInDetails = (
 
     const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
-    const selections = toSelections(savedUserDetails?.eligibility)
-
     const data: OffenderInfo = {
       setupUuid: id,
       practitionerId,
@@ -48,14 +46,8 @@ export const postCheckInDetails = (
       // which would record a setup time of zero.
       startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
       contactPreference: savedUserDetails.preferredComs,
-      eligibilityChoice: savedUserDetails.eligibilityChoice,
       rationale: savedUserDetails.rationale,
-      eligibilityAnswers: {
-        accreditedProgramme: selections.includes('accreditedProgramme'),
-        recalled: selections.includes('recalled'),
-        deviceRestriction: selections.includes('deviceRestriction'),
-        youthSentence: selections.includes('youthSentence'),
-      },
+      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility),
     }
     logger.info('Checkin Registration started')
     try {

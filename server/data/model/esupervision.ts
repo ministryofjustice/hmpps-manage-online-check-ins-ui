@@ -77,12 +77,16 @@ export interface OffenderSetup {
 // To send to the ESUP API so it can store practitioner's checkbox results
 export interface EligibilityAnswers {
   accreditedProgramme: boolean
-  recalled: boolean
   deviceRestriction: boolean
   youthSentence: boolean
 }
 
-export interface OffenderInfo {
+export interface OffenderSetupAnswers {
+  rationale?: string
+  eligibilityAnswers: EligibilityAnswers
+}
+
+export interface OffenderInfo extends OffenderSetupAnswers {
   setupUuid: string
   practitionerId: string
   crn: string
@@ -93,9 +97,6 @@ export interface OffenderInfo {
   mode?: CheckinMode
   contactPreference: string
   startedAt?: string
-  eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
-  rationale?: string
-  eligibilityAnswers: EligibilityAnswers
 }
 
 export interface LocationInfo {
