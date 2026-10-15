@@ -31,7 +31,7 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
-  eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
+  tierBand?: 'AB' | 'C' | 'DG'
   eligibilitySPOApproval?: any
   rationale?: string
 }
