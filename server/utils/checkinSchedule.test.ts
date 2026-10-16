@@ -40,6 +40,9 @@ describe('utils/checkinSchedule', () => {
     it('should land on today when today is a check in day', () => {
       expect(nextScheduledDay('2026-10-02', 'TWO_WEEKS', today)).toEqual('2026-10-16')
     })
+    it('should skip a check in day that falls on the lower bound when asked for the day after', () => {
+      expect(nextScheduledDay('2026-10-02', 'TWO_WEEKS', today.plus({ days: 1 }))).toEqual('2026-10-30')
+    })
     it('should count whole days across a clock change', () => {
       // British Summer Time ended on 25 October 2026.
       expect(nextScheduledDay('2026-10-19', 'WEEKLY', DateTime.fromISO('2026-11-02'))).toEqual('2026-11-02')

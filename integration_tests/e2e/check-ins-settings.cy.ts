@@ -104,7 +104,8 @@ context('check in settings for a scheduled person', () => {
   it('saves a change of frequency from the saved schedule when no check in is booked yet', () => {
     cy.task('stubNoUpcomingCheckin')
     const start = DateTime.fromISO('2025-11-03')
-    const weeksSince = Math.ceil(Math.round(DateTime.now().startOf('day').diff(start, 'days').days) / 7)
+    // The first weekly repeat strictly after today: today's own check in, if any, is already done.
+    const weeksSince = Math.floor(Math.round(DateTime.now().startOf('day').diff(start, 'days').days) / 7) + 1
     const nextWeeklyDay = start.plus({ weeks: weeksSince })
 
     const managePageBefore = openManagePage()
@@ -198,11 +199,16 @@ context('check in settings for an ad-hoc person', () => {
     })
   })
 
-  it('offers no change of date once the booked check in is due today', () => {
+  it('offers no change of date once the booked check in is due today, and refuses a direct visit', () => {
     cy.task('stubGetUpcomingCheckinQuestions', 0)
     const manageCheckins = openManagePage()
     manageCheckins.getChangeDateLink().should('not.exist')
     cy.get('[data-qa="schedule-check-in-btn"]').should('not.exist')
+
+    // Nothing can be booked over the active check in, so the schedule page sends them straight back.
+    cy.visit(`${manageById}/schedule-check-in`)
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', manageById)
   })
 
   // An ad-hoc person has no schedule to carry forward, so this is the one change that asks for a date.

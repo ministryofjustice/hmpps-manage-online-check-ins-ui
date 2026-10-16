@@ -143,20 +143,20 @@ const nextScheduledCheckinDate = async (
   if (fromApiSchedule(record) === 'AD_HOC') return undefined
   if (savedDate) return savedDate
   // A scheduled person's saved date is where their schedule started, which may be long past. The
-  // schedule repeats from it every interval, so their next check in is the first repeat from today.
-  return nextScheduledDay(record?.firstCheckin, record?.checkinInterval)
+  // schedule repeats from it every interval, so their next check in is its first repeat after today.
+  // Today itself is skipped: with nothing upcoming, a check in due today has already been dealt
+  // with, and the API would otherwise be told to run the new schedule from today.
+  return nextScheduledDay(record?.firstCheckin, record?.checkinInterval, DateTime.now().plus({ days: 1 }))
 }
 
-// The date of an ad-hoc person's booked check in, while it is still to come. Booking again is how
-// that check in is moved; once it is active (due today) the API refuses, so there is nothing to move.
-const bookedAdHocCheckinDate = async (
-  hmppsAuthClient: HmppsAuthClient,
-  res: Response,
-  crn: string,
-): Promise<string | undefined> => {
-  const bookedDate = await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
-  const isStillToCome = !!bookedDate && DateTime.fromISO(bookedDate).startOf('day') > DateTime.now().startOf('day')
-  return isStillToCome ? bookedDate : undefined
+// An ad-hoc person's booking, if any. Booking again is how a booked check in is moved, but once it
+// is active (due today) the API refuses any change, so the schedule page has nothing to offer.
+type AdHocBooking = { state: 'none' } | { state: 'active' } | { state: 'booked'; date: string }
+const adHocBooking = async (hmppsAuthClient: HmppsAuthClient, res: Response, crn: string): Promise<AdHocBooking> => {
+  const date = await nextScheduledCheckinDate(hmppsAuthClient, res, crn)
+  if (!date) return { state: 'none' }
+  const isStillToCome = DateTime.fromISO(date).startOf('day') > DateTime.now().startOf('day')
+  return isStillToCome ? { state: 'booked', date } : { state: 'active' }
 }
 
 // Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
@@ -1381,13 +1381,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const canEditQuestions = checkinDate ? today < checkinDate : false
       const showChange = checkinRes?.status === 'VERIFIED'
       // The settings card shows the upcoming check in or, for a scheduled person with none booked
-      // yet, the next day their saved schedule falls on - the saved first date itself may be long
-      // past. That date can only be moved while the check in is still to come: once it is active
+      // yet, the next day their saved schedule falls on after today - the saved first date itself
+      // may be long past, and a check in due today with nothing upcoming has already been dealt
+      // with. That date can only be moved while the check in is still to come: once it is active
       // (due today) or past there is nothing to move, and the API refuses the change.
       const isAdHoc = fromApiSchedule(checkinRes) === 'AD_HOC'
       const nextCheckinDate =
         upcomingCheckin?.expectedCheckinDate ??
-        (isAdHoc ? undefined : nextScheduledDay(checkinRes?.firstCheckin, checkinRes?.checkinInterval))
+        (isAdHoc
+          ? undefined
+          : nextScheduledDay(checkinRes?.firstCheckin, checkinRes?.checkinInterval, DateTime.now().plus({ days: 1 })))
       const nextCheckinDay = DateTime.fromISO(nextCheckinDate ?? '')
       const canChangeDate =
         showChange && nextCheckinDay.isValid && nextCheckinDay.startOf('day') > DateTime.now().startOf('day')
@@ -2652,10 +2655,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const scheduleCheckIn = ['esupervision', crn, id, 'scheduleCheckIn']
+      const booking = await adHocBooking(hmppsAuthClient, res, crn)
+      if (booking.state === 'active') {
+        // Today's check in is under way: it cannot be moved, and nothing can be booked over it.
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
       // Record the booking being moved, if any, so the validator can insist on a date after today:
       // a check in moved to today would become active at once. Start the picker on the date being
       // moved, in the form's d/M/yyyy, replacing anything an earlier visit left in the session.
-      const bookedDate = await bookedAdHocCheckinDate(hmppsAuthClient, res, crn)
+      const bookedDate = booking.state === 'booked' ? booking.date : undefined
       setDataValue(req.session.data, [...scheduleCheckIn, 'bookedDate'], bookedDate)
       if (bookedDate) {
         setDataValue(req.session.data, [...scheduleCheckIn, 'date'], DateTime.fromISO(bookedDate).toFormat('d/M/yyyy'))
@@ -2679,14 +2687,37 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
       // A new booking goes on to choose questions. Moving a check in that is already booked only
       // changes its date: the API keeps the questions assigned to it, so save straight away.
-      const bookedDate = await bookedAdHocCheckinDate(hmppsAuthClient, res, crn)
-      if (!bookedDate) {
+      const booking = await adHocBooking(hmppsAuthClient, res, crn)
+      if (booking.state === 'active') {
+        return res.redirect(managePage)
+      }
+      if (booking.state === 'none') {
         return res.redirect(`${managePage}/schedule-check-in/questions/add`)
       }
-      const date = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'date'])
+      // The validator applied the move's stricter date rule from the booking recorded when the page
+      // was shown. The booking is checked again here, so if the two disagree (another tab, a session
+      // from before the page was opened) the error is shown here instead of a silent redirect.
+      const scheduleCheckIn = ['esupervision', crn, id, 'scheduleCheckIn']
+      const date = getDataValue(data, [...scheduleCheckIn, 'date'])
       const parsedDate = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
-      if (!parsedDate.isValid || parsedDate.startOf('day') <= DateTime.now().startOf('day')) {
-        return res.redirect(`${managePage}/schedule-check-in`)
+      let dateError: string | undefined
+      if (!parsedDate.isValid) {
+        dateError = 'Enter a date in the correct format, for example 17/5/2024'
+      } else if (parsedDate.startOf('day') <= DateTime.now().startOf('day')) {
+        dateError = 'The next online check in date must be in the future'
+      }
+      if (dateError) {
+        setDataValue(data, [...scheduleCheckIn, 'bookedDate'], booking.date)
+        const errorMessages = { [`esupervision-${crn}-${id}-scheduleCheckIn-date`]: dateError }
+        res.locals.errorMessages = errorMessages
+        return res.render('pages/check-in/schedule-check-in/date.njk', {
+          errorMessages,
+          crn,
+          id,
+          case: res.locals.offenderCheckinsByCRNResponse?.details,
+          checkInMinDate: getMinDate(1),
+          data,
+        })
       }
       const { username } = res.locals.user
       try {

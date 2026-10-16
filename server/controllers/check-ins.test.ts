@@ -254,11 +254,12 @@ describe('checkInsController', () => {
         expect(canChangeDate()).toBe(true)
       })
 
-      it('refuses the change when the saved schedule falls on today', async () => {
+      // With nothing upcoming, a check in due today has already been dealt with, so the card moves on.
+      it('skips today when the saved schedule falls on it and nothing is upcoming', async () => {
         res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, firstCheckin: daysFromToday(-7) }
         await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
-        expect(rendered().nextCheckinDate).toBe(today)
-        expect(canChangeDate()).toBe(false)
+        expect(rendered().nextCheckinDate).toBe(daysFromToday(7))
+        expect(canChangeDate()).toBe(true)
       })
 
       // An ad-hoc person's saved date is the booking just made or a past one, never a future schedule.
@@ -508,7 +509,8 @@ describe('checkInsController', () => {
       jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions').mockRejectedValueOnce(noUpcomingCheckin())
       res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, firstCheckin: '2020-01-01' }
       const today = DateTime.now().startOf('day')
-      const weeksSince = Math.ceil(Math.round(today.diff(DateTime.fromISO('2020-01-01'), 'days').days) / 7)
+      // The first weekly repeat strictly after today: today's own check in, if any, is already done.
+      const weeksSince = Math.floor(Math.round(today.diff(DateTime.fromISO('2020-01-01'), 'days').days) / 7) + 1
       const nextWeeklyDay = DateTime.fromISO('2020-01-01').plus({ weeks: weeksSince }).toISODate()
 
       await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('TWO_WEEKS'), res)
@@ -609,7 +611,7 @@ describe('checkInsController', () => {
 
       expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, ['esupervision', crn, uuid, 'manageCheckin'], {
         interval: 'WEEKLY',
-        date: DateTime.now().toFormat('d/M/yyyy'),
+        date: DateTime.now().plus({ weeks: 1 }).toFormat('d/M/yyyy'),
       })
       expect(renderSpy).toHaveBeenCalled()
     })
@@ -2392,15 +2394,15 @@ describe('checkInsController', () => {
         expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, datePath, '5/1/2099')
       })
 
-      // A check in due today is active, so there is nothing to move: a visit here is a new booking.
-      it('treats a check in due today as not booked', async () => {
+      // A check in due today is active: it cannot be moved, and nothing can be booked over it.
+      it('sends the practitioner back to the manage page while a check in is active today', async () => {
         bookedFor(DateTime.now().toISODate())
-        const req = baseReq({})
 
-        await controllers.checkIns.getScheduleCheckInDate(hmppsAuthClient)(req, res)
+        await controllers.checkIns.getScheduleCheckInDate(hmppsAuthClient)(baseReq({}), res)
 
-        expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, bookedDatePath, undefined)
-        expect(mockSetDataValue).not.toHaveBeenCalledWith(expect.anything(), datePath, expect.anything())
+        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+        expect(renderSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).not.toHaveBeenCalled()
       })
 
       it('returns 404 when offender details are missing', async () => {
@@ -2456,8 +2458,8 @@ describe('checkInsController', () => {
         expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
       })
 
-      // A check in due today is active, so there is nothing to move: treat the date as a new booking.
-      it('treats a check in due today as not booked', async () => {
+      // A check in due today is active: it cannot be moved, and nothing can be booked over it.
+      it('sends the practitioner back to the manage page while a check in is active today', async () => {
         bookedFor(DateTime.now().toISODate())
 
         await controllers.checkIns.postScheduleCheckInDate(hmppsAuthClient)(
@@ -2465,17 +2467,52 @@ describe('checkInsController', () => {
           res,
         )
 
-        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
         expect(postScheduleAdHocCheckinSpy).not.toHaveBeenCalled()
       })
 
-      it('asks for the date again when the one in session cannot be parsed', async () => {
+      // The validator only knows about the booking from the session; if that is missing or stale a
+      // date of today gets through, so the handler shows the same error rather than redirecting.
+      it('shows the future-date error itself when a booked check in would be moved to today', async () => {
+        bookedFor('2099-01-05')
+        const req = baseReq(sessionWith({ date: DateTime.now().toFormat('d/M/yyyy') }))
+
+        await controllers.checkIns.postScheduleCheckInDate(hmppsAuthClient)(req, res)
+
+        expect(postScheduleAdHocCheckinSpy).not.toHaveBeenCalled()
+        expect(redirectSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'bookedDate'],
+          '2099-01-05',
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/date.njk',
+          expect.objectContaining({
+            errorMessages: {
+              [`esupervision-${crn}-${uuid}-scheduleCheckIn-date`]:
+                'The next online check in date must be in the future',
+            },
+            case: offenderCheckinsByCRNResponse.details,
+          }),
+        )
+      })
+
+      it('shows the format error itself when the date in session cannot be parsed', async () => {
         bookedFor('2099-01-05')
 
         await controllers.checkIns.postScheduleCheckInDate(hmppsAuthClient)(baseReq(sessionWith({ date: 'soon' })), res)
 
-        expect(redirectSpy).toHaveBeenCalledWith(scheduleUrl)
         expect(postScheduleAdHocCheckinSpy).not.toHaveBeenCalled()
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/date.njk',
+          expect.objectContaining({
+            errorMessages: {
+              [`esupervision-${crn}-${uuid}-scheduleCheckIn-date`]:
+                'Enter a date in the correct format, for example 17/5/2024',
+            },
+          }),
+        )
       })
 
       it('renders the API error and keeps the date when the move fails', async () => {

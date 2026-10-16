@@ -17,18 +17,18 @@ export const fromApiSchedule = (
 
 const intervalDays: Record<CheckInterval, number> = { WEEKLY: 7, TWO_WEEKS: 14, FOUR_WEEKS: 28, EIGHT_WEEKS: 56 }
 
-// The next day a scheduled person's check in falls on, today or later, as an ISO date. The API runs
-// the schedule from firstCheckin and repeats it every interval, so this is the first repeat on or
-// after today. Undefined when there is no usable date or interval to repeat.
+// The next day a scheduled person's check in falls on, as an ISO date. The API runs the schedule
+// from firstCheckin and repeats it every interval, so this is the first repeat on or after notBefore,
+// which defaults to today. Undefined when there is no usable date or interval to repeat.
 export const nextScheduledDay = (
   firstCheckin?: string | null,
   interval?: CheckInterval | null,
-  today: DateTime = DateTime.now(),
+  notBefore: DateTime = DateTime.now(),
 ): string | undefined => {
   const start = DateTime.fromISO(firstCheckin ?? '').startOf('day')
   const days = interval ? intervalDays[interval] : undefined
   if (!start.isValid || !days) return undefined
-  const from = today.startOf('day')
+  const from = notBefore.startOf('day')
   if (start >= from) return start.toISODate()
   // Rounded so a clock change between the two dates cannot push the day count past a whole number.
   const elapsedDays = Math.round(from.diff(start, 'days').days)
