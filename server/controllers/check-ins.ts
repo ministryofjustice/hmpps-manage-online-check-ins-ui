@@ -2654,7 +2654,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const scheduleCheckIn = ['esupervision', crn, id, 'scheduleCheckIn']
       // Record the booking being moved, if any, so the validator can insist on a date after today:
       // a check in moved to today would become active at once. Start the picker on the date being
-      // moved, in the form's d/M/yyyy, unless one has already been typed in this journey.
+      // moved, in the form's d/M/yyyy, replacing anything an earlier visit left in the session.
       const bookedDate = await bookedAdHocCheckinDate(hmppsAuthClient, res, crn)
       setDataValue(req.session.data, [...scheduleCheckIn, 'bookedDate'], bookedDate)
       if (bookedDate) {

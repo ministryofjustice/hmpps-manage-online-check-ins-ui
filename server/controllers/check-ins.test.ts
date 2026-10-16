@@ -2381,14 +2381,15 @@ describe('checkInsController', () => {
         )
       })
 
-      it('keeps a date already entered in this journey', async () => {
+      // Each visit starts from the live booking, so a date left behind by an abandoned visit is not shown.
+      it('replaces a date left in the session by an earlier visit with the booked date', async () => {
         bookedFor('2099-01-05')
         const req = baseReq(sessionWith({ date: '7/2/2099' }))
 
         await controllers.checkIns.getScheduleCheckInDate(hmppsAuthClient)(req, res)
 
         expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, bookedDatePath, '2099-01-05')
-        expect(mockSetDataValue).not.toHaveBeenCalledWith(expect.anything(), datePath, expect.anything())
+        expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, datePath, '5/1/2099')
       })
 
       // A check in due today is active, so there is nothing to move: a visit here is a new booking.
