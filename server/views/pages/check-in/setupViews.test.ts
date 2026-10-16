@@ -441,7 +441,9 @@ describe('the manage page settings card', () => {
       contactPreference: 'EMAIL',
     },
     checkinFrequency: 'WEEKLY',
+    nextCheckinDate: '2026-10-20',
     showChange: true,
+    canChangeDate: true,
     email: 'bob@example.com',
     mobile: '07700900000',
   }
@@ -463,6 +465,7 @@ describe('the manage page settings card', () => {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
       checkinFrequency: 'AD_HOC',
+      nextCheckinDate: undefined,
       upcomingCheckin: { questions: [{ question: 'Stale question' }] },
     })
 
@@ -495,6 +498,13 @@ describe('the manage page settings card', () => {
     if (mode === 'AD_HOC') expect(html).toContain("I'll schedule them one at a time")
   })
 
+  // The saved first date is where the schedule started; the controller supplies the day it next falls on.
+  it('shows the next check in day the controller supplies, not the saved first date', async () => {
+    const html = await render('manage/manage-checkin', scheduled)
+    expect(html).toContain('20 October 2026')
+    expect(html).not.toContain('1 August 2026')
+  })
+
   it('lets a scheduled person change their next check in date and their frequency', async () => {
     const html = await render('manage/manage-checkin', scheduled)
     // govukSummaryList leaves whitespace between the href and the data attributes.
@@ -502,13 +512,40 @@ describe('the manage page settings card', () => {
     expect(html).toMatch(new RegExp(`href="${managePage}/settings"\\s+data-qa="changeFrequencyAction"`))
   })
 
-  // An ad-hoc person has no next check in to move: they book one from the schedule page instead.
-  it('offers only the frequency change to an ad-hoc person', async () => {
+  // An ad-hoc person with nothing booked has no next check in to move: they book one instead.
+  it('offers only the frequency change to an ad-hoc person with nothing booked', async () => {
     const html = await render('manage/manage-checkin', {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
       checkinFrequency: 'AD_HOC',
+      nextCheckinDate: undefined,
     })
+    expect(html).not.toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  // A booked ad-hoc check in is moved by booking it again, so its change link goes to that journey.
+  it('lets an ad-hoc person move a booked check in from the schedule page', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+      upcomingCheckin: { expectedCheckinDate: '2026-10-20', questions: [] },
+    })
+    expect(html).toMatch(new RegExp(`href="${managePage}/schedule-check-in"\\s+data-qa="changeDateAction"`))
+    expect(html).not.toMatch(new RegExp(`href="${managePage}/settings-date"`))
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  // The controller withholds canChangeDate once the check in is active (due today) or past.
+  it('keeps the date but drops its change link once the check in is active', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      canChangeDate: false,
+      upcomingCheckin: { expectedCheckinDate: '2026-10-16', questions: [] },
+    })
+    expect(html).toContain('data-qa="nextCheckinDueLabel"')
     expect(html).not.toContain('data-qa="changeDateAction"')
     expect(html).toContain('data-qa="changeFrequencyAction"')
   })
@@ -518,6 +555,7 @@ describe('the manage page settings card', () => {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, status: 'INACTIVE' },
       showChange: false,
+      canChangeDate: false,
     })
     expect(html).not.toContain('data-qa="changeDateAction"')
     expect(html).not.toContain('data-qa="changeFrequencyAction"')

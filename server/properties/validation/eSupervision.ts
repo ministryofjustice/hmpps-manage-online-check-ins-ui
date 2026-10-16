@@ -23,6 +23,8 @@ export interface ESupervisionValidationArgs {
   preferredComs?: string
   change?: string
   stopCheckIn?: string
+  // schedule-check-in-date: the date page is moving a check in that is already booked
+  movingBookedCheckin?: boolean
 }
 
 export const eSuperVisionValidation = (args: ESupervisionValidationArgs): ValidationSpec => {
@@ -320,7 +322,11 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         { validator: isNotEmpty, msg: 'Enter the date you would like the person to complete their online check in' },
         { validator: isValidDateFormat, msg: 'Enter a date in the correct format, for example 17/5/2024' },
         { validator: isValidDate, msg: 'Enter a date in the correct format, for example 17/5/2024' },
-        { validator: isTodayOrLater, msg: 'The online check in date must be today or in the future' },
+        // A new booking may be for today. Moving a booked check in may not: the check in would
+        // become active at once, as it does on the settings date page for a scheduled person.
+        args.movingBookedCheckin
+          ? { validator: isFutureDate, msg: 'The next online check in date must be in the future' }
+          : { validator: isTodayOrLater, msg: 'The online check in date must be today or in the future' },
       ],
     },
 
