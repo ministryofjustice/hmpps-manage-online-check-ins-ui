@@ -2684,7 +2684,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const date = getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'date'])
       const parsedDate = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
-      if (!parsedDate.isValid) {
+      if (!parsedDate.isValid || parsedDate.startOf('day') <= DateTime.now().startOf('day')) {
         return res.redirect(`${managePage}/schedule-check-in`)
       }
       const { username } = res.locals.user
