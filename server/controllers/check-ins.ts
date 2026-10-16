@@ -140,7 +140,8 @@ const nextScheduledCheckinDate = async (
   }
   const record = res.locals.offenderCheckinsByCRNResponse
   const savedDate = asFutureDate(record?.firstCheckin)
-  if (savedDate || fromApiSchedule(record) === 'AD_HOC') return savedDate
+  if (fromApiSchedule(record) === 'AD_HOC') return undefined
+  if (savedDate) return savedDate
   // A scheduled person's saved date is where their schedule started, which may be long past. The
   // schedule repeats from it every interval, so their next check in is the first repeat from today.
   return nextScheduledDay(record?.firstCheckin, record?.checkinInterval)
