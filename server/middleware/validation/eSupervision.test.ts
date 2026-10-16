@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import httpMocks, { RequestOptions } from 'node-mocks-http'
 import validation from '.'
 import mockAppResponse from '../../controllers/mocks/appResponse'
@@ -584,6 +585,35 @@ describe('Test eSuperVision validation', () => {
         validation.eSuperVision(req, res, next)
 
         expect(res.render).toHaveBeenCalledWith('pages/check-in/schedule-check-in/date', expect.any(Object))
+      })
+
+      // A new booking may be for today; moving a booked check in may not, as it would become active at once.
+      describe('a date of today', () => {
+        const today = DateTime.now().toFormat('d/M/yyyy')
+        const dateError = `esupervision-${crn}-${id}-scheduleCheckIn-date`
+
+        it('passes for a new booking', () => {
+          const esupervision = scheduleSession({ date: today })
+          const req = makeReq({ url: scheduleDateUrl, body: { esupervision }, session: { data: { esupervision } } })
+
+          validation.eSuperVision(req, makeRes(), next)
+
+          expect(next).toHaveBeenCalled()
+        })
+
+        it('fails when moving a booked check in', () => {
+          const esupervision = scheduleSession({ date: today, bookedDate: '2099-01-05' })
+          const req = makeReq({ url: scheduleDateUrl, body: { esupervision }, session: { data: { esupervision } } })
+          const res = makeRes()
+
+          validation.eSuperVision(req, res, next)
+
+          expect(next).not.toHaveBeenCalled()
+          const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+          expect(renderArgs.errorMessages).toEqual({
+            [dateError]: 'The next online check in date must be in the future',
+          })
+        })
       })
 
       it('passes when a future date is entered', () => {

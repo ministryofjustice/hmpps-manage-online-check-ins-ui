@@ -691,7 +691,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictScheduleCheckInAccess(),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getScheduleCheckInDate(),
+    controllers.checkIns.getScheduleCheckInDate(hmppsAuthClient),
   ])
   router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in', [
     validateCrnAndId,
@@ -701,7 +701,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
-    controllers.checkIns.postScheduleCheckInDate(),
+    controllers.checkIns.postScheduleCheckInDate(hmppsAuthClient),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/add', [
