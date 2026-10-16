@@ -2656,7 +2656,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // moved, in the form's d/M/yyyy, unless one has already been typed in this journey.
       const bookedDate = await bookedAdHocCheckinDate(hmppsAuthClient, res, crn)
       setDataValue(req.session.data, [...scheduleCheckIn, 'bookedDate'], bookedDate)
-      if (bookedDate && !getDataValue(req.session.data, [...scheduleCheckIn, 'date'])) {
+      if (bookedDate) {
         setDataValue(req.session.data, [...scheduleCheckIn, 'date'], DateTime.fromISO(bookedDate).toFormat('d/M/yyyy'))
       }
       const checkInMinDate = bookedDate ? getMinDate(1) : getMinDate()
