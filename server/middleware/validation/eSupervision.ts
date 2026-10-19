@@ -327,7 +327,12 @@ const eSuperVision: Route<void> = (req, res, next) => {
     if (/\/schedule-check-in\/?$/.test(baseUrl)) {
       render = `pages/check-in/schedule-check-in/date`
       localParams.id = id
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date' }))
+      // The date page controller records the booking being moved, if any, when it renders.
+      const movingBookedCheckin = !!sessionVal('scheduleCheckIn', 'bookedDate')
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date', movingBookedCheckin }),
+      )
     }
   }
 
