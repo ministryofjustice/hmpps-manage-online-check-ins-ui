@@ -10,6 +10,7 @@ import {
   ESupervisionCheckIn,
   ESupervisionNote,
   ESupervisionReview,
+  OffenderByCRNResponse,
   ReactivateOffenderRequest,
   ScheduleAdHocCheckinRequest,
   SupervisionPackageStatus,
@@ -107,26 +108,35 @@ const submitCheckinSettings = async (
   return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
 }
 
+// The next day a person's saved schedule falls on, for when nothing is booked. A scheduled person's
+// saved first date is where their schedule started, which may be long past: the schedule repeats
+// from it every interval, so their next check in is its first repeat after today. Today itself is
+// skipped: with nothing upcoming, a check in due today has already been dealt with. An ad-hoc
+// person has no schedule, only bookings, so their saved date is never a next check in.
+const nextDayOfSavedSchedule = (record?: OffenderByCRNResponse | null): string | undefined => {
+  if (fromApiSchedule(record) === 'AD_HOC') return undefined
+  return nextScheduledDay(record?.firstCheckin, record?.checkinInterval, DateTime.now().plus({ days: 1 }))
+}
+
 // The date a scheduled person's next check in falls on, which a change of interval keeps: the API
 // treats firstCheckin as the date the (new) schedule runs from, and rejects a date in the past.
-// Taken from the upcoming check in, else worked out from the saved schedule. Returns undefined only
-// when the record has no usable date, so the caller can ask for one.
+// Taken from the upcoming check in, else worked out from the saved schedule, the same way the
+// manage card shows it. Returns undefined only when the record has no usable schedule, so the
+// caller can ask for a date.
 const nextScheduledCheckinDate = async (
   hmppsAuthClient: HmppsAuthClient,
   res: Response,
   crn: string,
 ): Promise<string | undefined> => {
-  const today = DateTime.now().startOf('day')
-  // The upcoming check in may carry a time; the update API takes a date only.
-  const asFutureDate = (value?: string | null): string | undefined => {
-    const parsed = DateTime.fromISO(value ?? '')
-    return parsed.isValid && parsed.startOf('day') >= today ? parsed.toISODate() : undefined
-  }
   try {
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const upcoming = await new ESupervisionClient(token).getUpcomingCheckinQuestions(crn)
-    const upcomingDate = asFutureDate(upcoming?.expectedCheckinDate)
-    if (upcomingDate) return upcomingDate
+    // The upcoming check in may carry a time; the update API takes a date only. One due today is
+    // active, and is kept: the new schedule runs from it.
+    const upcomingDate = DateTime.fromISO(upcoming?.expectedCheckinDate ?? '')
+    if (upcomingDate.isValid && upcomingDate.startOf('day') >= DateTime.now().startOf('day')) {
+      return upcomingDate.toISODate()
+    }
   } catch (error: any) {
     // The API answers 404 when no check in is booked, which is a normal state to fall back from.
     // Anything else is an outage: guessing the schedule from the saved date could move the person's
@@ -138,15 +148,7 @@ const nextScheduledCheckinDate = async (
     }
     logger.info(`No upcoming check in found for CRN ${crn}; working from the saved schedule instead`)
   }
-  const record = res.locals.offenderCheckinsByCRNResponse
-  const savedDate = asFutureDate(record?.firstCheckin)
-  if (fromApiSchedule(record) === 'AD_HOC') return undefined
-  if (savedDate) return savedDate
-  // A scheduled person's saved date is where their schedule started, which may be long past. The
-  // schedule repeats from it every interval, so their next check in is its first repeat after today.
-  // Today itself is skipped: with nothing upcoming, a check in due today has already been dealt
-  // with, and the API would otherwise be told to run the new schedule from today.
-  return nextScheduledDay(record?.firstCheckin, record?.checkinInterval, DateTime.now().plus({ days: 1 }))
+  return nextDayOfSavedSchedule(res.locals.offenderCheckinsByCRNResponse)
 }
 
 // An ad-hoc person's booking, if any. Booking again is how a booked check in is moved, but once it
@@ -1381,16 +1383,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const canEditQuestions = checkinDate ? today < checkinDate : false
       const showChange = checkinRes?.status === 'VERIFIED'
       // The settings card shows the upcoming check in or, for a scheduled person with none booked
-      // yet, the next day their saved schedule falls on after today - the saved first date itself
-      // may be long past, and a check in due today with nothing upcoming has already been dealt
-      // with. That date can only be moved while the check in is still to come: once it is active
-      // (due today) or past there is nothing to move, and the API refuses the change.
-      const isAdHoc = fromApiSchedule(checkinRes) === 'AD_HOC'
-      const nextCheckinDate =
-        upcomingCheckin?.expectedCheckinDate ??
-        (isAdHoc
-          ? undefined
-          : nextScheduledDay(checkinRes?.firstCheckin, checkinRes?.checkinInterval, DateTime.now().plus({ days: 1 })))
+      // yet, the next day their saved schedule falls on after today. That date can only be moved
+      // while the check in is still to come: once it is active (due today) or past there is nothing
+      // to move, and the API refuses the change.
+      const nextCheckinDate = upcomingCheckin?.expectedCheckinDate ?? nextDayOfSavedSchedule(checkinRes)
       const nextCheckinDay = DateTime.fromISO(nextCheckinDate ?? '')
       const canChangeDate =
         showChange && nextCheckinDay.isValid && nextCheckinDay.startOf('day') > DateTime.now().startOf('day')

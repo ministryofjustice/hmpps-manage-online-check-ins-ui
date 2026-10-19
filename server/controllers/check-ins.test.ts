@@ -526,6 +526,25 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
     })
 
+    // With nothing upcoming, a check in due today has already been dealt with. The card shows the
+    // next repeat, and the frequency change must send that same day, not today.
+    it('skips a saved first check in date of today when there is no upcoming check in', async () => {
+      jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions').mockRejectedValueOnce(noUpcomingCheckin())
+      const today = DateTime.now().startOf('day')
+      res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, firstCheckin: today.toISODate() }
+
+      await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('TWO_WEEKS'), res)
+
+      expect(postUpdateOffenderDetailsSpy).toHaveBeenCalledWith(uuid, {
+        checkinSchedule: {
+          requestedBy: 'user-1',
+          firstCheckin: today.plus({ weeks: 1 }).toISODate(),
+          mode: 'SCHEDULED',
+          checkinInterval: 'TWO_WEEKS',
+        },
+      })
+    })
+
     // A scheduled record always carries a date and interval; this guards against a broken one.
     it('asks for a date only when the record has no schedule to work from', async () => {
       jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions').mockRejectedValueOnce(noUpcomingCheckin())
