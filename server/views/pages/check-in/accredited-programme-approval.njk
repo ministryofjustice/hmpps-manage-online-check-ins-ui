@@ -12,9 +12,9 @@
   }) %}
 {% endif %}
 {% set showAnchorLink = false %}
-{% set sessionKey = sessionKey or 'checkins' %}
-{% set flowPathPrefix = flowPathPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
-{% set backLink = flowPathPrefix + 'is-eligible' %}
+{% set eligibilitySessionKey = eligibilitySessionKey or 'checkins' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
+{% set backLink = eligibilityUrlPrefix + 'is-eligible' %}
 
 {% set checkboxTitle = "Confirm approval" %}
 {% block form %}
@@ -25,8 +25,8 @@
             <p class="govuk-body">You must only replace some face to face meetings. You must still meet the person a minimum of once a month face to face.</p>
 
             {{ govukCheckboxes({
-                name: "esupervision[" + crn + "][" + id + "][" + sessionKey + "][accreditedProgrammeApproval]",
-                idPrefix: "esupervision-" + crn + "-" + id + "-" + sessionKey + "-accreditedProgrammeApproval",
+                name: "esupervision[" + crn + "][" + id + "][" + eligibilitySessionKey + "][accreditedProgrammeApproval]",
+                idPrefix: "esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-accreditedProgrammeApproval",
                 fieldset: {
                     legend: {
                         text: checkboxTitle,
@@ -35,8 +35,8 @@
                     }
                 },
                 errorMessage: {
-                  text: errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-accreditedProgrammeApproval"]
-                } if errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-accreditedProgrammeApproval"],
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-accreditedProgrammeApproval"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-accreditedProgrammeApproval"],
                 items: [
                 {
                   value: "accredited-programme-approval",
@@ -47,7 +47,7 @@
                   checked: isApproved
                 }
             ]
-            }) | decorateFormAttributes(['esupervision', crn, id, sessionKey, 'accreditedProgrammeApproval']) }}
+            }) | decorateFormAttributes(['esupervision', crn, id, eligibilitySessionKey, 'accreditedProgrammeApproval']) }}
         </div>
     </div>
 {% endblock %}

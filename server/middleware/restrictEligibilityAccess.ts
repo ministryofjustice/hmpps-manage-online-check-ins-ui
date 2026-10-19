@@ -3,7 +3,8 @@ import getDataValue from '../utils/getDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from './renderError'
-import { getCheckInEligibilityFlow } from '../utils/checkInEligibilityFlow'
+import type { AppLocals } from '../models/Locals'
+import { getCheckInEligibilityContext } from '../utils/checkInEligibilityContext'
 import {
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
@@ -28,18 +29,22 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       return renderError(404)(req, res)
     }
 
-    const flow = getCheckInEligibilityFlow(req.path, crn, id)
+    const eligibilityContext = getCheckInEligibilityContext(
+      (res.locals as AppLocals).checkInEligibilityJourney ?? 'setup',
+      crn,
+      id,
+    )
     const { data } = req.session
-    const checkins = getDataValue(data, ['esupervision', crn, id, flow.sessionKey])
+    const checkins = getDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey])
     const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
     if (!checkins || !band || !supervisionPackageStatus) {
-      return res.redirect(flow.path('eligibility-check'))
+      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
     }
 
     if (!toSelections(checkins.eligibility).length) {
-      return res.redirect(flow.path('eligibility-check'))
+      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
     }
 
     // Recorded by the eligibility-check pages from the ESUP call, since those answers are not fetched
@@ -65,30 +70,30 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       }
       // Anything past pilot-check is only reachable once it has actually been answered.
       if (!checkins.pilotCheck) {
-        return res.redirect(flow.path('pilot-check'))
+        return res.redirect(eligibilityContext.urlForEligibilityPage('pilot-check'))
       }
       outcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck)).target
     } else if (page === 'pilot-check') {
-      return res.redirect(flow.path(eligibility.target))
+      return res.redirect(eligibilityContext.urlForEligibilityPage(eligibility.target))
     }
 
     if (outcome !== 'is-eligible') {
-      return res.redirect(flow.path(outcome))
+      return res.redirect(eligibilityContext.urlForEligibilityPage(outcome))
     }
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
     const accreditedProgramme = Boolean(checkins.accreditedProgramme)
     if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion, { accreditedProgramme })) {
-      return res.redirect(flow.path('is-eligible'))
+      return res.redirect(eligibilityContext.urlForEligibilityPage('is-eligible'))
     }
     if (
-      flow.isRestart &&
+      eligibilityContext.journey === 'reactivation' &&
       page === 'setup' &&
       !req.path.endsWith('/restart-accredited-programme-approval') &&
       accreditedProgramme &&
       !toSelections(checkins.accreditedProgrammeApproval).includes('accredited-programme-approval')
     ) {
-      return res.redirect(flow.path('accredited-programme-approval'))
+      return res.redirect(eligibilityContext.urlForEligibilityPage('accredited-programme-approval'))
     }
     return next()
   }

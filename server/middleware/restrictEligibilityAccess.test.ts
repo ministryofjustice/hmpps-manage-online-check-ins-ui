@@ -31,12 +31,12 @@ const buildReq = (checkins: Record<string, unknown> | undefined) => {
   })
 }
 
-const buildRes = () =>
+const buildRes = (checkInEligibilityJourney: 'setup' | 'reactivation' = 'setup') =>
   ({
     redirect: jest.fn(),
     status: jest.fn().mockReturnThis(),
     render: jest.fn(),
-    locals: {},
+    locals: { checkInEligibilityJourney },
   }) as unknown as Response
 
 describe('restrictEligibilityAccess', () => {
@@ -342,7 +342,7 @@ describe('restrictEligibilityAccess', () => {
         },
       },
     })
-    const res = buildRes()
+    const res = buildRes('reactivation')
     const next = jest.fn()
 
     await restrictEligibilityAccess('setup')(req, res, next)
@@ -379,7 +379,7 @@ describe('restrictEligibilityAccess', () => {
         },
       },
     })
-    const res = buildRes()
+    const res = buildRes('reactivation')
     const next = jest.fn()
 
     await restrictEligibilityAccess('setup')(req, res, next)

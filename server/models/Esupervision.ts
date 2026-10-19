@@ -64,8 +64,8 @@ export interface LocalParams {
   hasContactDetails?: boolean
   isAdHoc?: boolean
   tierBand?: string
-  sessionKey?: 'checkins' | 'restartCheckin'
-  flowPathPrefix?: string
+  eligibilitySessionKey?: 'checkins' | 'restartCheckin'
+  eligibilityUrlPrefix?: string
   questionId?: string
   question?: {
     prefix: string

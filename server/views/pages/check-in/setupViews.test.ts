@@ -119,8 +119,8 @@ describe('shared eligibility templates in reactivation', () => {
   it('posts eligibility, pilot, discussion, approval, and rationale under restartCheckin', async () => {
     const restartBase = {
       ...base,
-      sessionKey: 'restartCheckin',
-      flowPathPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
+      eligibilitySessionKey: 'restartCheckin',
+      eligibilityUrlPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
       data: {
         esupervision: {
           [crn]: {

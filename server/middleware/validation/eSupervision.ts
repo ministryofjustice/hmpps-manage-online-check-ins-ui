@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
+import type { AppLocals } from '../../models/Locals'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
 import getDataValue from '../../utils/getDataValue'
 import setDataValue from '../../utils/setDataValue'
@@ -9,6 +10,7 @@ import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
+import { CheckInEligibilityPage, getCheckInEligibilityContext } from '../../utils/checkInEligibilityContext'
 import { fromApiSchedule } from '../../utils/checkinSchedule'
 
 const eSuperVision: Route<void> = (req, res, next) => {
@@ -160,18 +162,21 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   const validateRestartEligibilityFlow = () => {
-    const restartPrefix = `/case/${crn}/appointments/check-in/manage/${id}/restart-`
-    const restartPath = (segment: string) => `${restartPrefix}${segment}`
-    if (!baseUrl.startsWith(restartPrefix)) return
-    const validatePage = (segment: string, view: string, page: string) => {
-      if (baseUrl !== restartPath(segment)) return false
+    const flowKind = (res.locals as AppLocals).checkInEligibilityJourney
+    if (flowKind !== 'reactivation') return
+    const eligibilityContext = getCheckInEligibilityContext(flowKind, crn, id)
+    const validatePage = (segment: CheckInEligibilityPage, view: string, page: string) => {
+      if (baseUrl !== eligibilityContext.urlForEligibilityPage(segment)) return false
       render = `pages/check-in/${view}`
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page, sessionKey: 'restartCheckin' }))
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({ crn, id, page, eligibilitySessionKey: 'restartCheckin' }),
+      )
       return true
     }
 
-    localParams.sessionKey = 'restartCheckin'
-    localParams.flowPathPrefix = restartPrefix
+    localParams.eligibilitySessionKey = 'restartCheckin'
+    localParams.eligibilityUrlPrefix = eligibilityContext.eligibilityUrlPrefix
     const tierStatus = getTierBand(res.locals.tierScore as string)
     const isBand = tierStatus !== MISSING_TIER && tierStatus !== NOT_SUPERVISED_TIER
     const band = isBand && res.locals.tierProvisional !== true ? tierStatus : null
@@ -187,12 +192,12 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
     validatePage('accredited-programme-approval', 'accredited-programme-approval', 'accredited-programme-approval')
     validatePage('rationale', 'rationale', 'rationale')
-    if (baseUrl === restartPath('rationale')) {
+    if (baseUrl === eligibilityContext.urlForEligibilityPage('rationale')) {
       localParams.accreditedProgramme = Boolean(sessionVal('restartCheckin', 'accreditedProgramme'))
       localParams.backLink =
         cya === 'true'
           ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
-          : restartPath('accredited-programme-approval')
+          : eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
     }
   }
 

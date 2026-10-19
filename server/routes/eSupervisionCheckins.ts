@@ -17,6 +17,7 @@ import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 import { getSupervisionPackageStatus } from '../middleware/getSupervisionPackageStatus'
+import setCheckInEligibilityJourney from '../middleware/setCheckInEligibilityJourney'
 
 export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthClient, arnsComponents }: Services) {
   router.get('/', async (req, res) => {
@@ -155,6 +156,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   // restartCheckin until the reactivation request is submitted.
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-eligibility-check', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -164,6 +166,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-eligibility-check',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -174,12 +177,14 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-pilot-check', [
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getPilotCheckPage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-pilot-check',
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('pilot-check'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
@@ -188,12 +193,14 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-is-eligible', [
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('is-eligible'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getIsEligiblePage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-is-eligible',
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('is-eligible'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
@@ -202,30 +209,36 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-not-eligible', [
+    setCheckInEligibilityJourney('reactivation'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getNotEligiblePage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-not-eligible',
+    setCheckInEligibilityJourney('reactivation'),
     controllers.checkIns.postNotEligiblePage(),
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-discuss-before-signup', [
+    setCheckInEligibilityJourney('reactivation'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getDiscussBeforeSignupPage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-discuss-before-signup',
+    setCheckInEligibilityJourney('reactivation'),
     controllers.checkIns.postDiscussBeforeSignupPage(),
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-accredited-programme-approval', [
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getAccreditedProgrammeApprovalPage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-accredited-programme-approval',
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
@@ -234,12 +247,14 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-rationale', [
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getRationalePage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-rationale',
+    setCheckInEligibilityJourney('reactivation'),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
@@ -494,6 +509,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-checkin', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -503,6 +519,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-checkin',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -514,6 +531,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-checkin-date', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -523,6 +541,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-checkin-date',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -534,6 +553,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-contact', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -543,6 +563,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-contact',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -554,6 +575,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-edit-contact', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -563,6 +585,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-edit-contact',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -574,6 +597,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-summary', [
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
@@ -583,6 +607,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-summary',
     validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),

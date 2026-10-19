@@ -9,19 +9,19 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set sessionKey = sessionKey or 'checkins' %}
-{% set flowPathPrefix = flowPathPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
-{% set backLink = flowPathPrefix + 'eligibility-check' %}
+{% set eligibilitySessionKey = eligibilitySessionKey or 'checkins' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
+{% set backLink = eligibilityUrlPrefix + 'eligibility-check' %}
 {% set buttonText = "Continue" %}
 {% set radioText = "Do you have one or more people who started using online check ins before 1 October 2026?" %}
-{% set currentChoice = data.esupervision[crn][id][sessionKey].pilotCheck %}
+{% set currentChoice = data.esupervision[crn][id][eligibilitySessionKey].pilotCheck %}
 
 {% block form %}
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-full">
 
             {{ govukRadios({
-                name: "esupervision[" + crn + "][" + id + "][" + sessionKey + "][pilotCheck]",
+                name: "esupervision[" + crn + "][" + id + "][" + eligibilitySessionKey + "][pilotCheck]",
                 fieldset: {
                     legend: {
                         text: radioText,
@@ -35,8 +35,8 @@
                     }
                 },
                 errorMessage: {
-                                    text: errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-pilotCheck"]
-                                } if errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-pilotCheck"],
+                                    text: errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-pilotCheck"]
+                                } if errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-pilotCheck"],
                 items: [
                     {
                         value: 'true',
@@ -49,7 +49,7 @@
                         checked: currentChoice == 'false'
                     }
                 ]
-            } | decorateFormAttributes(['esupervision', crn, id, sessionKey, 'pilotCheck'])) }}
+            } | decorateFormAttributes(['esupervision', crn, id, eligibilitySessionKey, 'pilotCheck'])) }}
         </div>
     </div>
 {% endblock %}

@@ -95,13 +95,16 @@ describe('setup validation re-render', () => {
       body: { esupervision: { [crn]: { [id]: { restartCheckin: {} } } } },
       session: { data: {} },
     })
-    const res: any = { locals: { tierScore: 'A' }, render: jest.fn() }
+    const res: any = {
+      locals: { tierScore: 'A', checkInEligibilityJourney: 'reactivation' },
+      render: jest.fn(),
+    }
     validate(req, res, jest.fn())
 
     const [view, locals] = res.render.mock.calls[0]
     expect(view).toBe('pages/check-in/eligibility/eligibility-check')
-    expect(locals.sessionKey).toBe('restartCheckin')
-    expect(locals.flowPathPrefix).toBe(`/case/${crn}/appointments/check-in/manage/${id}/restart-`)
+    expect(locals.eligibilitySessionKey).toBe('restartCheckin')
+    expect(locals.eligibilityUrlPrefix).toBe(`/case/${crn}/appointments/check-in/manage/${id}/restart-`)
     expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-restartCheckin-eligibility`)
   })
 })

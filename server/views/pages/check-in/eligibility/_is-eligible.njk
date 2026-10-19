@@ -23,11 +23,11 @@
 {% set back = back if back else '' %}
 {% set notStandardForm = true %}
 {% set buttonText = "Continue" %}
-{% set sessionKey = sessionKey or 'checkins' %}
-{% set flowPathPrefix = flowPathPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
+{% set eligibilitySessionKey = eligibilitySessionKey or 'checkins' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
 {# What the practitioner has already ticked. Passed to the macro as `values`, which ticks the matching
    boxes for us, so the items below are just their wording. #}
-{% set currentDiscussion = data.esupervision[crn][id][sessionKey].discussion or [] %}
+{% set currentDiscussion = data.esupervision[crn][id][eligibilitySessionKey].discussion or [] %}
 
 {# The accredited-programme variant sets accreditedProgrammeDiscussion to add the programmeOnly point
    below, because its eligibility ends with the programme. The macro skips falsy items, so the box can
@@ -97,8 +97,8 @@
             <p class="govuk-body">We have an information pack to go through with the person and explain how online check ins work. They should understand their rights. </p>
 
             {{ govukCheckboxes({
-                name: "esupervision[" + crn + "][" + id + "][" + sessionKey + "][discussion]",
-                idPrefix: "esupervision-" + crn + "-" + id + "-" + sessionKey + "-discussion",
+                name: "esupervision[" + crn + "][" + id + "][" + eligibilitySessionKey + "][discussion]",
+                idPrefix: "esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-discussion",
                 fieldset: {
                     legend: {
                         text: checkboxTitle,
@@ -107,14 +107,14 @@
                     }
                 },
                 errorMessage: {
-                  text: errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-discussion"]
-                } if errorMessages["esupervision-" + crn + "-" + id + "-" + sessionKey + "-discussion"],
+                  text: errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-discussion"]
+                } if errorMessages["esupervision-" + crn + "-" + id + "-" + eligibilitySessionKey + "-discussion"],
                 hint: {
                     text: "Select what you've told the person"
                 },
                 items: discussionItems,
                 values: currentDiscussion
-            }) | decorateFormAttributes(['esupervision', crn, id, sessionKey, 'discussion']) }}
+            }) | decorateFormAttributes(['esupervision', crn, id, eligibilitySessionKey, 'discussion']) }}
               <div class="govuk-button-group">
                 {{ govukButton({
                     text: buttonText,

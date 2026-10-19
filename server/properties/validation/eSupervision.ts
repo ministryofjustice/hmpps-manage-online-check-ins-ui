@@ -21,7 +21,7 @@ export interface ESupervisionValidationArgs {
   editCheckInEmail?: string
   editCheckInMobile?: string
   preferredComs?: string
-  sessionKey?: 'checkins' | 'restartCheckin'
+  eligibilitySessionKey?: 'checkins' | 'restartCheckin'
   change?: string
   stopCheckIn?: string
 }
@@ -36,13 +36,13 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     editCheckInEmail = '',
     editCheckInMobile = '',
     preferredComs = '',
-    sessionKey = 'checkins',
+    eligibilitySessionKey = 'checkins',
     change = '',
   } = args
   return {
     // Setup flow — eligibility through to the photo.
     //
-    [`[esupervision][${crn}][${id}][${sessionKey}][eligibility]`]: {
+    [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][eligibility]`]: {
       optional: page !== 'eligibility-check',
       checks: [
         {
@@ -52,7 +52,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][${sessionKey}][pilotCheck]`]: {
+    [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][pilotCheck]`]: {
       optional: page !== 'pilot-check',
       checks: [
         {
@@ -62,7 +62,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][${sessionKey}][discussion]`]: {
+    [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][discussion]`]: {
       optional: page !== 'is-eligible',
       checks: [
         {
@@ -72,7 +72,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][${sessionKey}][accreditedProgrammeApproval]`]: {
+    [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][accreditedProgrammeApproval]`]: {
       optional: page !== 'accredited-programme-approval',
       checks: [
         {
@@ -82,7 +82,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
         },
       ],
     },
-    [`[esupervision][${crn}][${id}][${sessionKey}][rationale]`]: {
+    [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][rationale]`]: {
       optional: page !== 'rationale',
       checks: [{ validator: isNotEmpty, msg: 'Enter why the person is suitable to use online check ins' }],
     },

@@ -82,8 +82,9 @@ describe('check-in setup flow', () => {
 
   describe('reactivation eligibility', () => {
     it('uses the eligibility screen, seeds the previous contact choice, and keeps answers under restartCheckin', async () => {
-      const req = requestFor({}, {}, `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`)
+      const req = requestFor()
       const res = responseForTier('A', {
+        checkInEligibilityJourney: 'reactivation',
         supervisionPackageStatus: ON_PACKAGE,
         offenderCheckinsByCRNResponse: { uuid: id, contactPreference: 'EMAIL', checkinInterval: 'FOUR_WEEKS' },
       })
@@ -93,8 +94,8 @@ describe('check-in setup flow', () => {
       expect(res.render).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          sessionKey: 'restartCheckin',
-          flowPathPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
+          eligibilitySessionKey: 'restartCheckin',
+          eligibilityUrlPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
         }),
       )
       expect(req.session.data.esupervision[crn][id].restartCheckin).toEqual(
@@ -104,12 +105,11 @@ describe('check-in setup flow', () => {
     })
 
     it('branches to the restart pilot question and stores eligibility answers separately', async () => {
-      const req = requestFor(
-        { esupervision: { [crn]: { [id]: { restartCheckin: { eligibility: ['none'] } } } } },
-        {},
-        `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
-      )
-      const res = responseForTier('A', { supervisionPackageStatus: ON_PACKAGE })
+      const req = requestFor({ esupervision: { [crn]: { [id]: { restartCheckin: { eligibility: ['none'] } } } } })
+      const res = responseForTier('A', {
+        checkInEligibilityJourney: 'reactivation',
+        supervisionPackageStatus: ON_PACKAGE,
+      })
 
       await controllers.checkIns.postEligibilityPage()(req, res)
 
