@@ -25,4 +25,4 @@ generic-service:
     FLIPT_UPDATE_INTERVAL: 20
 
 generic-prometheus-alerts:
-  alertSeverity: warning
+  alertSeverity: hmpps_esupervision_alerts_nonprod

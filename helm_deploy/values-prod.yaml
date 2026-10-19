@@ -22,4 +22,4 @@ generic-service:
     FLIPT_NAMESPACE: 'hmpps-esupervision'
 
 generic-prometheus-alerts:
-  alertSeverity: warning
+  alertSeverity: hmpps_esupervision_alerts_prod
