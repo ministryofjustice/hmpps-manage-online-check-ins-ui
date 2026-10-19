@@ -2245,10 +2245,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
-          reason: restartDetails.reason || 'Reactivated via UI',
+          reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
           eligibilityAnswers: toEligibilityAnswers(restartDetails.eligibility),
           pilotCheck: restartDetails.pilotCheck,
-          rationale: restartDetails.rationale,
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.

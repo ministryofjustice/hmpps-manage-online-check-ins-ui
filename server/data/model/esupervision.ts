@@ -221,7 +221,6 @@ export interface ReactivateOffenderRequest {
   reason?: string
   eligibilityAnswers: EligibilityAnswers
   pilotCheck?: string
-  rationale?: string
   checkinSchedule?: {
     requestedBy?: string
     firstCheckin?: string

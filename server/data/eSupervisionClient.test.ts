@@ -233,7 +233,7 @@ describe('ESupervisionClient', () => {
       const offenderUuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
       const body: ReactivateOffenderRequest = {
         requestedBy: 'practitioner-1',
-        reason: 'Back on supervision',
+        reason: 'Suitable for online check ins',
         eligibilityAnswers: {
           accreditedProgramme: true,
           recalled: false,
@@ -241,7 +241,6 @@ describe('ESupervisionClient', () => {
           youthSentence: true,
         },
         pilotCheck: 'true',
-        rationale: 'Suitable for online check ins',
         checkinSchedule: {
           requestedBy: 'practitioner-1',
           firstCheckin: '2026-11-01',

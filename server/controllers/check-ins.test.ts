@@ -1248,6 +1248,7 @@ describe('checkInsController', () => {
         uuid,
         expect.objectContaining({
           requestedBy: res.locals.user.username,
+          reason: 'Discussed with the programme treatment manager',
           checkinSchedule: expect.objectContaining({
             requestedBy: res.locals.user.username,
             firstCheckin: '2026-02-19',
@@ -1263,7 +1264,6 @@ describe('checkInsController', () => {
             youthSentence: true,
           },
           pilotCheck: 'true',
-          rationale: 'Discussed with the programme treatment manager',
         }),
       )
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-confirmation`)
@@ -1281,6 +1281,7 @@ describe('checkInsController', () => {
       expect(postReactivateOffenderSpy).toHaveBeenCalledWith(
         uuid,
         expect.objectContaining({
+          reason: 'Reactivated via UI',
           checkinSchedule: { requestedBy: res.locals.user.username, mode: 'AD_HOC' },
         }),
       )
