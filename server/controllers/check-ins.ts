@@ -826,9 +826,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (interval === 'AD_HOC') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency${cya ? '?cya=true' : ''}`)
       }
-      const backLink = cya
-        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-        : `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      let backLink = `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+          : `/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`
+      }
       return res.render('pages/check-in/check-in-date.njk', {
         crn,
         id,
@@ -2003,12 +2009,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'])
+      let backLink = `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+          : `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin?cya=true`
+      }
       return res.render('pages/check-in/manage/restart-checkin-date.njk', {
         crn,
         id,
         checkInMinDate,
         case: personalDetails,
         cya,
+        backLink,
       })
     }
   },

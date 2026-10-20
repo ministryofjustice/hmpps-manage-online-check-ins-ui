@@ -116,7 +116,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
     validateSetupPage('check-in-date', 'check-in-date', 'check-in-date')
     if (baseUrl.includes(setup('check-in-date'))) {
-      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('check-in-frequency')
+      // Mirrors getDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = setup('check-in-frequency')
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('checkins', 'date')
+          ? setup('checkin-summary')
+          : `${setup('check-in-frequency')}?cya=true`
+      }
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
@@ -281,7 +287,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/restart-checkin-date`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin-date' }))
-      localParams.backLink = cya === 'true' ? `/${manage('restart-summary')}` : `/${manage('restart-checkin')}`
+      // Mirrors getRestartCheckinDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = `/${manage('restart-checkin')}`
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('restartCheckin', 'date')
+          ? `/${manage('restart-summary')}`
+          : `/${manage('restart-checkin')}?cya=true`
+      }
     }
   }
 
