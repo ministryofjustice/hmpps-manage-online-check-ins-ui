@@ -616,19 +616,35 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const noSupervisionPackage =
         getDataValue(req.session.data, [...supervisionPackageStatus, 'onSupervisionPackage']) === false
       const inFinalThird = getDataValue(req.session.data, [...supervisionPackageStatus, 'inFinalThird']) === true
-      const tierStatus = getTierBand(res.locals.tierScore as string)
+      const tierScore = res.locals.tierScore as string
+      const tierStatus = getTierBand(tierScore)
+      const reason = getDataValue(req.session.data, [...checkins, 'notEligibleReason'])
+      const reasonBullets: string[] = getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']) ?? []
+      const tierCPilotNotMet = tierStatus === 'C' && reason === nextAfterPilotCheck('C', 'false', tierScore).reason
+      const tierABProgrammeExclusion =
+        tierStatus === 'AB' && typeof reason === 'string' && reason.includes('on an accredited programme, but they are')
+      const tierABPilotNotMet =
+        tierStatus === 'AB' &&
+        reasonBullets.length === 2 &&
+        reasonBullets[0] === 'not on an accredited programme' &&
+        reasonBullets[1] === 'you have no people who were signed up to use online check ins before 1 October 2026'
       return res.render('pages/check-in/eligibility/not-eligible.njk', {
         crn,
         id,
         back,
-        reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
+        reason,
+        tierScore,
         // Listed beneath the reason when more than one fact ruled the person out.
-        reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
+        reasonBullets,
         missingTier: tierStatus === MISSING_TIER,
         notSupervised: tierStatus === NOT_SUPERVISED_TIER,
         provisionalTier: res.locals.tierProvisional === true,
+        tierCPilotNotMet,
+        tierABProgrammeExclusion,
+        tierABPilotNotMet,
         noSupervisionPackage,
         inFinalThird,
+        guidanceUrl: config.guidance.link,
       })
     }
   },

@@ -640,6 +640,112 @@ describe('check-in setup flow', () => {
   })
 
   describe('not eligible', () => {
+    it('marks a Tier C pilot failure for the expanded explanation', async () => {
+      const reason =
+        'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026'
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: { [id]: { checkins: { pilotCheck: 'false', notEligibleReason: reason } } },
+            },
+          },
+        },
+      )
+      const res = responseForTier('C')
+
+      await controllers.checkIns.getNotEligiblePage()(req, res)
+
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/not-eligible.njk',
+        expect.objectContaining({ tierCPilotNotMet: true }),
+      )
+    })
+
+    it('does not use the pilot explanation for another Tier C exclusion', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  checkins: { pilotCheck: 'false', notEligibleReason: 'has been recalled to prison' },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = responseForTier('C')
+
+      await controllers.checkIns.getNotEligiblePage()(req, res)
+
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/not-eligible.njk',
+        expect.objectContaining({ tierCPilotNotMet: false }),
+      )
+    })
+
+    it('selects expanded guidance for the accredited-programme exclusions', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  checkins: {
+                    notEligibleReason: 'is in Tier A and on an accredited programme, but they are in early engagement',
+                  },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = responseForTier('A')
+
+      await controllers.checkIns.getNotEligiblePage()(req, res)
+
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/not-eligible.njk',
+        expect.objectContaining({ tierABProgrammeExclusion: true }),
+      )
+    })
+
+    it('selects expanded guidance when Tier A/B is not on a programme and misses the pilot', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  checkins: {
+                    notEligibleReason: 'is in Tier A and',
+                    notEligibleReasonBullets: [
+                      'not on an accredited programme',
+                      'you have no people who were signed up to use online check ins before 1 October 2026',
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = responseForTier('A')
+
+      await controllers.checkIns.getNotEligiblePage()(req, res)
+
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/eligibility/not-eligible.njk',
+        expect.objectContaining({ tierABPilotNotMet: true }),
+      )
+    })
+
     it('renders the reason recorded by whichever check ruled the person out', async () => {
       const req = requestFor(
         {},

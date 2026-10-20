@@ -227,6 +227,71 @@ describe('the is-eligible discussion checkboxes', () => {
 // not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
 // exercised - the list case would otherwise never be rendered by these smoke tests.
 describe('eligibility/not-eligible', () => {
+  const eligibilityFooter = 'If you think this is wrong, you can go back and perform the eligibility check again.'
+
+  it('shows pilot guidance and the support mailbox for the Tier C pilot outcome', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason:
+        'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
+      tierCPilotNotMet: true,
+    })
+
+    expect(html).toContain('This is because Bob is in Tier C and you do not have people on your caseload')
+    expect(html).toContain(
+      'Tiers A to C are not eligible to use online check ins unless they fall into specific categories.',
+    )
+    expect(html).toContain('This is a pilot to see how online check ins work for those in Tiers A to C.')
+    expect(html).toContain('href="https://example.com/practitioner-guidance"')
+    expect(html).toContain('href="mailto:checkinwithprobation@justice.gov.uk"')
+    expect(html).toContain(eligibilityFooter)
+    expect(html.indexOf(eligibilityFooter)).toBeLessThan(html.indexOf('If you have any questions or need support'))
+  })
+
+  it('shows pilot guidance for Tier A/B accredited-programme exclusions', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      reason: 'is in Tier A and on an accredited programme, but they are in early engagement',
+      tierABProgrammeExclusion: true,
+    })
+
+    expect(html).toContain(
+      'This is because Bob is in Tier A and on an accredited programme, but they are in early engagement.',
+    )
+    expect(html).toContain(
+      'Tiers A to C are not eligible to use online check ins unless they fall into specific categories.',
+    )
+    expect(html).toContain('href="https://example.com/practitioner-guidance"')
+    expect(html).toContain('href="mailto:checkinwithprobation@justice.gov.uk"')
+    expect(html).toContain(eligibilityFooter)
+    expect(html.indexOf(eligibilityFooter)).toBeLessThan(html.indexOf('If you have any questions or need support'))
+  })
+
+  it.each(['A', 'B'])('shows pilot guidance after the Tier %s no-programme pilot bullets', async tierScore => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      tierScore,
+      reason: 'is in Tier A and',
+      reasonBullets: [
+        'not on an accredited programme',
+        'you have no people who were signed up to use online check ins before 1 October 2026',
+      ],
+      tierABPilotNotMet: true,
+    })
+
+    expect(html).toContain(`This is because Bob is in Tier ${tierScore} and:`)
+    expect(html).toContain('<li>not on an accredited programme</li>')
+    expect(html).toContain(
+      '<li>you have no people who were signed up to use online check ins before 1 October 2026</li>',
+    )
+    expect(html).toContain(
+      'Tiers A to C are not eligible to use online check ins unless they fall into specific categories.',
+    )
+    expect(html).toContain('href="mailto:checkinwithprobation@justice.gov.uk"')
+    expect(html).toContain(eligibilityFooter)
+    expect(html.indexOf(eligibilityFooter)).toBeLessThan(html.indexOf('If you have any questions or need support'))
+  })
+
   it('lists the reasons when more than one ruled the person out', async () => {
     const html = await render('eligibility/not-eligible', {
       ...base,
@@ -236,11 +301,16 @@ describe('eligibility/not-eligible', () => {
     expect(html).toContain('This is because Bob:')
     expect(html).toContain('<li>has been recalled to prison</li>')
     expect(html).toContain('<li>is in the final third of their sentence</li>')
+    expect(html).toContain(eligibilityFooter)
+    expect(html).not.toContain('checkinwithprobation@justice.gov.uk')
   })
 
   it('reads a single reason as one sentence', async () => {
     const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
     expect(html).toContain('This is because Bob has been recalled to prison.')
+    expect(html).toContain(eligibilityFooter)
+    expect(html).toContain('href="https://example.com/practitioner-guidance"')
+    expect(html).not.toContain('checkinwithprobation@justice.gov.uk')
     expect(html).not.toContain('reasonBullets')
   })
 
@@ -260,7 +330,7 @@ describe('eligibility/not-eligible', () => {
     })
     expect(html).toContain('This is because they have not been assigned a Tier yet.')
     expect(html).toContain('once their risk scores have been completed and the system has calculated their Tier')
-    expect(html).toContain('You can come back and check eligibility again')
+    expect(html).toContain(eligibilityFooter)
     expect(html).not.toContain('This is because Bob')
   })
 
@@ -286,7 +356,7 @@ describe('eligibility/not-eligible', () => {
     })
     expect(html).toContain('This is because they are currently in a provisional Tier.')
     expect(html).toContain('once their risk scores have been completed and the system has calculated their final Tier')
-    expect(html).toContain('You can come back and check eligibility again')
+    expect(html).toContain(eligibilityFooter)
     expect(html).not.toContain('This is because Bob')
   })
 
