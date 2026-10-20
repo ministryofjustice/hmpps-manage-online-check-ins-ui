@@ -227,7 +227,8 @@ describe('the is-eligible discussion checkboxes', () => {
 // not-eligible renders one reason as a sentence and several as a bullet list, so both shapes are
 // exercised - the list case would otherwise never be rendered by these smoke tests.
 describe('eligibility/not-eligible', () => {
-  const eligibilityFooter = 'If you think this is wrong, you can go back and perform the eligibility check again.'
+  const eligibilityFooter =
+    'If you think this information is wrong, you can go back and perform the eligibility check again.'
 
   it('shows pilot guidance and the support mailbox for the Tier C pilot outcome', async () => {
     const html = await render('eligibility/not-eligible', {
@@ -397,7 +398,9 @@ describe('eligibility/not-eligible', () => {
     expect(html).toContain('<li>been recalled to prison</li>')
     expect(html).toContain('<li>have finished their probation</li>')
     expect(html).not.toContain('This is because Bob')
-    expect(html).not.toContain('check eligibility again')
+    expect(html).toContain(
+      'If you think this information is wrong, you can go back and perform the eligibility check again.',
+    )
   })
 
   it('links a person no longer supervised back to the case overview, and offers it as the button', async () => {

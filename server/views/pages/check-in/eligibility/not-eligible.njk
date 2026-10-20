@@ -42,10 +42,10 @@
         </ul>
     {% elif missingTier %}
         <p class="govuk-body" data-qa="missingTier">This is because they have not been assigned a Tier yet.</p>
-        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their Tier.</p>
+        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their Tier. You can come back and check eligibility again once they have been assigned a Tier.</p>
     {% elif provisionalTier %}
         <p class="govuk-body" data-qa="provisionalTier">This is because they are currently in a provisional Tier.</p>
-        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their final Tier.</p>
+        <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their final Tier. You can come back and check eligibility again once the system has calculated their final Tier.</p>
     {% elif tierCPilotNotMet %}
         <p class="govuk-body" data-qa="tierCPilotNotMet">This is because {{ case.name.forename }} is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026.</p>
     {% elif tierABProgrammeExclusion %}
@@ -71,7 +71,7 @@
         <p class="govuk-body">Tiers A to C are not eligible to use online check ins unless they fall into specific categories.</p>
         <p class="govuk-body">If you started using online check ins before 1 October 2026, you'll also be able to sign other people up on your caseload to use online check ins who are in any Tier. This is a pilot to see how online check ins work for those in Tiers A to C. We'll be running this pilot until March 2027, then will decide if online check ins is opened up to all Tiers.</p>
     {% endif %}
-    <p class="govuk-body">If you think this is wrong, you can go back and perform the eligibility check again. <a class="govuk-link" href="{{ guidanceUrl }}/practitioner-guidance" target="_blank" rel="noreferrer noopener">Find out more about eligibility in our guidance (opens in new tab)</a>.</p>
+    <p class="govuk-body">If you think this information is wrong, you can go back and perform the eligibility check again. <a class="govuk-link" href="{{ guidanceUrl }}/practitioner-guidance" target="_blank" rel="noreferrer noopener">Find out more about eligibility in our guidance (opens in new tab)</a>.</p>
     {% if tierCPilotNotMet or tierABProgrammeExclusion or tierABPilotNotMet %}
         <p class="govuk-body">If you have any questions or need support, you can contact the online check ins support mailbox at <a class="govuk-link" href="mailto:checkinwithprobation@justice.gov.uk">checkinwithprobation@justice.gov.uk (opens in email app)</a> for support.</p>
     {% endif %}
