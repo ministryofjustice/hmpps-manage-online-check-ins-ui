@@ -19,4 +19,9 @@ describe('utils/getDataValue', () => {
     expect(getDataValue(mockSession, 'appointments')).toEqual(mockSession.appointments)
     expect(getDataValue(mockSession, ['appointments', 'X000001', 4567, 'type'])).toEqual('CHVS')
   })
+
+  it.each(['__proto__', 'constructor', 'prototype'])('should return undefined for a path containing %s', key => {
+    expect(getDataValue(mockSession, [key])).toBeUndefined()
+    expect(getDataValue(mockSession, ['appointments', key, 'toString'])).toBeUndefined()
+  })
 })
