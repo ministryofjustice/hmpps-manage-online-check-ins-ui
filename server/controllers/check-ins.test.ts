@@ -1257,12 +1257,6 @@ describe('checkInsController', () => {
             requestedBy: res.locals.user.username,
             contactPreference: 'EMAIL',
           }),
-          eligibilityAnswers: {
-            accreditedProgramme: true,
-            recalled: false,
-            deviceRestriction: false,
-            youthSentence: true,
-          },
           pilotCheck: 'true',
         }),
       )

@@ -46,7 +46,6 @@ import {
   nextAfterPilotCheck,
   notSupervisedReason,
   provisionalTierReason,
-  toEligibilityAnswers,
   toSelections,
 } from '../utils/eligibilityRules'
 
@@ -2298,7 +2297,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
           reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
-          eligibilityAnswers: toEligibilityAnswers(restartDetails.eligibility),
           pilotCheck: restartDetails.pilotCheck,
           checkinSchedule: {
             requestedBy: res.locals.user.username,

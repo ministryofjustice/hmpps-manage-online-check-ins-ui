@@ -229,17 +229,11 @@ describe('ESupervisionClient', () => {
   })
 
   describe('postReactivateOffender', () => {
-    it('sends the practitioner eligibility answers with the reactivation request', async () => {
+    it('sends the reactivation request', async () => {
       const offenderUuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
       const body: ReactivateOffenderRequest = {
         requestedBy: 'practitioner-1',
         reason: 'Suitable for online check ins',
-        eligibilityAnswers: {
-          accreditedProgramme: true,
-          recalled: false,
-          deviceRestriction: false,
-          youthSentence: true,
-        },
         pilotCheck: 'true',
         checkinSchedule: {
           requestedBy: 'practitioner-1',
