@@ -804,6 +804,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/${id}/check-in/contact-preference`,
         )
       }
+      // A check-your-answers edit returns to the summary with the date already on file. Only when
+      // switching from ad-hoc (which has no date) to a standard interval is a date still needed.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      if (cya && date) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+      }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-date${cya ? '?cya=true' : ''}`)
     }
   },

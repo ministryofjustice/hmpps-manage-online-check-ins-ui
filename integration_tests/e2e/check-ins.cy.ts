@@ -954,8 +954,8 @@ context('Appointment check-ins', () => {
     datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
 
-    // Frequency change: a standard interval still needs a first check-in date, so the date page is
-    // shown again (pre-filled) on the way back to the summary.
+    // Frequency change: the first check-in date is already on file, so this returns straight to
+    // the summary without showing the date page again.
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')
       .find('.govuk-summary-list__value')
@@ -965,8 +965,6 @@ context('Appointment check-ins', () => {
     frequencyPage.checkOnPage()
     frequencyPage.selectFrequency(2)
     frequencyPage.getSubmitBtn().click()
-    datePage.checkOnPage()
-    datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')

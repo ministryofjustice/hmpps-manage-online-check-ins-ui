@@ -826,8 +826,8 @@ describe('check-in setup flow', () => {
   })
 
   describe('ad-hoc frequency skips the date page', () => {
-    const postFrequency = async (interval: string, query: Record<string, string> = {}) => {
-      const session: any = { data: { esupervision: { [crn]: { [id]: { checkins: { interval } } } } } }
+    const postFrequency = async (interval: string, query: Record<string, string> = {}, date?: string) => {
+      const session: any = { data: { esupervision: { [crn]: { [id]: { checkins: { interval, date } } } } } }
       const req = httpMocks.createRequest({ params: { crn, id }, query, session })
       const res = mockAppResponse()
       await controllers.checkIns.postFrequencyPage()(req, res)
@@ -848,6 +848,16 @@ describe('check-in setup flow', () => {
     it('goes to the date page for a standard interval', async () => {
       const { redirectedTo } = await postFrequency('WEEKLY')
       expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/check-in-date`)
+    })
+
+    it('returns to checkin-summary when editing from check-your-answers with a date already saved', async () => {
+      const { redirectedTo } = await postFrequency('WEEKLY', { cya: 'true' }, '1/1/2030')
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+    })
+
+    it('still collects a date, keeping cya, when switching from ad-hoc to a standard interval', async () => {
+      const { redirectedTo } = await postFrequency('WEEKLY', { cya: 'true' })
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
     })
 
     it('bounces back from the date page to frequency if ad-hoc is selected in session', async () => {
