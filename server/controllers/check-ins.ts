@@ -2032,6 +2032,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const checkInEmail = offenderDetails?.email ?? ''
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      const isAdHoc = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval']) === 'AD_HOC'
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'], checkInEmail)
@@ -2048,6 +2050,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
         preferredComs,
+        isAdHoc,
         case: offenderDetails,
         cya,
       })

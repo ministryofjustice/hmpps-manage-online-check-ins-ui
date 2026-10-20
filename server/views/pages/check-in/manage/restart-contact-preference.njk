@@ -10,9 +10,11 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin' if not cya else '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
+{# An ad-hoc restart has no date page, so Back goes to the frequency page instead. #}
+{% set isAdHoc = isAdHoc if isAdHoc is defined else data.esupervision[crn][id].restartCheckin.interval == 'AD_HOC' %}
+{% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id + '/' + (('restart-checkin' if isAdHoc else 'restart-checkin-date') if not cya else 'restart-summary') %}
 {% set radioLabel =  "How does "+ case.name.forename + " want us to send a link to the service?" %}
-{% set radioHint=  "We will use these details to send a link to "+ case.name.forename + "  each time they need to use the check in service." %}
+{% set radioHint = "We will use these details to send a link to "+ case.name.forename + "  each time they need to use the check in service." %}
 {% set setMobile =  '[esupervision]['+  crn + '][' + id +'][restartCheckin][checkInMobile]' %}
 {% set setEmail =  '[esupervision]['+  crn + '][' + id +'][restartCheckin][checkInEmail]' %}
 {% set setMobileError =  'esupervision-'+  crn + '-' + id +'-restartCheckin-checkInMobile' %}

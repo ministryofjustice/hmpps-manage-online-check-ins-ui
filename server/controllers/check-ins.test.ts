@@ -1151,7 +1151,25 @@ describe('checkInsController', () => {
           checkInMobile: '07700900000',
           checkInEmail: 'test@example.com',
           preferredComs: 'EMAIL',
+          isAdHoc: false,
         }),
+      )
+    })
+
+    it('flags an ad-hoc restart so the page can send Back to the frequency page', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
+
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC' } } } },
+      })
+
+      await controllers.checkIns.getRestartContactPage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-contact-preference.njk',
+        expect.objectContaining({ isAdHoc: true }),
       )
     })
   })

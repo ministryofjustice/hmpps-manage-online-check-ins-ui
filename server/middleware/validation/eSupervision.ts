@@ -339,6 +339,8 @@ const eSuperVision: Route<void> = (req, res, next) => {
   const validateRestartContact = () => {
     if (baseUrl.includes(manage('restart-contact'))) {
       render = `pages/check-in/manage/restart-contact-preference`
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      localParams.isAdHoc = sessionVal('restartCheckin', 'interval') === 'AD_HOC'
       if (body?.change === 'main') {
         const checkInEmail = sessionVal('restartCheckin', 'checkInEmail')
         const checkInMobile = sessionVal('restartCheckin', 'checkInMobile')
