@@ -459,6 +459,22 @@ describe('the manage settings pages', () => {
 })
 
 describe('a reactivation summary', () => {
+  it.each([
+    ['Email', 'Email address', 'bob@example.com', 'checkInEmailAction', 'checkInMobileAction'],
+    ['Text message', 'Mobile number', '07700900000', 'checkInMobileAction', 'checkInEmailAction'],
+  ])('shows only the selected %s contact detail', async (preferredComs, label, value, selectedAction, otherAction) => {
+    const html = await render('manage/restart-checkin-summary', {
+      ...base,
+      userDetails: { ...(base.userDetails as Record<string, unknown>), preferredComs },
+    })
+
+    expect(html).toContain(label)
+    expect(html).toContain(value)
+    expect(html).toContain(`data-qa="${selectedAction}"`)
+    expect(html).not.toContain(`data-qa="${otherAction}"`)
+    expect(html).not.toContain('data-qa="preferredComsAction"')
+  })
+
   it('shows the rationale for the accredited-programme cohort', async () => {
     const html = await render('manage/restart-checkin-summary', {
       ...base,
