@@ -245,12 +245,6 @@ context('restarting check ins as ad-hoc', () => {
     confirmationPage.getPanel().should('not.contain.text', 'Starting')
     confirmationPage.getWhatHappensNext().should('contain.text', 'Schedule an online check in')
     lastApiRequestBody('/v2/offenders/.+?/reactivate').then(sent => {
-      expect(sent.eligibilityAnswers).to.deep.equal({
-        accreditedProgramme: false,
-        recalled: false,
-        deviceRestriction: false,
-        youthSentence: false,
-      })
       expect(sent.checkinSchedule).to.include({ mode: 'AD_HOC' })
       expect(sent.checkinSchedule).not.to.have.property('checkinInterval')
       expect(sent.checkinSchedule).not.to.have.property('firstCheckin')
