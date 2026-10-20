@@ -30,6 +30,11 @@ const offender = {
   details: { name: { forename: 'Joe', surname: 'Bloggs' }, mobile: '07700900000', email: 'joe@example.com' },
 }
 
+const dateInputValueOf = (html: string) => {
+  const input = html.match(/<input[^>]*moj-js-datepicker-input[^>]*>/)?.[0] ?? ''
+  return input.match(/value="([^"]*)"/)?.[1] ?? ''
+}
+
 const backLinkOf = (html: string) => {
   const anchor = html.match(/<a[^>]*govuk-back-link[^>]*>/)?.[0] ?? ''
   return anchor.match(/href="([^"]+)"/)?.[1]
@@ -72,6 +77,7 @@ describe('restart journey validates before storing', () => {
       .send({ [dateField]: '31/2/2030' })
       .expect(200)
     expect(rejected.text).toContain('Enter a date in the correct format')
+    expect(dateInputValueOf(rejected.text)).toBe('31/2/2030')
 
     // Had 31/2/2030 been stored, the frequency page would now return straight to the summary.
     await switchToWeekly().expect(302).expect('Location', `${manage}/restart-checkin-date?cya=true`)
@@ -85,6 +91,7 @@ describe('restart journey validates before storing', () => {
       .send({ [dateField]: 'not-a-date' })
       .expect(200)
     expect(backLinkOf(rejected.text)).toBe(`${manage}/restart-checkin?cya=true`)
+    expect(dateInputValueOf(rejected.text)).toBe('not-a-date')
   })
 
   it('keeps Back on the summary when a saved date is replaced with an empty one', async () => {
@@ -102,5 +109,7 @@ describe('restart journey validates before storing', () => {
       .send({ [dateField]: '' })
       .expect(200)
     expect(backLinkOf(rejected.text)).toBe(`${manage}/restart-summary`)
+    // The field shows the empty submission, not the saved 1/1/2030, so Continue cannot re-submit it unnoticed.
+    expect(dateInputValueOf(rejected.text)).toBe('')
   })
 })
