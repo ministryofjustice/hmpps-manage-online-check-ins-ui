@@ -1709,8 +1709,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       req.session.data = req.session.data || {}
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
-      const date = checkinRes?.firstCheckin
       const interval = fromApiSchedule(checkinRes)
+      // An ad-hoc person's firstCheckin is their last booked ad-hoc check in, which may already have
+      // passed. It is not a start date for a new schedule, so leave the date page empty for them.
+      const date = interval === 'AD_HOC' ? undefined : checkinRes?.firstCheckin
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], { date, interval })
       return res.render('pages/check-in/manage/checkin-settings-frequency.njk', {
         crn,

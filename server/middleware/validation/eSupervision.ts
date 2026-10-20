@@ -199,9 +199,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
         // See getSettingsDatePage: a scheduled person came from the manage card, an ad-hoc person
         // from the frequency page.
         const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
-        localParams.backLink = fromApiSchedule(offenderDetails) === 'AD_HOC' ? `${managePage}/settings` : managePage
-        // The record holds an ISO date; the picker and its validator want d/M/yyyy.
-        const savedDate = DateTime.fromISO(offenderDetails?.firstCheckin ?? '')
+        const isAdHoc = fromApiSchedule(offenderDetails) === 'AD_HOC'
+        localParams.backLink = isAdHoc ? `${managePage}/settings` : managePage
+        // The record holds an ISO date; the picker and its validator want d/M/yyyy. An ad-hoc
+        // person's firstCheckin is their last booked ad-hoc check in, not a date to restore.
+        const savedDate = DateTime.fromISO(isAdHoc ? '' : (offenderDetails?.firstCheckin ?? ''))
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageCheckin', 'date'],

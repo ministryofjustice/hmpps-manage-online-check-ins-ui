@@ -430,18 +430,21 @@ describe('checkInsController', () => {
     })
 
     // The API reports ad-hoc as a mode with no interval; the radios need it as the selected interval.
-    it('seeds the ad-hoc option when the API reports the ad-hoc mode', async () => {
+    // Their firstCheckin is the last booked ad-hoc check in (possibly past), so no date is seeded:
+    // moving to a scheduled interval must start from an empty date page.
+    it('seeds the ad-hoc option, and no date, when the API reports the ad-hoc mode', async () => {
       res.locals.offenderCheckinsByCRNResponse = {
         ...offenderCheckinsByCRNResponse,
         mode: 'AD_HOC',
         checkinInterval: null,
+        firstCheckin: '2020-01-01',
       }
       const req = baseReq({})
 
       await controllers.checkIns.getSettingsFrequencyPage()(req, res)
 
       expect(mockSetDataValue).toHaveBeenCalledWith(req.session.data, ['esupervision', crn, uuid, 'manageCheckin'], {
-        date: offenderCheckinsByCRNResponse.firstCheckin,
+        date: undefined,
         interval: 'AD_HOC',
       })
     })
