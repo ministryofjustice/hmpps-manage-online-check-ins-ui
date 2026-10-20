@@ -86,6 +86,40 @@ describe('setup validation re-render', () => {
     expect(res.render).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['setup', `/case/${crn}/appointments/${id}/check-in/rationale`, 'checkins'],
+    ['reactivation', `/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`, 'restartCheckin'],
+  ] as const)('rejects whitespace-only rationale for %s', (journey, url, sessionKey) => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { [sessionKey]: { rationale: '   ' } } } } },
+      session: { data: { esupervision: { [crn]: { [id]: { [sessionKey]: { accreditedProgramme: true } } } } } },
+    })
+    const res: any = {
+      locals: {
+        tierScore: 'A',
+        ...(journey === 'reactivation' && { checkInEligibilityJourney: 'reactivation' }),
+      },
+      render: jest.fn(),
+    }
+    const next = jest.fn()
+
+    validate(req, res, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.render).toHaveBeenCalledWith(
+      'pages/check-in/rationale',
+      expect.objectContaining({
+        errorMessages: expect.objectContaining({
+          [`esupervision-${crn}-${id}-${sessionKey}-rationale`]: expect.any(String),
+        }),
+      }),
+    )
+  })
+
   it('validates restart eligibility under restartCheckin and re-renders the shared eligibility view', () => {
     const req = httpMocks.createRequest({
       method: 'POST',

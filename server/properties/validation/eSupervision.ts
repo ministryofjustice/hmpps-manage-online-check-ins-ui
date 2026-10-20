@@ -84,7 +84,12 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     },
     [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][rationale]`]: {
       optional: page !== 'rationale',
-      checks: [{ validator: isNotEmpty, msg: 'Enter why the person is suitable to use online check ins' }],
+      checks: [
+        {
+          validator: ([value]) => typeof value === 'string' && value.trim().length > 0,
+          msg: 'Enter why the person is suitable to use online check ins',
+        },
+      ],
     },
     [`[esupervision][${crn}][${id}][checkins][date]`]: {
       optional: page !== 'check-in-date',
