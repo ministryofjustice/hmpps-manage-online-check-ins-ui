@@ -36,6 +36,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
     checkInMobile: bodyCheckInMobile,
     checkInEmail: bodyCheckInEmail,
   }
+  localParams.eligibilityUrlPrefix = getCheckInEligibilityContext(
+    (res.locals as AppLocals).checkInEligibilityJourney ?? 'setup',
+    crn,
+    id,
+  ).eligibilityUrlPrefix
   const baseUrl = req.url.split('?')[0]
   let render = `pages/${[
     url

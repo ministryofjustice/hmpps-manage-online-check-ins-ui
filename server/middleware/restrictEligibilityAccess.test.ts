@@ -388,6 +388,78 @@ describe('restrictEligibilityAccess', () => {
     expect(res.redirect).not.toHaveBeenCalled()
   })
 
+  it('requires rationale before an accredited-programme reactivation can continue', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                  accreditedProgrammeApproval: 'accredited-programme-approval',
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('allows an accredited-programme reactivation to reach rationale before it is entered', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                  accreditedProgrammeApproval: 'accredited-programme-approval',
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.redirect).not.toHaveBeenCalled()
+  })
+
   it('sends the accredited-programme cohort back when only the shared points are ticked', async () => {
     const req = buildReq({
       tierBand: 'AB',

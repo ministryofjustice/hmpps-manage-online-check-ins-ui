@@ -116,21 +116,22 @@ describe.each(views)('%s', view => {
 })
 
 describe('shared eligibility templates in reactivation', () => {
-  it('posts eligibility, pilot, discussion, approval, and rationale under restartCheckin', async () => {
-    const restartBase = {
-      ...base,
-      eligibilitySessionKey: 'restartCheckin',
-      eligibilityUrlPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
-      data: {
-        esupervision: {
-          [crn]: {
-            [id]: { restartCheckin: { eligibility: ['none'], pilotCheck: 'true', discussion: [] as string[] } },
-          },
+  const eligibilityUrlPrefix = `/case/${crn}/appointments/check-in/manage/${id}/restart-`
+  const restartBase = {
+    ...base,
+    eligibilitySessionKey: 'restartCheckin',
+    eligibilityUrlPrefix,
+    data: {
+      esupervision: {
+        [crn]: {
+          [id]: { restartCheckin: { eligibility: ['none'], pilotCheck: 'true', discussion: [] as string[] } },
         },
-        features: {},
       },
-    }
+      features: {},
+    },
+  }
 
+  it('posts eligibility, pilot, discussion, approval, and rationale under restartCheckin', async () => {
     const eligibility = await render('eligibility/eligibility-check', restartBase)
     const pilot = await render('eligibility/pilot-check', restartBase)
     const isEligible = await render('eligibility/pilot-is-eligible', restartBase)
@@ -142,6 +143,30 @@ describe('shared eligibility templates in reactivation', () => {
     expect(isEligible).toContain(`[${id}][restartCheckin][discussion]`)
     expect(approval).toContain(`[${id}][restartCheckin][accreditedProgrammeApproval]`)
     expect(rationale).toContain('Why is the person suitable to use online check ins?')
+  })
+
+  it('keeps the pilot eligible back link in the reactivation journey', async () => {
+    const html = await render('eligibility/pilot-is-eligible', restartBase)
+    expect(html).toContain(`href="${eligibilityUrlPrefix}pilot-check"`)
+  })
+
+  it('returns answer-based exclusions to the restart eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...restartBase,
+      reason: 'has been recalled to prison',
+    })
+    expect(html).toContain(`href="${eligibilityUrlPrefix}eligibility-check"`)
+  })
+
+  it('keeps record-based exclusions linked to the case overview', async () => {
+    const html = await render('eligibility/not-eligible', { ...restartBase, missingTier: true })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('restart-eligibility-check')
+  })
+
+  it('returns the discussion gate to the restart eligible page', async () => {
+    const html = await render('eligibility/discuss-before-signup', restartBase)
+    expect(html).toContain(`href="${eligibilityUrlPrefix}is-eligible"`)
   })
 })
 

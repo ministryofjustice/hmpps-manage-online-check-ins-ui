@@ -724,11 +724,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       return res.render('pages/check-in/eligibility/discuss-before-signup.njk', {
         crn,
         id,
         back,
         guidanceUrl: config.guidance.link,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },

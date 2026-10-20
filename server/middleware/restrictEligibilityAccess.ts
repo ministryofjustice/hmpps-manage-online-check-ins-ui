@@ -83,17 +83,30 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
     const accreditedProgramme = Boolean(checkins.accreditedProgramme)
+    const isAccreditedProgrammeApprovalPage =
+      req.path === eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
+    const isRationalePage = req.path === eligibilityContext.urlForEligibilityPage('rationale')
     if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion, { accreditedProgramme })) {
       return res.redirect(eligibilityContext.urlForEligibilityPage('is-eligible'))
     }
     if (
       eligibilityContext.journey === 'reactivation' &&
       page === 'setup' &&
-      !req.path.endsWith('/restart-accredited-programme-approval') &&
+      !isAccreditedProgrammeApprovalPage &&
       accreditedProgramme &&
       !toSelections(checkins.accreditedProgrammeApproval).includes('accredited-programme-approval')
     ) {
       return res.redirect(eligibilityContext.urlForEligibilityPage('accredited-programme-approval'))
+    }
+    if (
+      eligibilityContext.journey === 'reactivation' &&
+      page === 'setup' &&
+      accreditedProgramme &&
+      !isAccreditedProgrammeApprovalPage &&
+      !isRationalePage &&
+      (typeof checkins.rationale !== 'string' || !checkins.rationale.trim())
+    ) {
+      return res.redirect(eligibilityContext.urlForEligibilityPage('rationale'))
     }
     return next()
   }

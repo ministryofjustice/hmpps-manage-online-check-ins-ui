@@ -5,7 +5,8 @@
   pageHeading: [pageTitleText]
 }) %}
 {% set back = back if back else '' %}
-{% set backLink = '/case/' + crn + '/appointments/' + id + '/check-in/is-eligible' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
+{% set backLink = eligibilityUrlPrefix + 'is-eligible' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
 

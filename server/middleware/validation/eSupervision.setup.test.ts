@@ -107,4 +107,24 @@ describe('setup validation re-render', () => {
     expect(locals.eligibilityUrlPrefix).toBe(`/case/${crn}/appointments/check-in/manage/${id}/restart-`)
     expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-restartCheckin-eligibility`)
   })
+
+  it.each([
+    ['Tier A/B accredited-programme', 'A', { accreditedProgramme: true }, 'accredited-programme-is-eligible'],
+    ['Tier D-G', 'D', {}, 'is-eligible'],
+  ])('supplies the setup eligibility URL prefix when %s is re-rendered', (_description, tierScore, answers, view) => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url: `/case/${crn}/appointments/${id}/check-in/is-eligible`,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { checkins: {} } } } },
+      session: { data: { esupervision: { [crn]: { [id]: { checkins: answers } } } } },
+    })
+    const res: any = { locals: { tierScore }, render: jest.fn() }
+    validate(req, res, jest.fn())
+
+    const [renderedView, locals] = res.render.mock.calls[0]
+    expect(renderedView).toContain(view)
+    expect(locals.eligibilityUrlPrefix).toBe(`/case/${crn}/appointments/${id}/check-in/`)
+  })
 })
