@@ -6,6 +6,7 @@ const getDataValue = <T = any>(data: any, sections: any): T => {
   if (!path.every(isSafeKey)) {
     return undefined
   }
-  return getKeypath(data, path.map((s: any) => `["${s}"]`).join(''))
+  // An array path is taken literally by lodash, so keys can't smuggle extra segments (e.g. `a"]["__proto__`)
+  return getKeypath(data, path)
 }
 export default getDataValue

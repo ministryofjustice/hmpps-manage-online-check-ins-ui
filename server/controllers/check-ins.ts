@@ -1507,7 +1507,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status !== 'SUBMITTED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(
         res,
@@ -1545,7 +1547,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
 
       if (checkIn.status !== 'SUBMITTED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_REVIEW_SUBMITTED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/notes.njk', { crn, id, back, checkIn })
@@ -1587,10 +1591,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status === 'EXPIRED' && checkIn.reviewedAt) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/view-expired${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/view-expired${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       if (checkIn.status !== 'EXPIRED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_MISSED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/expired.njk', { crn, id, back, checkIn })
@@ -1659,7 +1667,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { checkIn } = res.locals
 
       if (checkIn.status !== 'EXPIRED' || !checkIn.reviewedAt) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       return res.render('pages/check-in/view-expired.njk', { crn, id, back, checkIn })
     }
@@ -1686,7 +1696,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       if (Object.keys(statusMap).includes(checkIn.status)) {
         return res.redirect(
-          `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${back}` : ''}`,
+          `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
         )
       }
       return renderError(404)(req, res)

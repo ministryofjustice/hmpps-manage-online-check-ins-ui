@@ -24,4 +24,9 @@ describe('utils/getDataValue', () => {
     expect(getDataValue(mockSession, [key])).toBeUndefined()
     expect(getDataValue(mockSession, ['appointments', key, 'toString'])).toBeUndefined()
   })
+
+  it('treats each path segment literally', () => {
+    expect(getDataValue(mockSession, ['appointments"]["__proto__'])).toBeUndefined()
+    expect(getDataValue({ 'a.b': 1 }, ['a.b'])).toEqual(1)
+  })
 })
