@@ -470,9 +470,10 @@ describe('a reactivation summary', () => {
 
     expect(html).toContain(label)
     expect(html).toContain(value)
+    expect(html).toContain('How does Bob want us to send a link to the service?')
+    expect(html).toContain(`data-qa="preferredComsAction"`)
     expect(html).toContain(`data-qa="${selectedAction}"`)
     expect(html).not.toContain(`data-qa="${otherAction}"`)
-    expect(html).not.toContain('data-qa="preferredComsAction"')
   })
 
   it('shows the rationale for the accredited-programme cohort', async () => {
