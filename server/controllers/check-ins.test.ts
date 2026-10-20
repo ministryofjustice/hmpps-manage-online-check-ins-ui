@@ -759,7 +759,18 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-checkin-date`)
     })
 
-    it('preserves cya when redirecting to the restart date page', async () => {
+    it('returns to the summary during a check-your-answers edit when a date is already saved', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', date: '1/1/2030' } } } },
+      })
+      req.query = { cya: 'true' }
+      await controllers.checkIns.postRestartCheckinPage(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-summary`)
+    })
+
+    it('still collects a date, preserving cya, when switching from ad-hoc to a standard interval', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       const req = baseReq({ esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY' } } } } })
@@ -1115,6 +1126,23 @@ describe('checkInsController', () => {
         true,
       )
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/photo-options`)
+    })
+  })
+
+  describe('postRestartCheckinDatePage', () => {
+    it('returns to the check your answers page when reached from a change link', async () => {
+      const req = baseReq()
+      req.query = { cya: 'true' }
+      await controllers.checkIns.postRestartCheckinDatePage(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${uuid}/restart-summary?cya=true`,
+      )
+    })
+
+    it('continues to the contact page otherwise', async () => {
+      const req = baseReq()
+      await controllers.checkIns.postRestartCheckinDatePage(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-contact`)
     })
   })
 

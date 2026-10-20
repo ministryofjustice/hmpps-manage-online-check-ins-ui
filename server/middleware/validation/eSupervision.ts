@@ -389,6 +389,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
       case: offenderDetails?.details ?? res.locals.case,
       guidanceUrl: config.guidance.link,
       data: req.session.data,
+      // Pages reached from a check-your-answers change link derive their Back and change links
+      // from cya, so a validation error must not drop it.
+      cya: cya === 'true',
     })
   }
   return next()
