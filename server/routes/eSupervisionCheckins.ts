@@ -409,8 +409,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    // Validate before storing, as the setup journey does: a rejected answer must not reach the
+    // session, where the frequency and date pages read it to decide where Continue and Back go.
     validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postRestartCheckinPage(hmppsAuthClient),
   )
 
@@ -427,8 +429,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    // Validate before storing, as the setup journey does: a rejected answer must not reach the
+    // session, where the frequency and date pages read it to decide where Continue and Back go.
     validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postRestartCheckinDatePage(hmppsAuthClient),
   )
 

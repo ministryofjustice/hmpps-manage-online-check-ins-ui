@@ -185,21 +185,23 @@ describe('Test eSuperVision validation', () => {
       )
     })
 
-    it('sends an ad-hoc person back to the frequency page from a date error', () => {
-      const esupervision = { [crn]: { [id]: { manageCheckin: { date: '', interval: 'WEEKLY' } } } }
+    it('sends an ad-hoc person back to the frequency page from a date error, with no date restored', () => {
+      const esupervision = { [crn]: { [id]: { manageCheckin: { date: 'not-a-date', interval: 'WEEKLY' } } } }
       const req = makeReq({
         url: manageSettingsDateUrl,
         body: { esupervision },
         session: { data: { esupervision } },
       })
+      // firstCheckin is their last booked ad-hoc check in, not a start date for the new schedule.
       const res = mockAppResponse({
-        offenderCheckinsByCRNResponse: { firstCheckin: null, checkinInterval: null, mode: 'AD_HOC' },
+        offenderCheckinsByCRNResponse: { firstCheckin: '2020-01-01', checkinInterval: null, mode: 'AD_HOC' },
       })
       validation.eSuperVision(req, res, next)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/manage/checkin-settings-date',
         expect.objectContaining({ backLink: manageSettingsUrl }),
       )
+      expect(req.session.data.esupervision[crn][id].manageCheckin.date).toBeUndefined()
     })
   })
 

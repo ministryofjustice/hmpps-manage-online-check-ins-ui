@@ -804,6 +804,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/${id}/check-in/contact-preference`,
         )
       }
+      // A check-your-answers edit returns to the summary with the date already on file. Only when
+      // switching from ad-hoc (which has no date) to a standard interval is a date still needed.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      if (cya && date) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+      }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-date${cya ? '?cya=true' : ''}`)
     }
   },
@@ -820,9 +826,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (interval === 'AD_HOC') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency${cya ? '?cya=true' : ''}`)
       }
-      const backLink = cya
-        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-        : `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      let backLink = `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+          : `/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`
+      }
       return res.render('pages/check-in/check-in-date.njk', {
         crn,
         id,
@@ -1697,8 +1709,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       req.session.data = req.session.data || {}
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
-      const date = checkinRes?.firstCheckin
       const interval = fromApiSchedule(checkinRes)
+      // An ad-hoc person's firstCheckin is their last booked ad-hoc check in, which may already have
+      // passed. It is not a start date for a new schedule, so leave the date page empty for them.
+      const date = interval === 'AD_HOC' ? undefined : checkinRes?.firstCheckin
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], { date, interval })
       return res.render('pages/check-in/manage/checkin-settings-frequency.njk', {
         crn,
@@ -1961,6 +1975,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/check-in/manage/${id}/restart-contact`,
         )
       }
+      // A check-your-answers edit returns to the summary with the date already on file. Only when
+      // switching from ad-hoc (which has no date) to a standard interval is a date still needed.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'])
+      if (cya && date) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-summary`)
+      }
       return res.redirect(
         `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin-date${cya ? '?cya=true' : ''}`,
       )
@@ -1991,12 +2011,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'])
+      let backLink = `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+          : `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin?cya=true`
+      }
       return res.render('pages/check-in/manage/restart-checkin-date.njk', {
         crn,
         id,
         checkInMinDate,
         case: personalDetails,
         cya,
+        backLink,
       })
     }
   },
@@ -2032,6 +2062,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const checkInEmail = offenderDetails?.email ?? ''
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      const isAdHoc = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval']) === 'AD_HOC'
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'], checkInEmail)
@@ -2048,6 +2080,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
         preferredComs,
+        isAdHoc,
         case: offenderDetails,
         cya,
       })
