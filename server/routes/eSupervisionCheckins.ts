@@ -612,7 +612,6 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postRestartSummaryPage(hmppsAuthClient),
   )
