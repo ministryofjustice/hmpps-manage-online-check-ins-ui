@@ -167,6 +167,7 @@ function setNotEligibleReason(req: Request, crn: string, id: string, reason: str
   req.session.data = req.session.data || {}
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], [])
+  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'additionalTierInformation'], false)
 }
 
 // The tier statuses that are not bands at all, each ruling the person out on its own. A missing tier
@@ -393,9 +394,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // The reason comes from the rules rather than being picked here, so the GET and the POST cannot
       // disagree on the wording or on which fact is reported when both apply.
       if (!status.onSupervisionPackage || status.inFinalThird) {
-        const { reason, bullets } = nextAfterEligibilityCheck(band, status, [], res.locals.tierScore as string)
+        const { reason, bullets, additionalTierInformation } = nextAfterEligibilityCheck(
+          band,
+          status,
+          [],
+          res.locals.tierScore as string,
+        )
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       }
 
@@ -431,7 +442,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // Supplied by getSupervisionPackageStatus, which replaced the boxes these used to read.
       const status = getSupervisionPackageStatus(res)
       storeSupervisionPackageStatus(req, crn, id, status)
-      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
+      const { target, reason, bullets, accreditedProgramme, additionalTierInformation } = nextAfterEligibilityCheck(
         band,
         status,
         selections,
@@ -451,6 +462,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (target === 'not-eligible') {
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -537,10 +553,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
-      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck, res.locals.tierScore as string)
+      const { target, reason, bullets, additionalTierInformation } = nextAfterPilotCheck(
+        band,
+        pilotCheck,
+        res.locals.tierScore as string,
+      )
       if (target === 'not-eligible') {
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -624,6 +649,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
+        additionalTierInformation: getDataValue(req.session.data, [...checkins, 'additionalTierInformation']),
+        guidanceUrl: config.guidance.link,
         missingTier: tierStatus === MISSING_TIER,
         notSupervised: tierStatus === NOT_SUPERVISED_TIER,
         provisionalTier: res.locals.tierProvisional === true,

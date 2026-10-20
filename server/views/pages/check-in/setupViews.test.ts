@@ -362,6 +362,50 @@ describe('eligibility/not-eligible', () => {
     })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
+
+  // Ruled out by Tier alone, so the page explains the Tier A to C rules and the pilot instead.
+  it.each([
+    [
+      'a Tier A/B programme exclusion',
+      { reason: 'is in Tier A and on an accredited programme, but they are in early engagement' },
+    ],
+    [
+      'a Tier A/B person outside the pilot',
+      {
+        reason: 'is in Tier A and',
+        reasonBullets: [
+          'not on an accredited programme',
+          'you have no people who were signed up to use online check ins before 1 October 2026',
+        ],
+      },
+    ],
+    [
+      'a Tier C person outside the pilot',
+      {
+        reason:
+          'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
+      },
+    ],
+  ])('explains the Tier A to C rules and the pilot for %s', async (_name, outcome) => {
+    const html = await render('eligibility/not-eligible', { ...base, ...outcome, additionalTierInformation: true })
+    expect(html).toContain(
+      'Tiers A to C are not eligible to use online check ins unless they fall into specific categories.',
+    )
+    expect(html).toContain('We’ll be running this pilot until March 2027')
+    expect(html).toContain(
+      'If you think this is wrong, you can go back and perform the eligibility check again. <a class="govuk-link" href="https://example.com/practitioner-guidance" target="_blank" rel="noreferrer noopener">Find out more about eligibility in our guidance (opens in new tab).</a>',
+    )
+    expect(html).toContain(
+      '<a class="govuk-link" href="mailto:checkinwithprobation@justice.gov.uk">checkinwithprobation@justice.gov.uk (opens in email app)</a> for support.',
+    )
+    expect(html).not.toContain('If you think this information is wrong')
+  })
+
+  it('leaves the Tier A to C explanation off other reasons', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
+    expect(html).not.toContain('Tiers A to C')
+    expect(html).toContain('If you think this information is wrong')
+  })
 })
 
 // An ad-hoc setup schedules no first check in, so there is no date to show or change.
