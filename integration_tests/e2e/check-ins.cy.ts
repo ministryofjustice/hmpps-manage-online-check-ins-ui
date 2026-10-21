@@ -355,7 +355,7 @@ context('Appointment check-ins', () => {
       pilotCheckPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier C and you do not have one or more people')
+      notEligiblePage.getReason().should('contain', 'is in Tier C and you do not have people on your caseload')
     })
   })
 

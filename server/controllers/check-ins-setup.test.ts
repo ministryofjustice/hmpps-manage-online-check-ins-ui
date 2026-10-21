@@ -550,7 +550,7 @@ describe('check-in setup flow', () => {
       ],
       [
         'C',
-        'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+        'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
         [],
       ],
     ])('rules tier %s out with its own reason when outside the pilot cohort', async (tierScore, reason, bullets) => {
@@ -558,6 +558,7 @@ describe('check-in setup flow', () => {
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe(reason)
       expect(checkins.notEligibleReasonBullets).toEqual(bullets)
+      expect(checkins.additionalTierInformation).toBe(true)
     })
   })
 

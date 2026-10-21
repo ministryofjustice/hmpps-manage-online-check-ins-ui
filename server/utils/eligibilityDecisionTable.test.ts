@@ -55,7 +55,7 @@ const REASONS = {
   bothExclusions:
     'is in Tier A/B and on an accredited programme, but they are on a youth sentence and in early engagement',
   pilotC:
-    'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+    'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
 }
 
 // The clause that introduces a bullet list. Everything found on the eligibility check is a whole
@@ -281,6 +281,7 @@ describe('eligibility decision table', () => {
         {
           target: 'not-eligible',
           reason: REASONS.earlyEngagement,
+          additionalTierInformation: true,
         },
       )
     })
@@ -295,6 +296,7 @@ describe('eligibility decision table', () => {
       ).toEqual({
         target: 'not-eligible',
         reason: REASONS.bothExclusions,
+        additionalTierInformation: true,
       })
     })
 
@@ -311,6 +313,7 @@ describe('eligibility decision table', () => {
         target: 'not-eligible',
         reason: STEMS.pilotAB,
         bullets: [BULLETS.noProgramme, BULLETS.noPilot],
+        additionalTierInformation: true,
       })
     })
   })

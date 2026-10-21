@@ -125,6 +125,7 @@ describe('utils/eligibilityRules', () => {
         ).toEqual({
           target: 'not-eligible',
           reason: 'is in Tier B and on an accredited programme, but they are in early engagement',
+          additionalTierInformation: true,
         })
       })
 
@@ -132,6 +133,7 @@ describe('utils/eligibilityRules', () => {
         expect(nextAfterEligibilityCheck('AB', status(), ['accreditedProgramme', 'youthSentence'], 'B')).toEqual({
           target: 'not-eligible',
           reason: 'is in Tier B and on an accredited programme, but they are on a youth sentence',
+          additionalTierInformation: true,
         })
       })
 
@@ -220,6 +222,7 @@ describe('utils/eligibilityRules', () => {
           'not on an accredited programme',
           'you have no people who were signed up to use online check ins before 1 October 2026',
         ],
+        additionalTierInformation: true,
       })
     })
 
@@ -227,7 +230,8 @@ describe('utils/eligibilityRules', () => {
       expect(nextAfterPilotCheck('C', 'false', 'C')).toEqual({
         target: 'not-eligible',
         reason:
-          'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+          'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
+        additionalTierInformation: true,
       })
     })
 
