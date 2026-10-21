@@ -1634,7 +1634,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postViewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      const page = req.path.endsWith('/view-expired') ? 'view-expired' : 'view'
+      // Use the matched route pattern, not req.path, which may vary in case or trailing slash
+      const page = String(req.route?.path ?? '').endsWith('/view-expired') ? 'view-expired' : 'view'
       const back = safeBackUrl(req.query.back)
       const url = `/case/${crn}/appointments/${id}/check-in/${page}${back ? `?back=${encodeURIComponent(back)}` : ''}`
 

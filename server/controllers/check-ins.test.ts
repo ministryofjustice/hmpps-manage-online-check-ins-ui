@@ -3011,5 +3011,24 @@ describe('checkInsController', () => {
       await controllers.checkIns.getReviewNotesCheckIn(hmppsAuthClient)(req, res)
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/review/identity`)
     })
+
+    it.each([
+      ['/case/:crn/appointments/:id/check-in/view-expired', '/VIEW-EXPIRED/', 'view-expired'],
+      ['/case/:crn/appointments/:id/check-in/view', '/View/', 'view'],
+    ])('redirects to the matched route %s after saving a note', async (routePath, pathSuffix, page) => {
+      jest.spyOn(ESupervisionClient.prototype, 'postOffenderCheckInNote').mockResolvedValueOnce(undefined)
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `/case/${crn}/appointments/${uuid}/check-in${pathSuffix}`,
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: mpopBack },
+      })
+      req.route = { path: routePath }
+      await controllers.checkIns.postViewCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/${uuid}/check-in/${page}?back=${encodeURIComponent(mpopBack)}`,
+      )
+    })
   })
 })
