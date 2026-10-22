@@ -1029,6 +1029,40 @@ describe('check-in setup flow', () => {
       expect(res.render).toHaveBeenCalledWith('pages/check-in/checkin-summary.njk', expect.anything())
     })
 
+    // Reached from the summary's change link: ad-hoc was changed to an interval, then the date
+    // page was backed out of, so the interval was never given a date.
+    it('reverts an interval with no date to ad-hoc, since that is the answer being abandoned', async () => {
+      const session = {
+        data: {
+          esupervision: { [crn]: { [id]: { checkins: { interval: 'WEEKLY', photoUploadOption: 'TAKE_A_PIC' } } } },
+        },
+      }
+      const req = requestFor({}, session)
+      const res = mockAppResponse()
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(session.data.esupervision[crn][id].checkins.interval).toBe('AD_HOC')
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/checkin-summary.njk',
+        expect.objectContaining({
+          userDetails: expect.objectContaining({ isAdHoc: true, interval: "I'll schedule them one at a time" }),
+        }),
+      )
+    })
+
+    it('keeps an interval that has its date', async () => {
+      const session = {
+        data: { esupervision: { [crn]: { [id]: { checkins: { interval: 'WEEKLY', date: '1/1/2030' } } } } },
+      }
+      const req = requestFor({}, session)
+      const res = mockAppResponse()
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(session.data.esupervision[crn][id].checkins.interval).toBe('WEEKLY')
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/checkin-summary.njk',
+        expect.objectContaining({ userDetails: expect.objectContaining({ isAdHoc: false, interval: 'Every week' }) }),
+      )
+    })
+
     it('redirects to the check-in overview instead of re-showing stale answers once setup has completed', async () => {
       const req = requestFor(
         {},

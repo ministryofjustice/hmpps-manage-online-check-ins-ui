@@ -79,6 +79,20 @@ const getMinDate = (daysAhead = 0): string => {
   return day.day > 9 ? day.toFormat('dd/M/yyyy') : day.toFormat('d/M/yyyy')
 }
 
+// A check-your-answers page reached with a scheduled interval but no date can only mean the
+// practitioner changed an ad-hoc answer to an interval and then backed out of the date page: an
+// interval chosen first always collects its date before the summary is reachable. Their original
+// answer is restored, so the summary shows the answers that will actually be submitted.
+const revertAbandonedIntervalChange = (req: Request, crn: string, id: string, group: 'checkins' | 'restartCheckin') => {
+  const interval = getDataValue(req.session.data, ['esupervision', crn, id, group, 'interval'])
+  const date = getDataValue(req.session.data, ['esupervision', crn, id, group, 'date'])
+  if (interval && interval !== 'AD_HOC' && !date) {
+    setDataValue(req.session.data, ['esupervision', crn, id, group, 'interval'], 'AD_HOC')
+    return 'AD_HOC'
+  }
+  return interval
+}
+
 // Submits a change of check-in settings from the manage flow. Shared by the frequency page, which
 // submits every change except a move from ad-hoc to a scheduled interval, and the date page, which
 // collects the first check-in date that move needs before submitting.
@@ -1426,11 +1440,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           )
         }
       }
+      const interval = revertAbandonedIntervalChange(req, crn, id, 'checkins')
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: id,
-        interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
-        isAdHoc: savedUserDetails?.interval === 'AD_HOC',
+        interval: checkinIntervals.find(option => option.id === interval)?.label,
+        isAdHoc: interval === 'AD_HOC',
         preferredComs: savedUserDetails?.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         photoUploadOption:
           savedUserDetails?.photoUploadOption === 'TAKE_A_PIC' ? 'Take a photo using this device' : 'Upload a photo',
@@ -1879,6 +1894,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       ])
       const currentFrequency = fromApiSchedule(res.locals.offenderCheckinsByCRNResponse)
 
+      // Nothing to save when the frequency is unchanged. Submitting anyway would rewrite the
+      // schedule (re-basing its first check in on the next due date), record a fresh update
+      // against the practitioner, and show a "settings saved" banner for a change that never
+      // happened.
+      if (frequency === currentFrequency) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
       // Only a move from ad-hoc to a scheduled interval needs a date: the person has no schedule to
       // carry forward, so the practitioner picks when the new one starts.
       if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
@@ -2358,10 +2380,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
       const caseData = res.locals.offenderCheckinsByCRNResponse?.details
 
+      const interval = revertAbandonedIntervalChange(req, crn, id, 'restartCheckin')
       const userDetails = {
         ...restartDetails,
-        interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
-        isAdHoc: restartDetails.interval === 'AD_HOC',
+        interval: checkinIntervals.find(i => i.id === interval)?.label,
+        isAdHoc: interval === 'AD_HOC',
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
