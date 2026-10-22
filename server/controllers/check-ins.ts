@@ -2838,8 +2838,47 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
       }
 
-      const questionTemplateAndInputs =
-        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+      let questionTemplateAndInputs = getDataValue(data, [
+        'esupervision',
+        crn,
+        id,
+        'scheduleCheckIn',
+        'questionTemplateAndInputs',
+      ])
+      // Questions added before a switch to ad-hoc stay assigned and go out with the next booking,
+      // so show them here for the practitioner to keep, change or remove.
+      if (!questionTemplateAndInputs) {
+        questionTemplateAndInputs = {}
+        try {
+          const response = await new ESupervisionClient(token).getUpcomingCheckinQuestionItems(crn, 'en-GB')
+          const items = response?.upcoming?.items || []
+          items.forEach((item: any) => {
+            if (availableTemplates.some((t: any) => String(t.id) === String(item.template.id))) {
+              const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
+              questionTemplateAndInputs[`${item.template.id}-${uuidv4()}`] = inputValue
+            }
+          })
+        } catch (error: any) {
+          const status = error?.status || error?.response?.status
+          const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
+          if (status === 404 || isInactiveOffender) {
+            logger.info(`No saved questions found for CRN ${crn}.`)
+          } else {
+            logger.error(`Failed to fetch saved questions for CRN ${crn}:`, error)
+            return renderError(status || 500)(req, res)
+          }
+        }
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          questionTemplateAndInputs,
+        )
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'hasSavedQuestions'],
+          Object.keys(questionTemplateAndInputs).length > 0,
+        )
+      }
 
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
@@ -2923,6 +2962,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       try {
         const token = await hmppsAuthClient.getSystemClientToken(username)
         const eSupClient = new ESupervisionClient(token)
+        // Booking without questions keeps any still assigned, so clear those the practitioner removed.
+        if (formattedQuestions.length === 0 && scheduleCheckIn.hasSavedQuestions) {
+          await eSupClient.deleteAssignedQuestionsFromCheckIn(crn)
+        }
         await eSupClient.postScheduleAdHocCheckin(crn, request)
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn'], undefined)
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckInCreated'], date)
