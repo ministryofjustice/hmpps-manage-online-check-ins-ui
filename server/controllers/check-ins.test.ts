@@ -2704,6 +2704,64 @@ describe('checkInsController', () => {
         expect(context.addedQuestions).toEqual([{ id: '2-uuid', fullText: 'How has work been going recently?' }])
       })
 
+      // Questions added to a recurring check in stay assigned after a switch to ad-hoc.
+      it('shows questions still assigned from before the switch to ad-hoc', async () => {
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValueOnce({
+          upcoming: { items: [{ template: { id: 2 }, params: { placeholders: { text: 'work' } } }] },
+        } as any)
+        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        const draftId = '2-f1654ea3-0abb-46eb-860b-654a96edbe20'
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          { [draftId]: 'work' },
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'hasSavedQuestions'],
+          true,
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: draftId, fullText: 'How has work been going recently?' }],
+          }),
+        )
+      })
+
+      it('shows no questions when none are assigned', async () => {
+        jest
+          .spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems')
+          .mockRejectedValueOnce({ status: 404 })
+        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'hasSavedQuestions'],
+          false,
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({ addedQuestions: [] }),
+        )
+      })
+
+      it('does not fetch assigned questions once the draft is in the session', async () => {
+        const getItemsSpy = jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems')
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(
+          baseReq(sessionWith({ questionTemplateAndInputs: {} })),
+          res,
+        )
+
+        expect(getItemsSpy).not.toHaveBeenCalled()
+      })
+
       it('returns 404 when offender details are missing', async () => {
         res.locals.offenderCheckinsByCRNResponse = undefined
 
@@ -2754,6 +2812,32 @@ describe('checkInsController', () => {
           '1/2/2026',
         )
         expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+      })
+
+      it('clears assigned questions the practitioner removed before booking', async () => {
+        const deleteSpy = jest
+          .spyOn(ESupervisionClient.prototype, 'deleteAssignedQuestionsFromCheckIn')
+          .mockResolvedValueOnce({ message: 'ok' })
+        const req = baseReq(sessionWith({ date: '1/2/2026', hasSavedQuestions: true, questionTemplateAndInputs: {} }))
+
+        await controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(deleteSpy).toHaveBeenCalledWith(crn)
+        expect(postScheduleAdHocCheckinSpy).toHaveBeenCalledWith(crn, {
+          requestedBy: res.locals.user.username,
+          firstCheckin: '2026-02-01',
+        })
+        expect(redirectSpy).toHaveBeenCalledWith(manageUrl)
+      })
+
+      it('does not clear questions when none were assigned', async () => {
+        const deleteSpy = jest.spyOn(ESupervisionClient.prototype, 'deleteAssignedQuestionsFromCheckIn')
+        const req = baseReq(sessionWith({ date: '1/2/2026', questionTemplateAndInputs: {} }))
+
+        await controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(deleteSpy).not.toHaveBeenCalled()
+        expect(postScheduleAdHocCheckinSpy).toHaveBeenCalled()
       })
 
       it('preserves the draft and renders an error when scheduling fails', async () => {
