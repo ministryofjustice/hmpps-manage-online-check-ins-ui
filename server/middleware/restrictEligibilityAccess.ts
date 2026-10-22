@@ -82,7 +82,8 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     }
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
-    const accreditedProgramme = Boolean(checkins.accreditedProgramme)
+    // From the rules rather than the stored flag, which a later page can post new answers past.
+    const accreditedProgramme = Boolean(eligibility.accreditedProgramme)
     const isAccreditedProgrammeApprovalPage =
       req.path === eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
     const isRationalePage = req.path === eligibilityContext.urlForEligibilityPage('rationale')

@@ -302,7 +302,12 @@ describe('restrictEligibilityAccess', () => {
     ['Tier D-G', { tierBand: 'DG', onSupervisionPackage: true, eligibility: ['none'] }],
     [
       'the Tier A/B accredited-programme cohort',
-      { tierBand: 'AB', onSupervisionPackage: true, eligibility: ['accreditedProgramme'] },
+      {
+        tierBand: 'AB',
+        onSupervisionPackage: true,
+        eligibility: ['accreditedProgramme'],
+        discussion: [...discussion, 'programmeOnly'],
+      },
     ],
     ['the pilot cohort', { tierBand: 'C', onSupervisionPackage: true, eligibility: ['none'], pilotCheck: 'true' }],
   ])('allows the setup pages for %s once the discussion is confirmed', async (_, checkins) => {
@@ -329,6 +334,45 @@ describe('restrictEligibilityAccess', () => {
                   tierBand: 'AB',
                   eligibility: ['accreditedProgramme'],
                   accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(
+      `/case/${crn}/appointments/check-in/manage/${id}/restart-accredited-programme-approval`,
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // A later page can post new eligibility answers without the stored cohort flag being recomputed.
+  it('requires the programme steps when the answers say programme but the stored flag says not', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  pilotCheck: 'false',
+                  accreditedProgramme: false,
                   discussion: [...discussion, 'programmeOnly'],
                 },
                 supervisionPackageStatus: {
