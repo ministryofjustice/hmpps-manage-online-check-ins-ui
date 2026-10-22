@@ -595,7 +595,7 @@ describe('check-in setup flow', () => {
       ],
       [
         'C',
-        'is in Tier C and you do not have one or more people on your caseload who started using online check ins before 1 October 2026',
+        'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
         [],
       ],
     ])('rules tier %s out with its own reason when outside the pilot cohort', async (tierScore, reason, bullets) => {
@@ -603,6 +603,7 @@ describe('check-in setup flow', () => {
       expect(redirect).toBe(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(checkins.notEligibleReason).toBe(reason)
       expect(checkins.notEligibleReasonBullets).toEqual(bullets)
+      expect(checkins.additionalTierInformation).toBe(true)
     })
   })
 
@@ -871,8 +872,8 @@ describe('check-in setup flow', () => {
   })
 
   describe('ad-hoc frequency skips the date page', () => {
-    const postFrequency = async (interval: string, query: Record<string, string> = {}) => {
-      const session: any = { data: { esupervision: { [crn]: { [id]: { checkins: { interval } } } } } }
+    const postFrequency = async (interval: string, query: Record<string, string> = {}, date?: string) => {
+      const session: any = { data: { esupervision: { [crn]: { [id]: { checkins: { interval, date } } } } } }
       const req = httpMocks.createRequest({ params: { crn, id }, query, session })
       const res = mockAppResponse()
       await controllers.checkIns.postFrequencyPage()(req, res)
@@ -893,6 +894,47 @@ describe('check-in setup flow', () => {
     it('goes to the date page for a standard interval', async () => {
       const { redirectedTo } = await postFrequency('WEEKLY')
       expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/check-in-date`)
+    })
+
+    it('returns to checkin-summary when editing from check-your-answers with a date already saved', async () => {
+      const { redirectedTo } = await postFrequency('WEEKLY', { cya: 'true' }, '1/1/2030')
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+    })
+
+    it('still collects a date, keeping cya, when switching from ad-hoc to a standard interval', async () => {
+      const { redirectedTo } = await postFrequency('WEEKLY', { cya: 'true' })
+      expect(redirectedTo).toBe(`/case/${crn}/appointments/${id}/check-in/check-in-date?cya=true`)
+    })
+
+    describe('date page back link', () => {
+      const backLinkFor = async (checkins: Record<string, unknown>, query: Record<string, string> = {}) => {
+        const req = httpMocks.createRequest({
+          params: { crn, id },
+          query,
+          session: { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
+        })
+        const res = mockAppResponse()
+        await controllers.checkIns.getDatePage()(req, res)
+        return ((res.render as jest.Mock).mock.calls[0][1] as Record<string, unknown>).backLink
+      }
+
+      it('retraces to the frequency page on the first pass', async () => {
+        expect(await backLinkFor({ interval: 'WEEKLY' })).toBe(
+          `/case/${crn}/appointments/${id}/check-in/check-in-frequency`,
+        )
+      })
+
+      it('returns to the summary when editing from check-your-answers with a date already saved', async () => {
+        expect(await backLinkFor({ interval: 'WEEKLY', date: '1/1/2030' }, { cya: 'true' })).toBe(
+          `/case/${crn}/appointments/${id}/check-in/checkin-summary`,
+        )
+      })
+
+      it('retraces to the frequency page, keeping cya, when the frequency was just switched from ad-hoc', async () => {
+        expect(await backLinkFor({ interval: 'WEEKLY' }, { cya: 'true' })).toBe(
+          `/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`,
+        )
+      })
     })
 
     it('bounces back from the date page to frequency if ad-hoc is selected in session', async () => {

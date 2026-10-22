@@ -527,8 +527,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    // Validate before storing, as the setup journey does: a rejected answer must not reach the
+    // session, where the frequency and date pages read it to decide where Continue and Back go.
     validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postRestartCheckinPage(hmppsAuthClient),
   )
 
@@ -551,8 +553,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     restrictPageAccess({ requiredValues: ['interval'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    // Validate before storing, as the setup journey does: a rejected answer must not reach the
+    // session, where the frequency and date pages read it to decide where Continue and Back go.
     validate.eSuperVision,
+    autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postRestartCheckinDatePage(hmppsAuthClient),
   )
 
@@ -832,7 +836,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictScheduleCheckInAccess(),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getScheduleCheckInDate(),
+    controllers.checkIns.getScheduleCheckInDate(hmppsAuthClient),
   ])
   router.post('/case/:crn/appointments/check-in/manage/:id/schedule-check-in', [
     validateCrnAndId,
@@ -842,7 +846,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     autoStoreSessionData(hmppsAuthClient),
     validate.eSuperVision,
-    controllers.checkIns.postScheduleCheckInDate(),
+    controllers.checkIns.postScheduleCheckInDate(hmppsAuthClient),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/add', [

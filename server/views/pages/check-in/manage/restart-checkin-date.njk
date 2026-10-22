@@ -11,7 +11,7 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin' if not cya else '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
+{# backLink is supplied by the controller / validation middleware #}
 {% set buttonText =  "Continue" %}
 
 {% set showAnchorLink = true %}

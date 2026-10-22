@@ -123,7 +123,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
     validateSetupPage('check-in-date', 'check-in-date', 'check-in-date')
     if (baseUrl.includes(setup('check-in-date'))) {
-      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('check-in-frequency')
+      // Mirrors getDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = setup('check-in-frequency')
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('checkins', 'date')
+          ? setup('checkin-summary')
+          : `${setup('check-in-frequency')}?cya=true`
+      }
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
@@ -240,9 +246,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
         // See getSettingsDatePage: a scheduled person came from the manage card, an ad-hoc person
         // from the frequency page.
         const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
-        localParams.backLink = fromApiSchedule(offenderDetails) === 'AD_HOC' ? `${managePage}/settings` : managePage
-        // The record holds an ISO date; the picker and its validator want d/M/yyyy.
-        const savedDate = DateTime.fromISO(offenderDetails?.firstCheckin ?? '')
+        const isAdHoc = fromApiSchedule(offenderDetails) === 'AD_HOC'
+        localParams.backLink = isAdHoc ? `${managePage}/settings` : managePage
+        // The record holds an ISO date; the picker and its validator want d/M/yyyy. An ad-hoc
+        // person's firstCheckin is their last booked ad-hoc check in, not a date to restore.
+        const savedDate = DateTime.fromISO(isAdHoc ? '' : (offenderDetails?.firstCheckin ?? ''))
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageCheckin', 'date'],
@@ -328,7 +336,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/restart-checkin-date`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin-date' }))
-      localParams.backLink = cya === 'true' ? `/${manage('restart-summary')}` : `/${manage('restart-checkin')}`
+      // Mirrors getRestartCheckinDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = `/${manage('restart-checkin')}`
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('restartCheckin', 'date')
+          ? `/${manage('restart-summary')}`
+          : `/${manage('restart-checkin')}?cya=true`
+      }
     }
   }
 
@@ -374,13 +388,20 @@ const eSuperVision: Route<void> = (req, res, next) => {
     if (/\/schedule-check-in\/?$/.test(baseUrl)) {
       render = `pages/check-in/schedule-check-in/date`
       localParams.id = id
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date' }))
+      // The date page controller records the booking being moved, if any, when it renders.
+      const movingBookedCheckin = !!sessionVal('scheduleCheckIn', 'bookedDate')
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date', movingBookedCheckin }),
+      )
     }
   }
 
   const validateRestartContact = () => {
     if (baseUrl.includes(manage('restart-contact'))) {
       render = `pages/check-in/manage/restart-contact-preference`
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      localParams.isAdHoc = sessionVal('restartCheckin', 'interval') === 'AD_HOC'
       if (body?.change === 'main') {
         const checkInEmail = sessionVal('restartCheckin', 'checkInEmail')
         const checkInMobile = sessionVal('restartCheckin', 'checkInMobile')
@@ -430,6 +451,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
       case: offenderDetails?.details ?? res.locals.case,
       guidanceUrl: config.guidance.link,
       data: req.session.data,
+      // Pages reached from a check-your-answers change link derive their Back and change links
+      // from cya, so a validation error must not drop it.
+      cya: cya === 'true',
     })
   }
   return next()

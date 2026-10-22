@@ -1,4 +1,5 @@
-import { fromApiSchedule, toApiSchedule } from './checkinSchedule'
+import { DateTime } from 'luxon'
+import { fromApiSchedule, nextScheduledDay, toApiSchedule } from './checkinSchedule'
 
 describe('utils/checkinSchedule', () => {
   describe('toApiSchedule', () => {
@@ -22,6 +23,34 @@ describe('utils/checkinSchedule', () => {
     })
     it('should return undefined when there is no offender record', () => {
       expect(fromApiSchedule(null)).toBeUndefined()
+    })
+  })
+
+  describe('nextScheduledDay', () => {
+    const today = DateTime.fromISO('2026-10-16')
+
+    it('should keep a first check in that is today or later', () => {
+      expect(nextScheduledDay('2026-10-16', 'WEEKLY', today)).toEqual('2026-10-16')
+      expect(nextScheduledDay('2026-11-03', 'WEEKLY', today)).toEqual('2026-11-03')
+    })
+    it('should repeat a past first check in every interval until it reaches today or later', () => {
+      expect(nextScheduledDay('2026-09-01', 'WEEKLY', today)).toEqual('2026-10-20')
+      expect(nextScheduledDay('2026-09-01', 'FOUR_WEEKS', today)).toEqual('2026-10-27')
+    })
+    it('should land on today when today is a check in day', () => {
+      expect(nextScheduledDay('2026-10-02', 'TWO_WEEKS', today)).toEqual('2026-10-16')
+    })
+    it('should skip a check in day that falls on the lower bound when asked for the day after', () => {
+      expect(nextScheduledDay('2026-10-02', 'TWO_WEEKS', today.plus({ days: 1 }))).toEqual('2026-10-30')
+    })
+    it('should count whole days across a clock change', () => {
+      // British Summer Time ended on 25 October 2026.
+      expect(nextScheduledDay('2026-10-19', 'WEEKLY', DateTime.fromISO('2026-11-02'))).toEqual('2026-11-02')
+    })
+    it('should return undefined without a usable date or interval', () => {
+      expect(nextScheduledDay(null, 'WEEKLY', today)).toBeUndefined()
+      expect(nextScheduledDay('not a date', 'WEEKLY', today)).toBeUndefined()
+      expect(nextScheduledDay('2026-09-01', null, today)).toBeUndefined()
     })
   })
 })
