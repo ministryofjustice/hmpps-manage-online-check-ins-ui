@@ -577,6 +577,33 @@ describe('checkInsController', () => {
       expect(redirectSpy).not.toHaveBeenCalled()
     })
 
+    describe('an unchanged frequency', () => {
+      // The record (WEEKLY) is what the frequency page seeded, so re-submitting it is a no-op.
+      it('returns to the manage page without calling the API or showing the saved banner', async () => {
+        const getUpcoming = jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions')
+
+        await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('WEEKLY'), res)
+
+        expect(getUpcoming).not.toHaveBeenCalled()
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          expect.anything(),
+          ['esupervision', crn, uuid, 'manageCheckin', 'settingsUpdated'],
+          true,
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      })
+
+      it('treats ad-hoc re-submitted for an ad-hoc person the same way', async () => {
+        res.locals.offenderCheckinsByCRNResponse = adHocPerson
+
+        await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('AD_HOC'), res)
+
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      })
+    })
+
     // The API takes ad-hoc as a mode with no interval and no date.
     it('submits a move to ad-hoc straight away, with no interval or date', async () => {
       await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('AD_HOC'), res)

@@ -1761,6 +1761,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       ])
       const currentFrequency = fromApiSchedule(res.locals.offenderCheckinsByCRNResponse)
 
+      // Nothing to save when the frequency is unchanged. Submitting anyway would rewrite the
+      // schedule (re-basing its first check in on the next due date), record a fresh update
+      // against the practitioner, and show a "settings saved" banner for a change that never
+      // happened.
+      if (frequency === currentFrequency) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
       // Only a move from ad-hoc to a scheduled interval needs a date: the person has no schedule to
       // carry forward, so the practitioner picks when the new one starts.
       if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
