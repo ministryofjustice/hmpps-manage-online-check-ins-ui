@@ -1025,11 +1025,31 @@ describe('check-in setup flow', () => {
       const postOffenderSetupComplete = jest.fn().mockResolvedValue({})
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
 
-      const req = requestFor()
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  checkins: {
+                    eligibility: ['accreditedProgramme', 'youthSentence'],
+                    tierBand: 'AB',
+                    rationale: 'Stable and low risk',
+                  },
+                },
+              },
+            },
+          },
+        },
+      )
       const res = mockAppResponse()
       await controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)
 
-      expect(postOffenderSetupComplete).toHaveBeenCalledWith(id)
+      expect(postOffenderSetupComplete).toHaveBeenCalledWith(id, {
+        eligibilityAnswers: { accreditedProgramme: true, deviceRestriction: false, youthSentence: true },
+        rationale: 'Stable and low risk',
+      })
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/confirm-end`)
     })
 

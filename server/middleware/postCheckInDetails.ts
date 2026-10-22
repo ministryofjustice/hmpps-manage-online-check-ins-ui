@@ -4,6 +4,7 @@ import { Route } from '../@types'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { OffenderInfo, OffenderSetup, UploadLocationResponse } from '../data/model/esupervision'
 import { ProbationPractitioner } from '../data/model/personalDetails'
+import { eligibilityAnswersFromSelections } from '../utils/eligibilityRules'
 import logger from '../../logger'
 import { toApiSchedule } from '../utils/checkinSchedule'
 
@@ -33,7 +34,6 @@ export const postCheckInDetails = (
 
     const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
-
     const data: OffenderInfo = {
       setupUuid: id,
       practitionerId,
@@ -46,8 +46,8 @@ export const postCheckInDetails = (
       // which would record a setup time of zero.
       startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
       contactPreference: savedUserDetails.preferredComs,
-      eligibilityChoice: savedUserDetails.eligibilityChoice,
       rationale: savedUserDetails.rationale,
+      eligibilityAnswers: eligibilityAnswersFromSelections(savedUserDetails?.eligibility, savedUserDetails?.tierBand),
     }
     logger.info('Checkin Registration started')
     try {
