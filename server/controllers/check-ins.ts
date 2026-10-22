@@ -2096,11 +2096,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
+      const manage = `/case/${crn}/appointments/check-in/manage/${id}`
+      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'accreditedProgramme'])
+      let backLink = accreditedProgramme ? `${manage}/restart-rationale` : `${manage}/restart-is-eligible`
+      if (cya) backLink = `${manage}/restart-summary`
       return res.render('pages/check-in/manage/restart-checkin-frequency.njk', {
         crn,
         id,
         case: personalDetails,
         cya,
+        backLink,
       })
     }
   },

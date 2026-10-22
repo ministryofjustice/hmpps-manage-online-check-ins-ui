@@ -330,8 +330,14 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/restart-checkin-frequency`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin' }))
-      localParams.backLink =
-        cya === 'true' ? `/${manage('restart-summary')}` : `/case/${crn}/appointments/check-in/manage/${id}`
+      // Mirrors getRestartCheckinPage's backLink.
+      if (cya === 'true') {
+        localParams.backLink = `/${manage('restart-summary')}`
+      } else {
+        localParams.backLink = sessionVal('restartCheckin', 'accreditedProgramme')
+          ? `/${manage('restart-rationale')}`
+          : `/${manage('restart-is-eligible')}`
+      }
     } else if (baseUrl.endsWith(manage('restart-checkin-date'))) {
       render = `pages/check-in/manage/restart-checkin-date`
       localParams.id = id

@@ -754,6 +754,24 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it.each([
+      [true, 'restart-rationale'],
+      [false, 'restart-is-eligible'],
+    ])('goes Back to the previous eligibility step (accredited programme %s)', async (accreditedProgramme, page) => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { id: uuid, accreditedProgramme } } } },
+      })
+
+      await controllers.checkIns.getRestartCheckinPage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-checkin-frequency.njk',
+        expect.objectContaining({ backLink: `/case/${crn}/appointments/check-in/manage/${uuid}/${page}` }),
+      )
+    })
   })
 
   describe('postRestartCheckinPage', () => {
