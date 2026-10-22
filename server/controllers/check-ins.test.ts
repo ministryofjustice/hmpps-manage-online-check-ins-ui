@@ -577,6 +577,33 @@ describe('checkInsController', () => {
       expect(redirectSpy).not.toHaveBeenCalled()
     })
 
+    describe('an unchanged frequency', () => {
+      // The record (WEEKLY) is what the frequency page seeded, so re-submitting it is a no-op.
+      it('returns to the manage page without calling the API or showing the saved banner', async () => {
+        const getUpcoming = jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions')
+
+        await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('WEEKLY'), res)
+
+        expect(getUpcoming).not.toHaveBeenCalled()
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          expect.anything(),
+          ['esupervision', crn, uuid, 'manageCheckin', 'settingsUpdated'],
+          true,
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      })
+
+      it('treats ad-hoc re-submitted for an ad-hoc person the same way', async () => {
+        res.locals.offenderCheckinsByCRNResponse = adHocPerson
+
+        await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('AD_HOC'), res)
+
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      })
+    })
+
     // The API takes ad-hoc as a mode with no interval and no date.
     it('submits a move to ad-hoc straight away, with no interval or date', async () => {
       await controllers.checkIns.postSettingsFrequencyPage(hmppsAuthClient)(withInterval('AD_HOC'), res)
@@ -1353,6 +1380,28 @@ describe('checkInsController', () => {
   })
 
   describe('getRestartSummaryPage', () => {
+    // Reached from the summary's change link: ad-hoc was changed to an interval, then the date
+    // page was backed out of, so the interval was never given a date.
+    it('reverts an interval with no date to ad-hoc, since that is the answer being abandoned', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } } },
+      })
+      await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'restartCheckin', 'interval'],
+        'AD_HOC',
+      )
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-checkin-summary.njk',
+        expect.objectContaining({
+          userDetails: expect.objectContaining({ isAdHoc: true, interval: "I'll schedule them one at a time" }),
+        }),
+      )
+    })
+
     it('renders restart summary with transformed userDetails', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)

@@ -241,8 +241,9 @@ context('check in settings for an ad-hoc person', () => {
     })
   })
 
-  // The API takes ad-hoc as a mode alone: it rejects an interval or a date sent with it.
-  it('saves staying ad-hoc without asking for a date', () => {
+  // Nothing changed, so nothing is saved: no date is asked for, no update is sent and no
+  // "settings saved" banner is shown for a change that never happened.
+  it('returns to the manage page without saving when ad-hoc is re-submitted', () => {
     openManagePage().getChangeFrequencyLink().click()
     const frequencyPage = new CheckinSettingsFrequencyPage()
     frequencyPage.checkOnPage()
@@ -251,11 +252,13 @@ context('check in settings for an ad-hoc person', () => {
 
     const manageCheckins = new ManageCheckins()
     manageCheckins.checkOnPage()
-    manageCheckins.getUpdateBanner().should('contain.text', 'Check in settings saved')
-    lastApiRequestBody('/v2/offenders/.+?/update_details').then(sent => {
-      expect(sent.checkinSchedule).to.include({ mode: 'AD_HOC' })
-      expect(sent.checkinSchedule).not.to.have.property('checkinInterval')
-      expect(sent.checkinSchedule).not.to.have.property('firstCheckin')
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getUpdateBanner().should('not.exist')
+    cy.request('POST', `${wiremockAdmin}/requests/find`, {
+      method: 'POST',
+      urlPathPattern: '/v2/offenders/.+?/update_details',
+    }).then(({ body }) => {
+      expect(body.requests, 'an update sent for an unchanged frequency').to.have.length(0)
     })
   })
 
