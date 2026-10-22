@@ -4,6 +4,7 @@ import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/e
 
 export interface LocalsUser {
   userId?: string
+  userUuid?: string
   username?: string
   firstName?: string
   surname?: string

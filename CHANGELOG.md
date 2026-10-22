@@ -1,5 +1,12 @@
 # Change log
 
+**October 22nd 2026** - Add user metadata to app insights telemetry
+
+The user's HMPPS Auth UUID (`user_uuid` token claim) and auth source specific user id are now added to app insights
+telemetry using the `addUserMetadataToTelemetry` middleware from `@ministryofjustice/hmpps-azure-telemetry` 1.1.0.
+
+Mirrors [hmpps-template-typescript#822](https://github.com/ministryofjustice/hmpps-template-typescript/pull/822)
+
 **May 12th 2026** - Add codeql scan for typescript
 
 Adding an action for codeql security scanning of the application source code
