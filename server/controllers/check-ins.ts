@@ -2836,7 +2836,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             }
           })
         } catch (error: any) {
-          logger.info(`No saved questions found for CRN ${crn}: ${error?.status || error?.response?.status}`)
+          const status = error?.status || error?.response?.status
+          const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
+          if (status === 404 || isInactiveOffender) {
+            logger.info(`No saved questions found for CRN ${crn}.`)
+          } else {
+            logger.error(`Failed to fetch saved questions for CRN ${crn}:`, error)
+            return renderError(status || 500)(req, res)
+          }
         }
         setDataValue(
           data,

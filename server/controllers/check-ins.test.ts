@@ -2732,23 +2732,42 @@ describe('checkInsController', () => {
         )
       })
 
-      it('shows no questions when none are assigned', async () => {
-        jest
-          .spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems')
-          .mockRejectedValueOnce({ status: 404 })
-        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+      it.each([{ status: 404 }, { status: 422, data: { developerMessage: 'Offender status is INACTIVE' } }])(
+        'shows no questions for an expected no-questions response: %j',
+        async error => {
+          jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockRejectedValueOnce(error)
+          const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+          await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+          expect(mockSetDataValue).toHaveBeenCalledWith(
+            req.session.data,
+            ['esupervision', crn, uuid, 'scheduleCheckIn', 'hasSavedQuestions'],
+            false,
+          )
+          expect(renderSpy).toHaveBeenCalledWith(
+            'pages/check-in/schedule-check-in/add-questions.njk',
+            expect.objectContaining({ addedQuestions: [] }),
+          )
+        },
+      )
+
+      it.each([
+        { error: { status: 500 }, expectedStatus: 500 },
+        { error: { response: { status: 503 } }, expectedStatus: 503 },
+        { error: new Error('Request timed out'), expectedStatus: 500 },
+        { error: { status: 422, data: { developerMessage: 'Unexpected failure' } }, expectedStatus: 422 },
+      ])('leaves the draft unset after an unexpected fetch failure: %j', async ({ error, expectedStatus }) => {
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockRejectedValueOnce(error)
+        const req = baseReq(sessionWith({ availableTemplates: questionTemplates }))
 
         await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
 
-        expect(mockSetDataValue).toHaveBeenCalledWith(
-          req.session.data,
-          ['esupervision', crn, uuid, 'scheduleCheckIn', 'hasSavedQuestions'],
-          false,
-        )
-        expect(renderSpy).toHaveBeenCalledWith(
-          'pages/check-in/schedule-check-in/add-questions.njk',
-          expect.objectContaining({ addedQuestions: [] }),
-        )
+        expect(mockRenderError).toHaveBeenCalledWith(expectedStatus)
+        expect(renderSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs).toBeUndefined()
+        expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.hasSavedQuestions).toBeUndefined()
       })
 
       it('does not fetch assigned questions once the draft is in the session', async () => {
