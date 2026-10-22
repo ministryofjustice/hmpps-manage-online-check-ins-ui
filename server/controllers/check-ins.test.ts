@@ -1380,6 +1380,28 @@ describe('checkInsController', () => {
   })
 
   describe('getRestartSummaryPage', () => {
+    // Reached from the summary's change link: ad-hoc was changed to an interval, then the date
+    // page was backed out of, so the interval was never given a date.
+    it('reverts an interval with no date to ad-hoc, since that is the answer being abandoned', async () => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } } },
+      })
+      await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'restartCheckin', 'interval'],
+        'AD_HOC',
+      )
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-checkin-summary.njk',
+        expect.objectContaining({
+          userDetails: expect.objectContaining({ isAdHoc: true, interval: "I'll schedule them one at a time" }),
+        }),
+      )
+    })
+
     it('renders restart summary with transformed userDetails', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)

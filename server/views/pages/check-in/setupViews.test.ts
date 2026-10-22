@@ -70,12 +70,54 @@ const views = [
   'instructions',
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
+  'manage/restart-checkin-date',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
   new Promise((resolve, reject) => {
     app.render(`pages/check-in/${view}.njk`, locals, (err: Error, html: string) => (err ? reject(err) : resolve(html)))
   })
+
+const cancelLinkOf = (html: string) =>
+  html.match(/<a[^>]*data-qa="formAnchorLink"[^>]*>/)?.[0].match(/href="([^"]+)"/)?.[1]
+
+describe('check-in-date', () => {
+  const setupPage = `/case/${crn}/appointments/${id}/check-in`
+
+  it('offers no cancel link on the first pass', async () => {
+    const html = await render('check-in-date', { ...base, backLink: `${setupPage}/check-in-frequency` })
+    expect(cancelLinkOf(html)).toBeUndefined()
+  })
+
+  // The summary restores the ad-hoc answer this date would have replaced.
+  it('cancels back to the summary during a check-your-answers edit', async () => {
+    const html = await render('check-in-date', {
+      ...base,
+      cya: true,
+      backLink: `${setupPage}/check-in-frequency?cya=true`,
+    })
+    expect(cancelLinkOf(html)).toBe(`${setupPage}/checkin-summary`)
+  })
+})
+
+describe('manage/restart-checkin-date', () => {
+  const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+
+  it('cancels the whole restart on the first pass', async () => {
+    const html = await render('manage/restart-checkin-date', { ...base, backLink: `${managePage}/restart-checkin` })
+    expect(cancelLinkOf(html)).toBe(managePage)
+  })
+
+  // The summary restores the ad-hoc answer this date would have replaced.
+  it('cancels back to the summary during a check-your-answers edit', async () => {
+    const html = await render('manage/restart-checkin-date', {
+      ...base,
+      cya: true,
+      backLink: `${managePage}/restart-checkin?cya=true`,
+    })
+    expect(cancelLinkOf(html)).toBe(`${managePage}/restart-summary`)
+  })
+})
 
 describe('schedule-check-in/add-questions', () => {
   it('posts question deletion with a CSRF token', async () => {
