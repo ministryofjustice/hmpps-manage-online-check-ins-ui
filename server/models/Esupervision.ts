@@ -31,6 +31,7 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
+  pilotCheck?: string
   eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   eligibilitySPOApproval?: any
   rationale?: string
@@ -63,6 +64,8 @@ export interface LocalParams {
   hasContactDetails?: boolean
   isAdHoc?: boolean
   tierBand?: string
+  eligibilitySessionKey?: 'checkins' | 'restartCheckin'
+  eligibilityUrlPrefix?: string
   questionId?: string
   question?: {
     prefix: string

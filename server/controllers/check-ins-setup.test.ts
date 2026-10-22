@@ -22,8 +22,14 @@ const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 const hmppsAuthClient = new HmppsAuthClient(null) as jest.Mocked<HmppsAuthClient>
 
-const requestFor = (body: Record<string, unknown> = {}, session: Record<string, unknown> = {}) =>
-  httpMocks.createRequest({ params: { crn, id }, body, session, query: {} })
+const requestFor = (body: Record<string, unknown> = {}, session: Record<string, unknown> = {}, url?: string) =>
+  httpMocks.createRequest({
+    params: { crn, id },
+    body,
+    session,
+    query: {},
+    ...(url ? { url } : {}),
+  })
 
 // getPersonalDetails puts the tier score on res.locals for every eligibility route, and the
 // band derived from it decides which template and which rules apply.
@@ -71,6 +77,45 @@ describe('check-in setup flow', () => {
       expect(Date.parse(setupStartedAt)).toBeLessThanOrEqual(Date.now())
       // restrictPageAccess reads any `checkins` data as answers given, so starting must not create it
       expect(checkins).toBeUndefined()
+    })
+  })
+
+  describe('reactivation eligibility', () => {
+    it('uses the eligibility screen, seeds the previous contact choice, and keeps answers under restartCheckin', async () => {
+      const req = requestFor()
+      const res = responseForTier('A', {
+        checkInEligibilityJourney: 'reactivation',
+        supervisionPackageStatus: ON_PACKAGE,
+        offenderCheckinsByCRNResponse: { uuid: id, contactPreference: 'EMAIL', checkinInterval: 'FOUR_WEEKS' },
+      })
+
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+
+      expect(res.render).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          eligibilitySessionKey: 'restartCheckin',
+          eligibilityUrlPrefix: `/case/${crn}/appointments/check-in/manage/${id}/restart-`,
+        }),
+      )
+      expect(req.session.data.esupervision[crn][id].restartCheckin).toEqual(
+        expect.objectContaining({ id, preferredComs: 'EMAIL', tierBand: 'AB' }),
+      )
+      expect(req.session.data.esupervision[crn][id].checkins).toBeUndefined()
+    })
+
+    it('branches to the restart pilot question and stores eligibility answers separately', async () => {
+      const req = requestFor({ esupervision: { [crn]: { [id]: { restartCheckin: { eligibility: ['none'] } } } } })
+      const res = responseForTier('A', {
+        checkInEligibilityJourney: 'reactivation',
+        supervisionPackageStatus: ON_PACKAGE,
+      })
+
+      await controllers.checkIns.postEligibilityPage()(req, res)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/restart-pilot-check`)
+      expect(req.session.data.esupervision[crn][id].restartCheckin.tierBand).toBe('AB')
+      expect(req.session.data.esupervision[crn][id].checkins).toBeUndefined()
     })
   })
 

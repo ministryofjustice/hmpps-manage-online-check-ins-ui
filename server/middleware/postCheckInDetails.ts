@@ -33,7 +33,6 @@ export const postCheckInDetails = (
 
     const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
-
     const data: OffenderInfo = {
       setupUuid: id,
       practitionerId,
@@ -46,7 +45,6 @@ export const postCheckInDetails = (
       // which would record a setup time of zero.
       startedAt: req.session.data?.esupervision?.[crn]?.[id]?.setupStartedAt,
       contactPreference: savedUserDetails.preferredComs,
-      eligibilityChoice: savedUserDetails.eligibilityChoice,
       rationale: savedUserDetails.rationale,
     }
     logger.info('Checkin Registration started')

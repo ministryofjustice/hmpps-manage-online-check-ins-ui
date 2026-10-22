@@ -25,8 +25,10 @@ import ESupervisionClient from '../data/eSupervisionClient'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import { Controller } from '../@types'
 import { CheckinUserDetails } from '../models/Esupervision'
+import type { AppLocals } from '../models/Locals'
 import config from '../config'
 import { handleQuotes } from '../utils/handleQuotes'
+import { getCheckInEligibilityContext } from '../utils/checkInEligibilityContext'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import { postCheckInDetails } from '../middleware/postCheckInDetails'
 import { postCheckinInComplete } from '../middleware/postCheckinComplete'
@@ -177,11 +179,20 @@ const adHocBooking = async (hmppsAuthClient: HmppsAuthClient, res: Response, crn
 
 // Records why the person is not eligible for not-eligible.njk to render, keyed the same way the
 // eligibility rules record theirs.
-function setNotEligibleReason(req: Request, crn: string, id: string, reason: string): void {
+const eligibilityContextFor = (res: Response, crn: string, id: string) =>
+  getCheckInEligibilityContext((res.locals as AppLocals).checkInEligibilityJourney ?? 'setup', crn, id)
+
+function setNotEligibleReason(
+  req: Request,
+  crn: string,
+  id: string,
+  reason: string,
+  eligibilitySessionKey: 'checkins' | 'restartCheckin',
+): void {
   req.session.data = req.session.data || {}
-  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
-  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], [])
-  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'additionalTierInformation'], false)
+  setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'notEligibleReason'], reason)
+  setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'notEligibleReasonBullets'], [])
+  setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'additionalTierInformation'], false)
 }
 
 // The tier statuses that are not bands at all, each ruling the person out on its own. A missing tier
@@ -199,10 +210,11 @@ const tierStatusReasons: Record<typeof MISSING_TIER | typeof NOT_SUPERVISED_TIER
 // score we cannot read at all is unexpected data, and guessing a band would apply the wrong rules,
 // so that stays a 500.
 function requireBand(req: Request, res: Response, crn: string, id: string): TierBand | null {
+  const eligibilityContext = eligibilityContextFor(res, crn, id)
   const status: TierStatus | null = getTierBand(res.locals.tierScore as string)
   const ruleOut = (reason: string): null => {
-    setNotEligibleReason(req, crn, id, reason)
-    res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+    setNotEligibleReason(req, crn, id, reason, eligibilityContext.eligibilitySessionKey)
+    res.redirect(eligibilityContext.urlForEligibilityPage('not-eligible'))
     return null
   }
   if (status === MISSING_TIER || status === NOT_SUPERVISED_TIER) {
@@ -382,6 +394,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
@@ -395,7 +408,28 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments`)
       }
       req.session.data = req.session.data || {}
-      setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+      if (
+        eligibilityContext.journey === 'reactivation' &&
+        !getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'])
+      ) {
+        const offenderSettings = res.locals.offenderCheckinsByCRNResponse
+        setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'restartCheckin', 'interval'],
+          fromApiSchedule(offenderSettings),
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'restartCheckin', 'preferredComs'],
+          offenderSettings?.contactPreference,
+        )
+      }
+      setDataValue(
+        req.session.data,
+        ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'],
+        band,
+      )
 
       const status = getSupervisionPackageStatus(res)
       storeSupervisionPackageStatus(req, crn, id, status)
@@ -414,14 +448,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           [],
           res.locals.tierScore as string,
         )
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
         setDataValue(
           req.session.data,
-          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReason'],
+          reason,
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReasonBullets'],
+          bullets ?? [],
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'additionalTierInformation'],
           Boolean(additionalTierInformation),
         )
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+        return res.redirect(eligibilityContext.urlForEligibilityPage('not-eligible'))
       }
 
       return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
@@ -432,6 +474,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         tierBand: band,
         tierScore: res.locals.tierScore,
         guidanceUrl: config.guidance.link,
+        eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
         data: req.session.data,
       })
     }
@@ -443,16 +487,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       const band = requireBand(req, res, crn, id)
       if (!band) {
         return undefined
       }
       req.session.data = req.session.data || {}
       const { data } = req.session
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'tierBand'], band)
+      setDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'id'], id)
+      setDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'], band)
 
-      const selections = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.eligibility)
+      const selections = toSelections(
+        req.body?.esupervision?.[crn]?.[id]?.[eligibilityContext.eligibilitySessionKey]?.eligibility,
+      )
       // Supplied by getSupervisionPackageStatus, which replaced the boxes these used to read.
       const status = getSupervisionPackageStatus(res)
       storeSupervisionPackageStatus(req, crn, id, status)
@@ -463,26 +510,42 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         res.locals.tierScore as string,
       )
       // The rationale step and the summary both key off this, so record it either way.
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'], Boolean(accreditedProgramme))
+      setDataValue(
+        data,
+        ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'accreditedProgramme'],
+        Boolean(accreditedProgramme),
+      )
       // Going back and unticking accredited programme after already completing approval and/or
       // rationale must not leave those answers behind - postCheckInDetails sends rationale
       // unconditionally, so a stale value here would submit for a route the case is no longer on.
       if (!accreditedProgramme) {
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgrammeApproval'], undefined)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'rationale'], undefined)
+        setDataValue(
+          data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'accreditedProgrammeApproval'],
+          undefined,
+        )
+        setDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'rationale'], undefined)
       }
       // Keyed off the target rather than the reason: the clause is deliberately empty where the
       // facts are listed as bullets instead, and would otherwise be skipped as falsy.
       if (target === 'not-eligible') {
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
-        setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
         setDataValue(
           data,
-          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReason'],
+          reason,
+        )
+        setDataValue(
+          data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReasonBullets'],
+          bullets ?? [],
+        )
+        setDataValue(
+          data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'additionalTierInformation'],
           Boolean(additionalTierInformation),
         )
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage(target))
     }
   },
 
@@ -530,6 +593,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
@@ -548,6 +612,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         back,
         tierScore: res.locals.tierScore,
         data: req.session.data,
+        eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },
@@ -558,6 +624,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       const band = requireBand(req, res, crn, id)
       if (!band) {
         return undefined
@@ -566,22 +633,32 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(500)(req, res)
       }
       req.session.data = req.session.data || {}
-      const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
+      const pilotCheck = String(
+        req.body?.esupervision?.[crn]?.[id]?.[eligibilityContext.eligibilitySessionKey]?.pilotCheck ?? '',
+      )
       const { target, reason, bullets, additionalTierInformation } = nextAfterPilotCheck(
         band,
         pilotCheck,
         res.locals.tierScore as string,
       )
       if (target === 'not-eligible') {
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
         setDataValue(
           req.session.data,
-          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReason'],
+          reason,
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'notEligibleReasonBullets'],
+          bullets ?? [],
+        )
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'additionalTierInformation'],
           Boolean(additionalTierInformation),
         )
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage(target))
     }
   },
 
@@ -589,6 +666,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
@@ -603,7 +681,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'esupervision',
         crn,
         id,
-        'checkins',
+        eligibilityContext.eligibilitySessionKey,
         'accreditedProgramme',
       ])
       const page = band === 'AB' && accreditedProgramme ? 'accredited-programme-is-eligible' : 'is-eligible'
@@ -614,6 +692,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         tierScore: res.locals.tierScore,
         guidanceUrl: config.guidance.link,
         data: req.session.data,
+        eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },
@@ -624,19 +704,28 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       req.session.data = req.session.data || {}
       const { data } = req.session
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'id'], id)
+      setDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'id'], id)
 
-      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'checkins', 'accreditedProgramme'])
-      const discussion = toSelections(req.body?.esupervision?.[crn]?.[id]?.checkins?.discussion)
-      setDataValue(data, ['esupervision', crn, id, 'checkins', 'discussion'], discussion)
+      const accreditedProgramme = getDataValue(data, [
+        'esupervision',
+        crn,
+        id,
+        eligibilityContext.eligibilitySessionKey,
+        'accreditedProgramme',
+      ])
+      const discussion = toSelections(
+        req.body?.esupervision?.[crn]?.[id]?.[eligibilityContext.eligibilitySessionKey]?.discussion,
+      )
+      setDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'discussion'], discussion)
       if (!hasCompletedDiscussion(discussion, { accreditedProgramme: Boolean(accreditedProgramme) })) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/discuss-before-signup`)
+        return res.redirect(eligibilityContext.urlForEligibilityPage('discuss-before-signup'))
       }
       // Approval and rationale only apply to the accredited-programme cohort.
       const next = accreditedProgramme ? 'accredited-programme-approval' : 'check-in-frequency'
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${next}`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage(next))
     }
   },
 
@@ -644,11 +733,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_NOT_ELIGIBLE_TO_USE_CHECK_IN', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const checkins = ['esupervision', crn, id, 'checkins']
+      const checkins = ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey]
       const supervisionPackageStatus = ['esupervision', crn, id, 'supervisionPackageStatus']
       // Both come from the ESUP call rather than an answer, so the page offers no way back to the
       // eligibility check - see the back link in not-eligible.njk.
@@ -670,6 +760,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         provisionalTier: res.locals.tierProvisional === true,
         noSupervisionPackage,
         inFinalThird,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },
@@ -692,11 +783,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       return res.render('pages/check-in/eligibility/discuss-before-signup.njk', {
         crn,
         id,
         back,
         guidanceUrl: config.guidance.link,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },
@@ -724,17 +817,25 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       const answer = getDataValue(req.session.data, [
         'esupervision',
         crn,
         id,
-        'checkins',
+        eligibilityContext.eligibilitySessionKey,
         'accreditedProgrammeApproval',
       ])
       const isApproved =
         answer === 'accredited-programme-approval' ||
         (Array.isArray(answer) && answer.includes('accredited-programme-approval'))
-      return res.render('pages/check-in/accredited-programme-approval.njk', { crn, id, back, isApproved })
+      return res.render('pages/check-in/accredited-programme-approval.njk', {
+        crn,
+        id,
+        back,
+        isApproved,
+        eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
+      })
     }
   },
 
@@ -744,18 +845,25 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       req.session.data = req.session.data || {}
-      const approval = req.body?.esupervision?.[crn]?.[id]?.checkins?.accreditedProgrammeApproval
+      const approval =
+        req.body?.esupervision?.[crn]?.[id]?.[eligibilityContext.eligibilitySessionKey]?.accreditedProgrammeApproval
       if (approval) {
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'accreditedProgrammeApproval'], approval)
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'accreditedProgrammeApproval'],
+          approval,
+        )
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/rationale`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage('rationale'))
     }
   },
 
   getRationalePage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_RATIONALE_TO_USE_CHECK_INS', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
@@ -765,21 +873,27 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'esupervision',
         crn,
         id,
-        'checkins',
+        eligibilityContext.eligibilitySessionKey,
         'accreditedProgramme',
       ])
       // Rationale only applies to the accredited-programme cohort; everyone else skips it.
       if (!accreditedProgramme) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+        return res.redirect(eligibilityContext.urlForEligibilityPage('check-in-frequency'))
       }
-      const backLink = cya
-        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-        : `/case/${crn}/appointments/${id}/check-in/accredited-programme-approval`
+      let backLink = eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
+      if (cya) {
+        backLink =
+          eligibilityContext.journey === 'reactivation'
+            ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+            : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      }
       return res.render('pages/check-in/rationale.njk', {
         crn,
         id,
         backLink,
         accreditedProgramme,
+        eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+        eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
       })
     }
   },
@@ -790,7 +904,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+      const eligibilityContext = eligibilityContextFor(res, crn, id)
+      if (eligibilityContext.journey === 'reactivation' && req.query.cya === 'true') {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-summary`)
+      }
+      return res.redirect(eligibilityContext.urlForEligibilityPage('check-in-frequency'))
     }
   },
 
@@ -2000,11 +2118,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
+      const manage = `/case/${crn}/appointments/check-in/manage/${id}`
+      const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'accreditedProgramme'])
+      let backLink = accreditedProgramme ? `${manage}/restart-rationale` : `${manage}/restart-is-eligible`
+      if (cya) backLink = `${manage}/restart-summary`
       return res.render('pages/check-in/manage/restart-checkin-frequency.njk', {
         crn,
         id,
         case: personalDetails,
         cya,
+        backLink,
       })
     }
   },
@@ -2296,7 +2419,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
-          reason: restartDetails.reason || 'Reactivated via UI',
+          reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
+          pilotCheck: restartDetails.pilotCheck,
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.
