@@ -1,7 +1,10 @@
 {% extends "../../_form.njk" %}
+{% from "govuk/components/details/macro.njk" import govukDetails %}
+{% from "govuk/components/warning-text/macro.njk" import govukWarningText %}
+
 {% set notStandardForm = true %}
-{% set title = "Choose a question to add" %}
-{% set pageTitleText = "Add questions to the person's next online check in" %}
+{% set title = "Choose a question to add or write your own" %}
+{% set pageTitleText = "Choose a question to add or write your own" %}
 {% set pageTitle = makePageTitle({
   pageHeading: [pageTitleText]
 }) %}
@@ -25,7 +28,8 @@
     },
     {
       text: "Action",
-      classes: "govuk-!-width-one-half"
+      classes: "govuk-!-width-one-half",
+      format: "numeric"
     }
   ],
   rows: []
@@ -40,7 +44,8 @@
             text: template.example
         },
         {
-            html: '<a href="' + addQuestionLinkBase + template.id + '/select" class="govuk-link" data-qa="add-question-link">' + addQuestionText +'</a>'
+            html: '<a href="' + addQuestionLinkBase + template.id + '/select" class="govuk-link" data-qa="add-question-link">' + addQuestionText +'</a>',
+            format: "numeric"
         }
     ]) %}
 {% endfor %}
@@ -52,14 +57,37 @@
             <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
                 {{ title }}
             </h2>
-            <p class="govuk-body">You can add up to 3 questions. They will be asked in the order you select them.</p>
+            <p class="govuk-body">You can add up to 3 questions. They will be asked in the order you select them. You can add your own question or tailor a question from the list. </p>
         </div>
     </div>
 
+    <h3 class="govuk-heading-m">Choose a question</h3>
+    {{ govukTable(tableData) }}
+
+    <h3 class="govuk-heading-m">Write your own question</h3>
+
     <div class="govuk-grid-row">
-        <div class="govuk-grid-column-full">
-            {{ govukTable(tableData) }}
-        </div>
+      <div class="govuk-grid-column-two-thirds">
+      <p class="govuk-body">Think about how your question could sound to someone without the context of a face to face conversation.</p>
+        {% call govukDetails({
+          summaryText: "Writing questions for online check ins"
+        }) %}
+          <p class="govuk-body"><strong>You should:</strong></p>
+          <ul class="govuk-list govuk-list--bullet">
+            <li>consider if a question is appropriate for an online service</li>
+            <li>think about the person’s circumstances when asking questions about topics that could be upsetting or dangerous, such as drugs, alcohol or abusive relationships</li>
+            <li>not include any personal information about other people</li>
+            <li>avoid asking about more than one topic in a single question</li>
+            <li>avoid using complicated language or words that have a simpler alternative</li>
+            <li>check spelling and grammar</li>
+          </ul>
+        {% endcall %}
+
+        {{ govukWarningText({
+          text: "Do not include information that could be sensitive or lead to harm if read by someone who is not the person",
+          iconFallbackText: "Warning"
+        }) }}
+      </div>
     </div>
 
 {% endblock %}
