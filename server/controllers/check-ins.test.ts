@@ -1684,42 +1684,6 @@ describe('checkInsController', () => {
   })
 
   describe('Additional questions for online check ins journey', () => {
-    describe('getStartQuestionsPage', () => {
-      it('renders start questions page when CRN is valid', async () => {
-        mockIsValidCrn.mockReturnValue(true)
-        mockIsValidUUID.mockReturnValue(true)
-
-        const req = baseReq()
-        const { id } = req.params as Record<string, string>
-
-        await controllers.checkIns.getStartQuestionsPage(hmppsAuthClient)(req, res)
-
-        expect(renderSpy).toHaveBeenCalledWith('pages/check-in/questions/instructions.njk', {
-          crn,
-          id,
-          back: req.query.back,
-          case: offenderCheckinsByCRNResponse.details,
-          data: req.session.data,
-        })
-        expect(mockRenderError).not.toHaveBeenCalled()
-        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
-      })
-    })
-
-    describe('postStartQuestionsPage', () => {
-      it('redirects to add questions page when CRN and id are valid', async () => {
-        mockIsValidCrn.mockReturnValue(true)
-        mockIsValidUUID.mockReturnValue(true)
-
-        const req = baseReq()
-        const { id } = req.params as Record<string, string>
-
-        await controllers.checkIns.postStartQuestionsPage(hmppsAuthClient)(req, res)
-
-        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-      })
-    })
-
     describe('getAddQuestionsPage', () => {
       beforeEach(() => {
         jest.spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates').mockResolvedValue({

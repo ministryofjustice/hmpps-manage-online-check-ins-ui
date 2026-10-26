@@ -12,9 +12,9 @@
   }) %}
 {% endif %}
 {% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/start" %}
+{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id %}
 {% set formAnchorText = "Cancel and go back" %}
-{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/start" %}
+{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id %}
 {% set addQuestionButtonText = "Add question" %}
 {% set addQuestionButtonLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/list" %}
 {% set buttonText = "Save questions" %}

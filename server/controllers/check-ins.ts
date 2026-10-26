@@ -332,8 +332,6 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
-  | 'getStartQuestionsPage'
-  | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
   | 'postAddQuestionsPage'
   | 'getPreviewFeelingPage'
@@ -1858,25 +1856,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getStartQuestionsPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      const { back } = req.query
-      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
-      if (!offenderDetails) {
-        return renderError(404)(req, res)
-      }
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
-      return res.render('pages/check-in/questions/instructions.njk', {
-        crn,
-        back,
-        id,
-        data: req.session.data,
-        case: offenderDetails.details,
-      })
-    }
-  },
-
   getManageContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -2364,13 +2343,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         userDetails,
         isFutureCheckinDate,
       })
-    }
-  },
-
-  postStartQuestionsPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
     }
   },
 

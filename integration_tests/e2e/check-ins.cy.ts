@@ -1,7 +1,6 @@
 import ManageCheckins from '../pages/check-ins/manage-checkins'
 import AddQuestionsPage from '../pages/check-ins/questions/add-questions'
 import EditQuestionPage from '../pages/check-ins/questions/edit-question'
-import InstructionsPage from '../pages/check-ins/questions/instructions'
 import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 import PreviewFeelingPage from '../pages/check-ins/questions/preview/feeling'
 import PreviewSupportPage from '../pages/check-ins/questions/preview/support'
@@ -1260,9 +1259,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubGetUpcomingCheckinQuestionItems')
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
     addQuestionsPage.checkOnPage()
   })
@@ -1275,9 +1272,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
 
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
     addQuestionsPage.checkOnPage()
     addQuestionsPage.getElement('.govuk-table').should('contain.text', 'How have you been feeling')
@@ -1294,7 +1289,7 @@ context('check-ins add questions pages', () => {
     supportPreview.clickBackToQuestions()
     addQuestionsPage.checkOnPage()
     addQuestionsPage.clickCancel()
-    instructionsPage.checkOnPage()
+    new ManageCheckins().checkOnPage()
   })
 
   it('should show the "Add question" button for additional custom questions', () => {
@@ -1366,10 +1361,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
 
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
 
     const addQuestionsPage = new AddQuestionsPage()
 
@@ -1410,10 +1402,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubGetUpcomingCheckinQuestionItems')
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
-
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
 
     // Add "How has [your apprenticeship] been going recently?"
