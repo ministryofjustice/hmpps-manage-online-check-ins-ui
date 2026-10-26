@@ -71,6 +71,7 @@ const views = [
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
   'manage/restart-checkin-date',
+  'questions/add-questions',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -116,6 +117,22 @@ describe('manage/restart-checkin-date', () => {
       backLink: `${managePage}/restart-checkin?cya=true`,
     })
     expect(cancelLinkOf(html)).toBe(`${managePage}/restart-summary`)
+  })
+})
+
+describe('questions/add-questions', () => {
+  it('posts question deletion with a CSRF token', async () => {
+    const html = await render('questions/add-questions', {
+      ...base,
+      addedQuestions: [{ id: '1-question', fullText: 'How is work?' }],
+      expectedCheckinDate: '2026-08-01',
+    })
+    const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/questions/1-question/delete`
+
+    expect(html).toContain(
+      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+    )
+    expect(html).toContain('<strong>1 August 2026</strong>')
   })
 })
 
