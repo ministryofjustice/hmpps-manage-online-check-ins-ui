@@ -10,6 +10,11 @@
   }) %}
 {% endif %}
 {% set backLink = backLink %}
+{# During a check-your-answers edit, cancelling returns to the summary, which restores the ad-hoc
+   answer this date would have replaced. The first pass has nothing to cancel back to. #}
+{% set showAnchorLink = true if cya else false %}
+{% set formAnchorLink = '/case/' + crn + '/appointments/' + id + '/check-in/checkin-summary' %}
+{% set formAnchorText = 'Cancel and go back' %}
 
 {% block form %}
 <div class="govuk-form-group">

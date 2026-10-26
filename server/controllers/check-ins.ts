@@ -78,6 +78,20 @@ const getMinDate = (daysAhead = 0): string => {
   return day.day > 9 ? day.toFormat('dd/M/yyyy') : day.toFormat('d/M/yyyy')
 }
 
+// A check-your-answers page reached with a scheduled interval but no date can only mean the
+// practitioner changed an ad-hoc answer to an interval and then backed out of the date page: an
+// interval chosen first always collects its date before the summary is reachable. Their original
+// answer is restored, so the summary shows the answers that will actually be submitted.
+const revertAbandonedIntervalChange = (req: Request, crn: string, id: string, group: 'checkins' | 'restartCheckin') => {
+  const interval = getDataValue(req.session.data, ['esupervision', crn, id, group, 'interval'])
+  const date = getDataValue(req.session.data, ['esupervision', crn, id, group, 'date'])
+  if (interval && interval !== 'AD_HOC' && !date) {
+    setDataValue(req.session.data, ['esupervision', crn, id, group, 'interval'], 'AD_HOC')
+    return 'AD_HOC'
+  }
+  return interval
+}
+
 // Submits a change of check-in settings from the manage flow. Shared by the frequency page, which
 // submits every change except a move from ad-hoc to a scheduled interval, and the date page, which
 // collects the first check-in date that move needs before submitting.
@@ -168,6 +182,7 @@ function setNotEligibleReason(req: Request, crn: string, id: string, reason: str
   req.session.data = req.session.data || {}
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], [])
+  setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'additionalTierInformation'], false)
 }
 
 // The tier statuses that are not bands at all, each ruling the person out on its own. A missing tier
@@ -394,9 +409,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // The reason comes from the rules rather than being picked here, so the GET and the POST cannot
       // disagree on the wording or on which fact is reported when both apply.
       if (!status.onSupervisionPackage || status.inFinalThird) {
-        const { reason, bullets } = nextAfterEligibilityCheck(band, status, [], res.locals.tierScore as string)
+        const { reason, bullets, additionalTierInformation } = nextAfterEligibilityCheck(
+          band,
+          status,
+          [],
+          res.locals.tierScore as string,
+        )
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       }
 
@@ -432,7 +457,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // Supplied by getSupervisionPackageStatus, which replaced the boxes these used to read.
       const status = getSupervisionPackageStatus(res)
       storeSupervisionPackageStatus(req, crn, id, status)
-      const { target, reason, bullets, accreditedProgramme } = nextAfterEligibilityCheck(
+      const { target, reason, bullets, accreditedProgramme, additionalTierInformation } = nextAfterEligibilityCheck(
         band,
         status,
         selections,
@@ -452,6 +477,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (target === 'not-eligible') {
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -538,10 +568,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       req.session.data = req.session.data || {}
       const pilotCheck = String(req.body?.esupervision?.[crn]?.[id]?.checkins?.pilotCheck ?? '')
-      const { target, reason, bullets } = nextAfterPilotCheck(band, pilotCheck, res.locals.tierScore as string)
+      const { target, reason, bullets, additionalTierInformation } = nextAfterPilotCheck(
+        band,
+        pilotCheck,
+        res.locals.tierScore as string,
+      )
       if (target === 'not-eligible') {
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReason'], reason)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'notEligibleReasonBullets'], bullets ?? [])
+        setDataValue(
+          req.session.data,
+          ['esupervision', crn, id, 'checkins', 'additionalTierInformation'],
+          Boolean(additionalTierInformation),
+        )
       }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/${target}`)
     }
@@ -625,6 +664,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         reason: getDataValue(req.session.data, [...checkins, 'notEligibleReason']),
         // Listed beneath the reason when more than one fact ruled the person out.
         reasonBullets: getDataValue(req.session.data, [...checkins, 'notEligibleReasonBullets']),
+        additionalTierInformation: getDataValue(req.session.data, [...checkins, 'additionalTierInformation']),
+        guidanceUrl: config.guidance.link,
         missingTier: tierStatus === MISSING_TIER,
         notSupervised: tierStatus === NOT_SUPERVISED_TIER,
         provisionalTier: res.locals.tierProvisional === true,
@@ -805,6 +846,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/${id}/check-in/contact-preference`,
         )
       }
+      // A check-your-answers edit returns to the summary with the date already on file. Only when
+      // switching from ad-hoc (which has no date) to a standard interval is a date still needed.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      if (cya && date) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/checkin-summary`)
+      }
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-date${cya ? '?cya=true' : ''}`)
     }
   },
@@ -821,9 +868,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (interval === 'AD_HOC') {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/check-in-frequency${cya ? '?cya=true' : ''}`)
       }
-      const backLink = cya
-        ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-        : `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'date'])
+      let backLink = `/case/${crn}/appointments/${id}/check-in/check-in-frequency`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+          : `/case/${crn}/appointments/${id}/check-in/check-in-frequency?cya=true`
+      }
       return res.render('pages/check-in/check-in-date.njk', {
         crn,
         id,
@@ -1270,11 +1323,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           )
         }
       }
+      const interval = revertAbandonedIntervalChange(req, crn, id, 'checkins')
       const userDetails: CheckinUserDetails = {
         ...savedUserDetails,
         uuid: id,
-        interval: checkinIntervals.find(option => option.id === savedUserDetails?.interval)?.label,
-        isAdHoc: savedUserDetails?.interval === 'AD_HOC',
+        interval: checkinIntervals.find(option => option.id === interval)?.label,
+        isAdHoc: interval === 'AD_HOC',
         preferredComs: savedUserDetails?.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         photoUploadOption:
           savedUserDetails?.photoUploadOption === 'TAKE_A_PIC' ? 'Take a photo using this device' : 'Upload a photo',
@@ -1711,8 +1765,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       req.session.data = req.session.data || {}
       const checkinRes = res.locals?.offenderCheckinsByCRNResponse
-      const date = checkinRes?.firstCheckin
       const interval = fromApiSchedule(checkinRes)
+      // An ad-hoc person's firstCheckin is their last booked ad-hoc check in, which may already have
+      // passed. It is not a start date for a new schedule, so leave the date page empty for them.
+      const date = interval === 'AD_HOC' ? undefined : checkinRes?.firstCheckin
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], { date, interval })
       return res.render('pages/check-in/manage/checkin-settings-frequency.njk', {
         crn,
@@ -1734,6 +1790,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       ])
       const currentFrequency = fromApiSchedule(res.locals.offenderCheckinsByCRNResponse)
 
+      // Nothing to save when the frequency is unchanged. Submitting anyway would rewrite the
+      // schedule (re-basing its first check in on the next due date), record a fresh update
+      // against the practitioner, and show a "settings saved" banner for a change that never
+      // happened.
+      if (frequency === currentFrequency) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}`)
+      }
       // Only a move from ad-hoc to a scheduled interval needs a date: the person has no schedule to
       // carry forward, so the practitioner picks when the new one starts.
       if (currentFrequency === 'AD_HOC' && frequency !== 'AD_HOC') {
@@ -1975,6 +2038,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/check-in/manage/${id}/restart-contact`,
         )
       }
+      // A check-your-answers edit returns to the summary with the date already on file. Only when
+      // switching from ad-hoc (which has no date) to a standard interval is a date still needed.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'])
+      if (cya && date) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-summary`)
+      }
       return res.redirect(
         `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin-date${cya ? '?cya=true' : ''}`,
       )
@@ -2005,12 +2074,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
+      // During a check-your-answers edit, no saved date means the frequency was just switched from
+      // ad-hoc, so Back retraces to the frequency page (keeping cya) rather than the summary.
+      const date = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'date'])
+      let backLink = `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`
+      if (cya) {
+        backLink = date
+          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+          : `/case/${crn}/appointments/check-in/manage/${id}/restart-checkin?cya=true`
+      }
       return res.render('pages/check-in/manage/restart-checkin-date.njk', {
         crn,
         id,
         checkInMinDate,
         case: personalDetails,
         cya,
+        backLink,
       })
     }
   },
@@ -2046,6 +2125,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const checkInEmail = offenderDetails?.email ?? ''
 
       const preferredComs = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'preferredComs'])
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      const isAdHoc = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'interval']) === 'AD_HOC'
       // if page not submitted, required to save in session for change link /edit page to avoid API call.
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInMobile'], checkInMobile)
       setDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'editCheckInEmail'], checkInEmail)
@@ -2062,6 +2143,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         checkInMobile,
         checkInEmail,
         preferredComs,
+        isAdHoc,
         case: offenderDetails,
         cya,
       })
@@ -2189,10 +2271,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
       const caseData = res.locals.offenderCheckinsByCRNResponse?.details
 
+      const interval = revertAbandonedIntervalChange(req, crn, id, 'restartCheckin')
       const userDetails = {
         ...restartDetails,
-        interval: checkinIntervals.find(i => i.id === restartDetails.interval)?.label,
-        isAdHoc: restartDetails.interval === 'AD_HOC',
+        interval: checkinIntervals.find(i => i.id === interval)?.label,
+        isAdHoc: interval === 'AD_HOC',
         preferredComs: restartDetails.preferredComs === 'EMAIL' ? 'Email' : 'Text message',
         checkInMobile: restartDetails.checkInMobile || caseData?.mobile || 'No mobile number',
         checkInEmail: restartDetails.checkInEmail || caseData?.email || 'No email address',
@@ -2769,8 +2852,47 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
       }
 
-      const questionTemplateAndInputs =
-        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+      let questionTemplateAndInputs = getDataValue(data, [
+        'esupervision',
+        crn,
+        id,
+        'scheduleCheckIn',
+        'questionTemplateAndInputs',
+      ])
+      // Questions added before a switch to ad-hoc stay assigned and go out with the next booking,
+      // so show them here for the practitioner to keep, change or remove.
+      if (!questionTemplateAndInputs) {
+        questionTemplateAndInputs = {}
+        try {
+          const response = await new ESupervisionClient(token).getUpcomingCheckinQuestionItems(crn, 'en-GB')
+          const items = response?.upcoming?.items || []
+          items.forEach((item: any) => {
+            if (availableTemplates.some((t: any) => String(t.id) === String(item.template.id))) {
+              const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
+              questionTemplateAndInputs[`${item.template.id}-${uuidv4()}`] = inputValue
+            }
+          })
+        } catch (error: any) {
+          const status = error?.status || error?.response?.status
+          const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
+          if (status === 404 || isInactiveOffender) {
+            logger.info(`No saved questions found for CRN ${crn}.`)
+          } else {
+            logger.error(`Failed to fetch saved questions for CRN ${crn}:`, error)
+            return renderError(status || 500)(req, res)
+          }
+        }
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          questionTemplateAndInputs,
+        )
+        setDataValue(
+          data,
+          ['esupervision', crn, id, 'scheduleCheckIn', 'hasSavedQuestions'],
+          Object.keys(questionTemplateAndInputs).length > 0,
+        )
+      }
 
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
@@ -2854,6 +2976,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       try {
         const token = await hmppsAuthClient.getSystemClientToken(username)
         const eSupClient = new ESupervisionClient(token)
+        // Booking without questions keeps any still assigned, so clear those the practitioner removed.
+        if (formattedQuestions.length === 0 && scheduleCheckIn.hasSavedQuestions) {
+          await eSupClient.deleteAssignedQuestionsFromCheckIn(crn)
+        }
         await eSupClient.postScheduleAdHocCheckin(crn, request)
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn'], undefined)
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckInCreated'], date)

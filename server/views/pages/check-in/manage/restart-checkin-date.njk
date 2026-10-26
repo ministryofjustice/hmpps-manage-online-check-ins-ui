@@ -11,11 +11,13 @@
     pageHeading: [pageTitleText]
   }) %}
 {% endif %}
-{% set backLink = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin' if not cya else '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
+{# backLink is supplied by the controller / validation middleware #}
 {% set buttonText =  "Continue" %}
 
 {% set showAnchorLink = true %}
-{% set formAnchorLink = '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{# Cancelling a check-your-answers edit returns to the summary, which restores the ad-hoc answer
+   this date would have replaced. Otherwise the whole restart is abandoned. #}
+{% set formAnchorLink = '/case/' + crn + '/appointments/check-in/manage/' + id + ('/restart-summary' if cya else '') %}
 {% set formAnchorText = 'Cancel and go back' %}
 
 {% block form %}
