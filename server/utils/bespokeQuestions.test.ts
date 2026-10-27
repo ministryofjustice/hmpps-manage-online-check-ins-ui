@@ -1,0 +1,38 @@
+import { ensureQuestionMark, isBespokeDraftId, isBespokeTemplate, newBespokeDraftId } from './bespokeQuestions'
+
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
+}))
+
+describe('utils/bespokeQuestions', () => {
+  describe('ensureQuestionMark', () => {
+    it.each([
+      ['adds a question mark', 'Have you spoken to your landlord', 'Have you spoken to your landlord?'],
+      ['keeps an existing question mark', 'Is work going ok?', 'Is work going ok?'],
+      ['trims and collapses whitespace first', '  Have you   been to the   gym  ', 'Have you been to the gym?'],
+      ['does not add one to a trailing question mark with spaces', 'How are you ?  ', 'How are you ?'],
+      ['returns empty for blank input', '   ', ''],
+      ['returns empty for undefined', undefined as unknown as string, ''],
+    ])('%s', (_: string, input: string, expected: string) => {
+      expect(ensureQuestionMark(input)).toEqual(expected)
+    })
+  })
+
+  it('identifies bespoke draft ids', () => {
+    expect(isBespokeDraftId(newBespokeDraftId())).toBe(true)
+    expect(newBespokeDraftId()).toEqual('bespoke-f1654ea3-0abb-46eb-860b-654a96edbe20')
+    expect(isBespokeDraftId('3-f1654ea3-0abb-46eb-860b-654a96edbe20')).toBe(false)
+  })
+
+  describe('isBespokeTemplate', () => {
+    it('is true for a customisable question with no placeholders', () => {
+      expect(isBespokeTemplate({ policy: 'CUSTOMISABLE', responseSpec: { placeholders: [] } })).toBe(true)
+      expect(isBespokeTemplate({ policy$hmpps_esupervision_api: 'CUSTOMISABLE', responseSpec: {} })).toBe(true)
+    })
+
+    it('is false for a template with placeholders or a fixed question', () => {
+      expect(isBespokeTemplate({ policy: 'CUSTOMISABLE', responseSpec: { placeholders: ['thing'] } })).toBe(false)
+      expect(isBespokeTemplate({ policy: 'FIXED', responseSpec: { placeholders: [] } })).toBe(false)
+    })
+  })
+})

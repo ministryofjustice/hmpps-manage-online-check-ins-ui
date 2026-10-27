@@ -8,6 +8,8 @@ import {
   CheckinScheduleRequest,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
+  EsupervisionAssignBespokeQuestion,
+  EsupervisionAssignTemplateQuestion,
   ESupervisionNote,
   ESupervisionReview,
   OffenderByCRNResponse,
@@ -34,6 +36,8 @@ import logger from '../../logger'
 import { dateWithYear, dateToLongDate } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
+import toDisplayTemplates from '../utils/toDisplayTemplates'
+import { ensureQuestionMark, isBespokeDraftId, isBespokeTemplate, newBespokeDraftId } from '../utils/bespokeQuestions'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } from '../utils/checkinSchedule'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
@@ -2396,6 +2400,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
               const draftId = `${item.template.id}-${uuidv4()}`
               const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
               questionTemplateAndInputs[draftId] = inputValue
+            } else if (isBespokeTemplate(item.template)) {
+              // A question the practitioner wrote themselves: not one of the offered templates, so
+              // it is carried as its whole text rather than a template id and placeholder.
+              questionTemplateAndInputs[newBespokeDraftId()] = item.template.template
             }
           })
         } catch (error: any) {
@@ -2419,6 +2427,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
           if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          if (isBespokeDraftId(qId)) {
+            return { id: qId, fullText: inputValue.trim() }
+          }
           const templateId = parseInt(qId.split('-')[0], 10)
 
           const templateData = parseQuestionTemplate(availableTemplates, templateId)
@@ -2451,6 +2462,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const questionTemplateAndInputs = manageQuestionsSession.questionTemplateAndInputs || {}
       const availableTemplates = manageQuestionsSession.availableTemplates || []
       const formattedQuestions = Object.entries(questionTemplateAndInputs).map(([draftId, inputValue]) => {
+        if (isBespokeDraftId(draftId)) {
+          return { text: (inputValue as string).trim(), params: { placeholders: {} } }
+        }
         const templateId = parseInt(draftId.split('-')[0], 10)
         const originalTemplate = availableTemplates.find((t: any) => String(t.id) === String(templateId))
         const templateData =
@@ -2563,21 +2577,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (Object.keys(questionTemplateAndInputs).length >= 3) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
       }
-      // replace curly braces placeholder with [insert text] for presentation
-      const displayTemplates = templatesList.templates.map((q: any) => {
-        const start = q.template.indexOf('{{')
-        const end = q.template.indexOf('}}', start)
-
-        let displayTemplate = q.template
-        if (start !== -1 && end !== -1) {
-          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
-        }
-
-        return {
-          ...q,
-          displayTemplate,
-        }
-      })
+      const displayTemplates = toDisplayTemplates(templatesList.templates)
       return res.render('pages/check-in/questions/list-questions.njk', {
         crn,
         id,
@@ -2589,10 +2589,32 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
+  // "Write your own question": the validation middleware has already rejected an empty answer.
   postQuestionsListPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+      const addPage = `/case/${crn}/appointments/check-in/manage/${id}/questions/add`
+
+      const input = req.body?.esupervision?.[crn]?.[id]?.manageQuestions?.bespokeQuestionInput
+      const questionText = ensureQuestionMark(typeof input === 'string' ? input : '')
+      if (!questionText) {
+        return res.redirect(addPage)
+      }
+
+      const questionTemplateAndInputs =
+        getDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs']) || {}
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(addPage)
+      }
+
+      setDataValue(
+        data,
+        ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs', newBespokeDraftId()],
+        questionText,
+      )
+      return res.redirect(addPage)
     }
   },
 
@@ -2625,16 +2647,19 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
+      // A bespoke question has no template: the page shows the whole question for editing.
+      const isBespoke = isBespokeDraftId(questionId)
       const templateId = questionId.split('-')[0]
-      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
+      const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
 
-      if (!questionForView) return renderError(404)(req, res)
+      if (!isBespoke && !questionForView) return renderError(404)(req, res)
 
       return res.render('pages/check-in/questions/edit-question.njk', {
         crn,
         id,
         questionId,
         back,
+        isBespoke,
         case: offenderDetails.details,
         question: questionForView,
         data: req.session.data,
@@ -2654,7 +2679,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(
           data,
           ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs', questionId],
-          inputValue.trim(),
+          isBespokeDraftId(questionId) ? ensureQuestionMark(inputValue) : inputValue.trim(),
         )
 
         if (data.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput !== undefined) {
@@ -2828,6 +2853,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             if (availableTemplates.some((t: any) => String(t.id) === String(item.template.id))) {
               const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
               questionTemplateAndInputs[`${item.template.id}-${uuidv4()}`] = inputValue
+            } else if (isBespokeTemplate(item.template)) {
+              // A question the practitioner wrote themselves is carried as its whole text.
+              questionTemplateAndInputs[newBespokeDraftId()] = item.template.template
             }
           })
         } catch (error: any) {
@@ -2855,6 +2883,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
           if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          if (isBespokeDraftId(qId)) {
+            return { id: qId, fullText: inputValue.trim() }
+          }
           const templateId = parseInt(qId.split('-')[0], 10)
           const templateData = parseQuestionTemplate(availableTemplates, templateId)
           if (!templateData) return null
@@ -2895,29 +2926,37 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const availableTemplates = scheduleCheckIn.availableTemplates || []
       const questionTemplateAndInputs = scheduleCheckIn.questionTemplateAndInputs || {}
-      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(([draftId, inputValue]) => {
-        if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
-        const templateId = parseInt(draftId.split('-')[0], 10)
-        const originalTemplate = availableTemplates.find((template: any) => String(template.id) === String(templateId))
-        if (!originalTemplate) return []
-        const templateData =
-          typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
+      type AssignQuestion = EsupervisionAssignTemplateQuestion | EsupervisionAssignBespokeQuestion
+      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(
+        ([draftId, inputValue]): AssignQuestion[] => {
+          if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
+          if (isBespokeDraftId(draftId)) {
+            return [{ text: inputValue.trim(), params: { placeholders: {} } }]
+          }
+          const templateId = parseInt(draftId.split('-')[0], 10)
+          const originalTemplate = availableTemplates.find(
+            (template: any) => String(template.id) === String(templateId),
+          )
+          if (!originalTemplate) return []
+          const templateData =
+            typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
 
-        return [
-          {
-            id: templateId,
-            params: {
-              placeholders: {
-                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
-                  inputValue,
-                  templateData?.suffix || '',
-                ),
+          return [
+            {
+              id: templateId,
+              params: {
+                placeholders: {
+                  [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                    inputValue,
+                    templateData?.suffix || '',
+                  ),
+                },
+                responseFormat: originalTemplate.responseFormat || 'TEXT',
               },
-              responseFormat: originalTemplate.responseFormat || 'TEXT',
             },
-          },
-        ]
-      })
+          ]
+        },
+      )
       const { username } = res.locals.user
       const request: ScheduleAdHocCheckinRequest = {
         requestedBy: username,
@@ -2976,15 +3015,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
       }
 
-      const displayTemplates = availableTemplates.map((q: any) => {
-        const start = q.template.indexOf('{{')
-        const end = q.template.indexOf('}}', start)
-        let displayTemplate = q.template
-        if (start !== -1 && end !== -1) {
-          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
-        }
-        return { ...q, displayTemplate }
-      })
+      const displayTemplates = toDisplayTemplates(availableTemplates)
 
       return res.render('pages/check-in/schedule-check-in/list-questions.njk', {
         crn,
@@ -2997,10 +3028,32 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
+  // "Write your own question": the validation middleware has already rejected an empty answer.
   postScheduleCheckInQuestionsList: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+      req.session.data = req.session.data ?? {}
+      const { data } = req.session
+      const addPage = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`
+
+      const input = req.body?.esupervision?.[crn]?.[id]?.scheduleCheckIn?.bespokeQuestionInput
+      const questionText = ensureQuestionMark(typeof input === 'string' ? input : '')
+      if (!questionText) {
+        return res.redirect(addPage)
+      }
+
+      const questionTemplateAndInputs =
+        getDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs']) || {}
+      if (Object.keys(questionTemplateAndInputs).length >= 3) {
+        return res.redirect(addPage)
+      }
+
+      setDataValue(
+        data,
+        ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs', newBespokeDraftId()],
+        questionText,
+      )
+      return res.redirect(addPage)
     }
   },
 
@@ -3030,15 +3083,18 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
+      // A bespoke question has no template: the page shows the whole question for editing.
+      const isBespoke = isBespokeDraftId(questionId)
       const templateId = questionId.split('-')[0]
-      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
-      if (!questionForView) return renderError(404)(req, res)
+      const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
+      if (!isBespoke && !questionForView) return renderError(404)(req, res)
 
       return res.render('pages/check-in/schedule-check-in/edit-question.njk', {
         crn,
         id,
         questionId,
         back,
+        isBespoke,
         case: offenderDetails.details,
         question: questionForView,
         data: req.session.data,
@@ -3058,7 +3114,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(
           data,
           ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs', questionId],
-          inputValue.trim(),
+          isBespokeDraftId(questionId) ? ensureQuestionMark(inputValue) : inputValue.trim(),
         )
         if (data.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput !== undefined) {
           delete data.esupervision[crn][id].scheduleCheckIn.draftQuestionInput

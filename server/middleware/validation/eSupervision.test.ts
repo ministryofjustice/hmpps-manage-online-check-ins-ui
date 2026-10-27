@@ -551,6 +551,73 @@ describe('Test eSuperVision validation', () => {
     })
   })
 
+  describe('Test list questions (write your own question)', () => {
+    const listQuestionsUrl = `/case/${crn}/appointments/check-in/manage/${id}/questions/list`
+    const sessionEsupervision = {
+      [crn]: {
+        [id]: {
+          manageQuestions: {
+            availableTemplates: [{ id: '1', template: 'Have you heard back from {{thing}}?' }],
+          },
+        },
+      },
+    }
+    const bodyWith = (bespokeQuestionInput: string) => ({
+      esupervision: { [crn]: { [id]: { manageQuestions: { bespokeQuestionInput } } } },
+    })
+
+    it('passes when a question has been written', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith('Have you managed to speak to your landlord'),
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
+    })
+
+    it('re-renders the list with the templates and an error when nothing was written', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith(''),
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/questions/list-questions',
+        expect.objectContaining({
+          templatesList: {
+            templates: [expect.objectContaining({ displayTemplate: 'Have you heard back from [insert text]?' })],
+          },
+        }),
+      )
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
+    })
+
+    it('uses the same message when editing a bespoke question with nothing entered', () => {
+      const req = makeReq({
+        url: `/case/${crn}/appointments/check-in/manage/${id}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+        body: { esupervision: { [crn]: { [id]: { manageQuestions: { draftQuestionInput: '' } } } } },
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/questions/edit-question',
+        expect.objectContaining({ isBespoke: true }),
+      )
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
+    })
+  })
+
   describe('Test schedule-check-in (ad hoc)', () => {
     const scheduleDateUrl = `${manageBase}/schedule-check-in`
     const scheduleEditQuestionUrl = `${scheduleDateUrl}/questions/1-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`
@@ -631,6 +698,83 @@ describe('Test eSuperVision validation', () => {
 
         expect(next).toHaveBeenCalled()
         expect(res.render).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('list questions page (write your own question)', () => {
+      const scheduleListQuestionsUrl = `${scheduleDateUrl}/questions/list`
+      const sessionEsupervision = scheduleSession({
+        availableTemplates: [{ id: '1', template: 'Have you heard back from {{thing}}?' }],
+      })
+      const bodyWith = (bespokeQuestionInput: string) => ({
+        esupervision: scheduleSession({ bespokeQuestionInput }),
+      })
+
+      it('passes when a question has been written', () => {
+        const req = makeReq({
+          url: scheduleListQuestionsUrl,
+          body: bodyWith('Have you managed to speak to your landlord'),
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+        expect(next).toHaveBeenCalled()
+      })
+
+      it('re-renders the ad hoc list with its templates and an error against the ad hoc field', () => {
+        const req = makeReq({
+          url: scheduleListQuestionsUrl,
+          body: bodyWith(''),
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/list-questions',
+          expect.objectContaining({
+            templatesList: {
+              templates: [expect.objectContaining({ displayTemplate: 'Have you heard back from [insert text]?' })],
+            },
+          }),
+        )
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(renderArgs.errorMessages).toEqual({
+          [`esupervision-${crn}-${id}-scheduleCheckIn-bespokeQuestionInput`]: 'Enter what you want to ask the person',
+        })
+      })
+
+      it('rejects a question over the length limit', () => {
+        const req = makeReq({
+          url: scheduleListQuestionsUrl,
+          body: bodyWith('x'.repeat(1001)),
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Question must be 1000 characters or less'])
+      })
+
+      it('renders the ad hoc edit page as bespoke when editing a written question with nothing entered', () => {
+        const req = makeReq({
+          url: `${scheduleDateUrl}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+          body: { esupervision: scheduleSession({ draftQuestionInput: '' }) },
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/edit-question',
+          expect.objectContaining({ isBespoke: true }),
+        )
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Enter what you want to ask the person'])
       })
     })
 

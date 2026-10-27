@@ -40,6 +40,8 @@ export interface ManageQuestionsSession {
   availableTemplates?: EsupervisionQuestionTemplatesList[]
   questionTemplateAndInputs?: Record<string, string>
   draftQuestionInput?: string
+  // What was typed into "Write your own question" on the choose-a-question page
+  bespokeQuestionInput?: string
   expectedCheckinDate?: string
 }
 export interface LocalParams {
@@ -67,6 +69,11 @@ export interface LocalParams {
   question?: {
     prefix: string
     suffix: string
+    example?: string
   }
+  // The question being edited was written by the practitioner rather than built from a template
+  isBespoke?: boolean
+  // Re-rendering the choose-a-question page with errors needs its templates
+  templatesList?: { templates: Record<string, unknown>[] }
   accreditedProgramme?: boolean
 }

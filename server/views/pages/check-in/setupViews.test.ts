@@ -72,6 +72,7 @@ const views = [
   'manage/checkin-settings-date',
   'manage/restart-checkin-date',
   'questions/add-questions',
+  'questions/list-questions',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
@@ -120,6 +121,67 @@ describe('manage/restart-checkin-date', () => {
   })
 })
 
+describe('questions/list-questions', () => {
+  const templatesList = {
+    templates: [{ id: 3, displayTemplate: 'How has [insert text] been going recently?', example: 'unpaid work' }],
+  }
+  const inputId = `esupervision-${crn}-${id}-manageQuestions-bespokeQuestionInput`
+
+  it('offers a write-your-own form that posts back to the page', async () => {
+    const html = await render('questions/list-questions', { ...base, templatesList })
+
+    expect(html).toContain('What do you want to ask Bob?')
+    expect(html).toContain(`name="esupervision[${crn}][${id}][manageQuestions][bespokeQuestionInput]"`)
+    expect(html).toContain('<form method="post" autocomplete="off" action="/current">')
+    expect(html).toContain('data-qa="submit-btn"')
+    expect(html).not.toContain('govuk-error-summary')
+  })
+
+  it('shows the error summary and field error when nothing was written', async () => {
+    const html = await render('questions/list-questions', {
+      ...base,
+      templatesList,
+      errorMessages: { [inputId]: 'Enter what you want to ask the person' },
+    })
+
+    expect(html).toMatch(/<title>\s*Error: Choose a question to add or write your own/)
+    expect(html).toContain('govuk-error-summary')
+    expect(html).toContain(`href="#${inputId}"`)
+    expect(html).toContain('govuk-input--error')
+    expect(html.match(/Enter what you want to ask the person/g)).toHaveLength(2)
+  })
+})
+
+describe('questions/edit-question', () => {
+  it('shows the whole bespoke question with a visible label', async () => {
+    const html = await render('questions/edit-question', {
+      ...base,
+      isBespoke: true,
+      questionId: 'bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      question: null,
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: {
+              manageQuestions: {
+                questionTemplateAndInputs: {
+                  'bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479': 'Have you managed to speak to your landlord?',
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    expect(html).toMatch(/<title>\s*Write your own question/)
+    expect(html).toContain('What do you want to ask Bob?')
+    expect(html).toContain('value="Have you managed to speak to your landlord?"')
+    expect(html).not.toContain('[insert text]')
+    expect(html).not.toContain('For example')
+  })
+})
+
 describe('questions/add-questions', () => {
   it('posts question deletion with a CSRF token', async () => {
     const html = await render('questions/add-questions', {
@@ -130,9 +192,96 @@ describe('questions/add-questions', () => {
     const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/questions/1-question/delete`
 
     expect(html).toContain(
-      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+      `<form method="post" action="${deletePath}"><input type="hidden" name="_csrf" value="token">`,
     )
+    expect(html).toContain('<div class="app-table-actions">')
     expect(html).toContain('<strong>1 August 2026</strong>')
+  })
+
+  it('links to the question list while fewer than 3 questions are added', async () => {
+    const html = await render('questions/add-questions', {
+      ...base,
+      addedQuestions: [],
+      expectedCheckinDate: '2026-08-01',
+    })
+
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/questions/list"`)
+    expect(html).not.toContain('data-qa="custom-questions-table"')
+  })
+
+  it('disables the add button once 3 questions are added', async () => {
+    const addedQuestions = ['1', '2', '3'].map(n => ({ id: `${n}-question`, fullText: `Question ${n}?` }))
+    const html = await render('questions/add-questions', { ...base, addedQuestions, expectedCheckinDate: '2026-08-01' })
+
+    expect(html).not.toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/questions/list"`)
+    expect(html).toMatch(/<button[^>]*\sdisabled\s[^>]*data-qa="add-question-btn"/)
+    expect(html).toContain('data-qa="custom-questions-table"')
+  })
+})
+
+describe('schedule-check-in/list-questions', () => {
+  const templatesList = {
+    templates: [{ id: 3, displayTemplate: 'How has [insert text] been going recently?', example: 'unpaid work' }],
+  }
+  const inputId = `esupervision-${crn}-${id}-scheduleCheckIn-bespokeQuestionInput`
+  const addPage = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`
+
+  it('offers a write-your-own form under the ad hoc session group', async () => {
+    const html = await render('schedule-check-in/list-questions', { ...base, templatesList })
+
+    expect(html).toContain('What do you want to ask Bob?')
+    expect(html).toContain(`name="esupervision[${crn}][${id}][scheduleCheckIn][bespokeQuestionInput]"`)
+    expect(html).toContain('<form method="post" autocomplete="off" action="/current">')
+    expect(html).toContain('data-qa="submit-btn"')
+    expect(html).toContain(`href="${addPage}" data-qa="cancel-link"`)
+    expect(html).toContain(
+      `href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/3/select"`,
+    )
+    expect(html).not.toContain('govuk-error-summary')
+  })
+
+  it('shows the error summary and field error when nothing was written', async () => {
+    const html = await render('schedule-check-in/list-questions', {
+      ...base,
+      templatesList,
+      errorMessages: { [inputId]: 'Enter what you want to ask the person' },
+    })
+
+    expect(html).toMatch(/<title>\s*Error: Add questions to the person/)
+    expect(html).toContain('govuk-error-summary')
+    expect(html).toContain(`href="#${inputId}"`)
+    expect(html).toContain('govuk-input--error')
+    expect(html.match(/Enter what you want to ask the person/g)).toHaveLength(2)
+  })
+})
+
+describe('schedule-check-in/edit-question', () => {
+  it('shows the whole bespoke question with a visible label', async () => {
+    const html = await render('schedule-check-in/edit-question', {
+      ...base,
+      isBespoke: true,
+      questionId: 'bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      question: null,
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: {
+              scheduleCheckIn: {
+                questionTemplateAndInputs: {
+                  'bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479': 'Have you managed to speak to your landlord?',
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    expect(html).toMatch(/<title>\s*Write your own question/)
+    expect(html).toContain('What do you want to ask Bob?')
+    expect(html).toContain(`name="esupervision[${crn}][${id}][scheduleCheckIn][draftQuestionInput]"`)
+    expect(html).toContain('value="Have you managed to speak to your landlord?"')
+    expect(html).not.toContain('[insert text]')
   })
 })
 
@@ -146,8 +295,36 @@ describe('schedule-check-in/add-questions', () => {
     const deletePath = `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/1-question/delete`
 
     expect(html).toContain(
-      `<form method="post" action="${deletePath}" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="token">`,
+      `<form method="post" action="${deletePath}"><input type="hidden" name="_csrf" value="token">`,
     )
+    expect(html).toContain('<div class="app-table-actions">')
+    expect(html).toContain('<strong>1 August 2026</strong>')
+  })
+
+  it('links to the question list while fewer than 3 questions are added', async () => {
+    const html = await render('schedule-check-in/add-questions', {
+      ...base,
+      addedQuestions: [],
+      expectedCheckinDate: '1/8/2026',
+    })
+
+    expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/list"`)
+    expect(html).not.toContain('data-qa="custom-questions-table"')
+  })
+
+  it('disables the add button once 3 questions are added', async () => {
+    const addedQuestions = ['1', '2', '3'].map(n => ({ id: `${n}-question`, fullText: `Question ${n}?` }))
+    const html = await render('schedule-check-in/add-questions', {
+      ...base,
+      addedQuestions,
+      expectedCheckinDate: '1/8/2026',
+    })
+
+    expect(html).not.toContain(
+      `href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/list"`,
+    )
+    expect(html).toMatch(/<button[^>]*\sdisabled\s[^>]*data-qa="add-question-btn"/)
+    expect(html).toContain('data-qa="custom-questions-table"')
   })
 })
 

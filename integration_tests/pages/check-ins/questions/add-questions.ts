@@ -41,7 +41,7 @@ export default class AddQuestionsPage extends Page {
     cy.get('[data-qa="delete-question-link"]').eq(index).click()
   }
 
-  verifyAddQuestionButtonHidden() {
-    cy.get('[data-qa="add-question-btn"]').should('not.exist')
+  verifyAddQuestionButtonDisabled() {
+    cy.get('[data-qa="add-question-btn"]').should('be.disabled')
   }
 }

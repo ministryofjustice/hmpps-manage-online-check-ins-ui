@@ -224,14 +224,25 @@ export interface ReactivateOffenderRequest {
 }
 
 // PUT /v2/questions/assignment
+// A template question, chosen from GET /v2/questions/templates and filled in
+export interface EsupervisionAssignTemplateQuestion {
+  id: number
+  params: {
+    placeholders: Record<string, string>
+    responseFormat: string
+  }
+}
+
+// A question the practitioner wrote themselves; the API stores it as a question they author
+export interface EsupervisionAssignBespokeQuestion {
+  text: string
+  params: {
+    placeholders: Record<string, never>
+  }
+}
+
 export interface EsupervisionAssignQuestionsRequest {
-  questions: {
-    id: number
-    params: {
-      placeholders: Record<string, string>
-      responseFormat: string
-    }
-  }[]
+  questions: (EsupervisionAssignTemplateQuestion | EsupervisionAssignBespokeQuestion)[]
   language: string
   author: string
 }
@@ -255,6 +266,7 @@ export interface EsupervisionQuestionTemplatesList {
     hint: string
     placeholders: string[]
   }
+  policy?: string
   policy$hmpps_esupervision_api?: string
 }
 
@@ -271,8 +283,9 @@ export interface EsupervisionUpcomingQuestionItem {
     id: number
     template: string
     responseFormat: 'TEXT'
-    responseSpec: Record<string, string>
+    responseSpec: Record<string, unknown>
     example: string
+    policy?: string
     policy$hmpps_esupervision_api: string
   }
   params: Record<string, string>

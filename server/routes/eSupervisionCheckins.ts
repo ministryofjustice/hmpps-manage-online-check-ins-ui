@@ -616,7 +616,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
     controllers.checkIns.postQuestionsListPage(hmppsAuthClient),
   ])
 
@@ -723,7 +723,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictScheduleCheckInAccess({ requireDate: true }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
     controllers.checkIns.postScheduleCheckInQuestionsList(),
   ])
 

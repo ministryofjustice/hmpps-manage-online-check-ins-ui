@@ -1395,6 +1395,49 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionNotInList('your college course')
   })
 
+  it('should allow a user to write their own question', () => {
+    cy.task('resetMocks')
+    cy.task('stubGetQuestionsTemplates')
+    cy.task('stubGetUpcomingCheckinQuestions')
+    cy.task('stubGetUpcomingCheckinQuestionItems')
+    cy.task('stubAssignQuestions')
+    cy.task('stubGetOffenderByCRN', 'X000001')
+
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
+
+    const addQuestionsPage = new AddQuestionsPage()
+    addQuestionsPage.clickAddQuestion()
+    const listQuestionsPage = new ListQuestionsPage()
+
+    // Continue with nothing written
+    listQuestionsPage.clickContinue()
+    listQuestionsPage.checkOnPage()
+    listQuestionsPage.checkErrorSummaryBox(['Enter what you want to ask the person'])
+    listQuestionsPage.checkValidationError('Enter what you want to ask the person')
+
+    // A missing question mark is added
+    listQuestionsPage.enterBespokeQuestion('Have you managed to speak to your landlord')
+    listQuestionsPage.clickContinue()
+
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionInList('Have you managed to speak to your landlord?')
+
+    // Edit the whole question
+    addQuestionsPage.clickEditForQuestion(0)
+    const editQuestionPage = new EditQuestionPage()
+    editQuestionPage.enterDraftQuestionInput('Have you managed to speak to your landlord about the repairs')
+    editQuestionPage.clickContinue()
+
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionInList('Have you managed to speak to your landlord about the repairs?')
+    addQuestionsPage.verifyQuestionNotInList('your landlord?')
+
+    // Delete
+    addQuestionsPage.clickDeleteForQuestion(0)
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionNotInList('landlord')
+  })
+
   it('should enforce the maximum limit of 3 custom questions', () => {
     cy.task('resetMocks')
     cy.task('stubGetQuestionsTemplates')
@@ -1435,7 +1478,7 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionInList('your apprenticeship')
     addQuestionsPage.verifyQuestionInList('at home')
     addQuestionsPage.verifyQuestionInList('your physical health')
-    addQuestionsPage.verifyAddQuestionButtonHidden()
+    addQuestionsPage.verifyAddQuestionButtonDisabled()
   })
 })
 

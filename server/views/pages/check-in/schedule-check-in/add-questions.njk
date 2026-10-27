@@ -1,145 +1,139 @@
 {% extends "../../_form.njk" %}
 {% set notStandardForm = true %}
 {% set title = "Add questions to " + case.name.forename + "'s online check in" %}
-{% set pageTitleText = "Add questions to the person's online check in" %}
-{% if errorMessages and errorMessages | length %}
-  {% set pageTitle = makePageTitle({
-    pageHeading: ["Error: " + pageTitleText]
-  }) %}
-{% else %}
-  {% set pageTitle = makePageTitle({
-    pageHeading: [pageTitleText]
-  }) %}
-{% endif %}
-{% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/" + crn + "/appointments/check-in/manage/" + id %}
+{% set pageTitle = makePageTitle({
+  pageHeading: ["Add questions to the person's online check in"]
+}) %}
+{% set managePage = "/case/" + crn + "/appointments/check-in/manage/" + id %}
+{% set schedulePage = managePage + "/schedule-check-in" %}
+{% set questionsPage = schedulePage + "/questions" %}
+{% set formAnchorLink = managePage %}
 {% set formAnchorText = "Cancel and go back" %}
-{% set backLink = back if back else "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in" %}
-{% set addQuestionButtonText = "Add question" %}
-{% set addQuestionButtonLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/list" %}
+{% set backLink = back if back else schedulePage %}
 {% set buttonText = "Create online check in" %}
-{% set previewFeelingPageLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/preview/feeling" %}
-{% set previewSupportPageLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/preview/support" %}
 {% set expectedCheckinDateValue = expectedCheckinDate | dmyToLongDate %}
+{% set maxAdditionalQuestions = 3 %}
+{% set canAddQuestion = addedQuestions | length < maxAdditionalQuestions %}
+
+{% set defaultQuestions = [
+  {
+    text: "How have you been feeling since we last spoke?",
+    previewLink: questionsPage + "/preview/feeling",
+    qa: "preview-feeling-link"
+  },
+  {
+    text: "Is there anything you need support with or want to let us know about?",
+    previewLink: questionsPage + "/preview/support",
+    qa: "preview-support-link"
+  }
+] %}
+
+{% set defaultRows = [] %}
+{% for question in defaultQuestions %}
+  {% set row = defaultRows.push([
+    {
+      text: question.text
+    },
+    {
+      html: '<form method="get" action="' + question.previewLink + '"><button type="submit" class="app-link-button" data-qa="' + question.qa + '">Preview</button></form>',
+      format: "numeric"
+    }
+  ]) %}
+{% endfor %}
+
+{% set additionalRows = [] %}
+{% for question in addedQuestions %}
+  {% set editLink = questionsPage + "/" + question.id + "/edit" %}
+  {% set deleteLink = questionsPage + "/" + question.id + "/delete" %}
+  {% set row = additionalRows.push([
+    {
+      text: question.fullText
+    },
+    {
+      html: '<form method="post" action="' + deleteLink + '"><input type="hidden" name="_csrf" value="' + csrfToken + '"><div class="app-table-actions"><a href="' + editLink + '" class="govuk-link" data-qa="edit-question-link">Edit</a><button type="submit" class="app-link-button" data-qa="delete-question-link">Delete</button></div></form>',
+      format: "numeric"
+    }
+  ]) %}
+{% endfor %}
 
 {% block primary %}
-
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
       <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
-          {{ title }}
+        {{ title }}
       </h2>
+      <p class="govuk-body">
+        <a class="govuk-link govuk-link--no-visited-state" href="https://probation-check-in.hmpps.service.justice.gov.uk/practitioner-guidance/adding-additional-questions" rel="noreferrer noopener" target="_blank">Learn more about adding questions in our guidance (opens in new tab).</a>
+      </p>
     </div>
   </div>
 
+  <h2 class="govuk-heading-m govuk-!-margin-top-4 govuk-!-margin-bottom-2">Default questions</h2>
+  <p class="govuk-body">You cannot change or delete these questions.</p>
+
+  {{ govukTable({
+    head: [
+      {
+        text: "Question",
+        classes: "govuk-!-width-three-quarters"
+      },
+      {
+        text: "Action",
+        classes: "govuk-!-width-one-quarter",
+        format: "numeric"
+      }
+    ],
+    rows: defaultRows
+  }) }}
+
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-            <h2 class="govuk-heading-m">Default questions</h2>
-            <p class="govuk-body">You cannot change or delete these questions.</p>
-
-
-
-            {{ govukTable({
-            captionClasses: "govuk-table__caption--m",
-            head: [
-                {
-                text: "Question",
-                classes: "govuk-!-width-three-quarters"
-                },
-                {
-                text: "Action",
-                classes: "govuk-!-width-one-quarter"
-                }
-            ],
-            rows: [
-                [
-                {
-                    text: "How have you been feeling since we last spoke?"
-                },
-                {
-                    html: '<form method="get" action="' + previewFeelingPageLink + '"><button type="submit" class="app-link-button" data-qa="preview-feeling-link">Preview</button></form>'                }
-                ],
-                [
-                {
-                    text: "Is there anything you need support with or want to let us know about?"
-                },
-                {
-                    html: '<form method="get" action="' + previewSupportPageLink + '"><button type="submit" class="app-link-button" data-qa="preview-support-link">Preview</button></form>'
-                }
-                ]
-            ]
-            }) }}
-        </div>
+    <div class="govuk-grid-column-two-thirds">
+      <h2 class="govuk-heading-m">Additional questions</h2>
+      <p class="govuk-body">You can add up to {{ maxAdditionalQuestions }} questions to {{ case.name.forename }}'s online check in. These will only apply to their next online check in on <strong>{{ expectedCheckinDateValue }}</strong>.</p>
     </div>
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
+  </div>
 
-            <h2 class="govuk-heading-m">Additional questions</h2>
-            <p class="govuk-body">You can add up to 3 questions to {{case.name.forename}}'s online check in. These will only apply to their next online check in on <b>{{expectedCheckinDateValue}}</b>.</p>        </div>
+  {% if additionalRows | length %}
+    {{ govukTable({
+      attributes: {
+        "data-qa": "custom-questions-table"
+      },
+      head: [
+        {
+          text: "Question",
+          classes: "govuk-!-width-three-quarters"
+        },
+        {
+          text: "Actions",
+          classes: "govuk-!-width-one-quarter",
+          format: "numeric"
+        }
+      ],
+      rows: additionalRows
+    }) }}
+  {% endif %}
+
+  <div class="govuk-button-group">
+    {{ govukButton({
+      text: "Add question",
+      classes: "govuk-button--secondary",
+      href: questionsPage + "/list" if canAddQuestion else none,
+      disabled: not canAddQuestion,
+      attributes: { "data-qa": "add-question-btn" }
+    }) }}
+  </div>
+
+  <form method="post" autocomplete="off" action="{{ paths.current }}">
+    <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+    <div class="govuk-button-group">
+      {{ govukButton({
+        text: buttonText,
+        type: "submit",
+        attributes: { "data-qa": "save-questions-btn" }
+      }) }}
+      <a class="govuk-link" href="{{ formAnchorLink }}" data-qa="cancel-link">
+        {{ formAnchorText }}
+      </a>
     </div>
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-full">
-
-
-{% if addedQuestions | length > 0 %}
-                {% set additionalRows = [] %}
-                {% for question in addedQuestions %}
-                    {% set editLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/" + question.id + "/edit" %}
-                    {% set deleteLink = "/case/" + crn + "/appointments/check-in/manage/" + id + "/schedule-check-in/questions/" + question.id + "/delete" %}
-
-                    {% set row = additionalRows.push([
-                        {
-                            text: question.fullText
-                        },
-                        {
-                            html: '<a href="' + editLink + '" class="govuk-link govuk-!-display-inline-block" data-qa="edit-question-link">Edit</a> | ' +
-                                '<form method="post" action="' + deleteLink + '" class="govuk-!-display-inline-block"><input type="hidden" name="_csrf" value="' + csrfToken + '"><button type="submit" class="app-link-button" data-qa="delete-question-link">Delete</button></form>'
-                        }
-                    ]) %}
-                {% endfor %}
-
-                {{ govukTable({
-                    attributes: {
-                        "data-qa": "custom-questions-table"
-                    },
-                    head: [
-                    {
-                      text: "Question",
-                      classes: "govuk-!-width-three-quarters"
-                    },
-                    {
-                      text: "Actions",
-                      classes: "govuk-!-width-one-quarter"
-                    }
-                    ],
-                    rows: additionalRows
-                }) }}
-            {% endif %}
-
-        {% if addedQuestions | length < 3 %}
-            <div class="govuk-button-group">
-                {{ govukButton({
-                    text: addQuestionButtonText,
-                    type: "submit",
-                    classes: "govuk-button--secondary",
-                    href: addQuestionButtonLink,
-                    attributes: { "data-qa": "add-question-btn" }
-                }) }}
-            </div>
-        {% endif %}
-        <form method="post" autocomplete="off" action="{{ paths.current }}">
-            <input type="hidden" name="_csrf" value="{{ csrfToken }}">
-            <div class="govuk-button-group">
-                {{ govukButton({
-                    text: buttonText,
-                    type: "submit",
-                    attributes: { "data-qa": "save-questions-btn" }
-                }) }}
-                <a class="govuk-link" href="{{ formAnchorLink }}" data-qa="cancel-link">
-                    {{ formAnchorText }}
-                </a>
-            </div>
-            </form>
-        </div>
-    </div>
+  </form>
 {% endblock %}

@@ -7,6 +7,8 @@ import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-chec
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
 import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
 import RestartConfirmationPage from '../pages/check-ins/restart/restart-confirmation.page'
+import AddQuestionsPage from '../pages/check-ins/questions/add-questions'
+import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 
 // X778160 is the WireMock fixture for a person already set up: VERIFIED, weekly, with an upcoming
 // check in 5 days out. See wiremock/mappings/eSupervisionAPI.json.
@@ -288,6 +290,45 @@ context('check in settings for an ad-hoc person', () => {
     manageCheckins.getUpdateBanner().should('contain.text', 'Single online check in for Joe has been created')
     lastApiRequestBody(`/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`).then(sent => {
       expect(sent).to.deep.equal({ requestedBy: 'USER1', firstCheckin: checkinDate.toISODate() })
+    })
+  })
+
+  it('creates an ad-hoc check in with a question the practitioner wrote', () => {
+    cy.task('stubNoUpcomingCheckin')
+    const checkinDate = DateTime.now().plus({ days: 2 })
+    openManagePage()
+    cy.get('[data-qa="schedule-check-in-btn"]').click()
+    const schedulePage = new ScheduleCheckinPage()
+    schedulePage.checkOnPage()
+    schedulePage.getDatePickerInput().find('input').type(checkinDate.toFormat('d/M/yyyy'))
+    schedulePage.getSubmitBtn().click()
+
+    const addQuestionsPage = new AddQuestionsPage()
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.clickAddQuestion()
+    const listQuestionsPage = new ListQuestionsPage()
+    listQuestionsPage.checkOnPage()
+    cy.location('pathname').should('equal', `${manageById}/schedule-check-in/questions/list`)
+
+    // Continue with nothing written
+    listQuestionsPage.clickContinue()
+    listQuestionsPage.checkOnPage()
+    listQuestionsPage.checkErrorSummaryBox(['Enter what you want to ask the person'])
+    listQuestionsPage.checkValidationError('Enter what you want to ask the person')
+
+    // A missing question mark is added
+    listQuestionsPage.enterBespokeQuestion('Have you managed to speak to your landlord')
+    listQuestionsPage.clickContinue()
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionInList('Have you managed to speak to your landlord?')
+
+    cy.get('[data-qa="save-questions-btn"]').click()
+    new ManageCheckins().checkOnPage()
+    lastApiRequestBody(`/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`).then(sent => {
+      expect(sent.firstCheckin).to.equal(checkinDate.toISODate())
+      expect(sent.questions.questions).to.deep.equal([
+        { text: 'Have you managed to speak to your landlord?', params: { placeholders: {} } },
+      ])
     })
   })
 })

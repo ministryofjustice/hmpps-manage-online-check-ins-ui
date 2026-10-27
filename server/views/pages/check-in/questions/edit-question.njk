@@ -1,6 +1,6 @@
 {% extends "../../_form.njk" %}
-{% set title = "What do you want to ask " + case.name.forename + "?" %}
-{% set pageTitleText = question.prefix + " [insert text]" + question.suffix %}
+{% set title = "Write your own question" if isBespoke else "What do you want to ask " + case.name.forename + "?" %}
+{% set pageTitleText = "Write your own question" if isBespoke else question.prefix + " [insert text]" + question.suffix %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
@@ -11,9 +11,9 @@
   }) %}
 {% endif %}
 {% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/list" %}
+{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
 {% set formAnchorText = "Cancel and go back" %}
-{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/list" %}
+{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
 {% set buttonText = "Continue" %}
 {% set htmlId = "esupervision-" + crn + "-" + id + "-manageQuestions-draftQuestionInput" %}
 {% set inputName = "esupervision[" + crn + "][" + id + "][manageQuestions][draftQuestionInput]" %}
@@ -24,20 +24,22 @@
 {% block form %}
 
   {% set detailsHtml %}
-  <div class="govuk-!-width-two-thirds">
-    <p class="govuk-body"><b>You should:</b></p>
-    <ul class="govuk-list govuk-list--bullet">
-      <li>consider if a question is appropriate for an online service</li>
-      <li>think about the person’s circumstances when asking questions about topics that could be upsetting or dangerous, such as drugs, alcohol or abusive relationships</li>
-      <li>avoid asking about more than one topic in a single question</li>
-      <li>avoid using complicated language or words that have a simpler alternative</li>
-      <li>check spelling and grammar</li>
-    </ul>
-    <p class="govuk-body"><strong>For example:</strong></p>
-    <p class="govuk-body">{{question.questionExamples[0]}}</p>
-    <p class="govuk-body">{{question.questionExamples[1]}}</p>
-  </div>
+  <p class="govuk-body"><strong>You should:</strong></p>
+  <ul class="govuk-list govuk-list--bullet">
+    <li>consider if a question is appropriate for an online service</li>
+    <li>think about the person’s circumstances when asking questions about topics that could be upsetting or dangerous, such as drugs, alcohol or abusive relationships</li>
+    <li>not include any personal information about other people</li>
+    <li>avoid asking about more than one topic in a single question</li>
+    <li>avoid using complicated language or words that have a simpler alternative</li>
+    <li>check spelling and grammar</li>
+  </ul>
   {% endset %}
+
+  {% if isBespoke %}
+  <p class="govuk-body">Think about how your question could sound to someone without the context of a face to face conversation.</p>
+  {% else %}
+  <p class="govuk-body">{{ question.prefix }} [insert text]{{ question.suffix }}{% if question.example %} For example, {{ question.example }}{% endif %}</p>
+  {% endif %}
 
   {{ govukDetails({
     summaryText: "Writing questions for online check ins",
@@ -50,13 +52,19 @@
   <div class="govuk-form-group govuk-!-margin-bottom-6">
   {% endif %}
 
-    <label class="govuk-visually-hidden" for="{{ htmlId }}">
-      {{ question.prefix }} [insert text] {{ question.suffix }}
-    </label>
+    {% if isBespoke %}
+      <label class="govuk-label govuk-label--m" for="{{ htmlId }}">
+        What do you want to ask {{ case.name.forename }}?
+      </label>
+    {% else %}
+      <label class="govuk-visually-hidden" for="{{ htmlId }}">
+        {{ question.prefix }} [insert text] {{ question.suffix }}
+      </label>
 
-    <span class="govuk-label govuk-label--m" aria-hidden="true">
-      {{ question.prefix }}
-    </span>
+      <span class="govuk-label govuk-label--m" aria-hidden="true">
+        {{ question.prefix }}
+      </span>
+    {% endif %}
 
     {% if fieldError %}
       <p id="{{ htmlId }}-error" class="govuk-error-message">
