@@ -1424,7 +1424,7 @@ context('check-ins add questions pages', () => {
 
     // Edit the whole question
     addQuestionsPage.clickEditForQuestion(0)
-    const editQuestionPage = new EditQuestionPage()
+    const editQuestionPage = new EditQuestionPage('Write your own question')
     editQuestionPage.enterDraftQuestionInput('Have you managed to speak to your landlord about the repairs')
     editQuestionPage.clickContinue()
 

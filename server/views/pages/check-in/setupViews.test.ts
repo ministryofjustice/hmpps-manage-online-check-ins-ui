@@ -132,6 +132,8 @@ describe('questions/list-questions', () => {
 
     expect(html).toContain('What do you want to ask Bob?')
     expect(html).toContain(`name="esupervision[${crn}][${id}][manageQuestions][bespokeQuestionInput]"`)
+    // The writing guidance is passed to govukDetails as a call block, which the macro renders
+    expect(html).toMatch(/govuk-details__text">\s*<p class="govuk-body"><strong>You should:<\/strong><\/p>/)
     expect(html).toContain('<form method="post" autocomplete="off" action="/current">')
     expect(html).toContain('data-qa="submit-btn"')
     expect(html).not.toContain('govuk-error-summary')
@@ -231,6 +233,7 @@ describe('schedule-check-in/list-questions', () => {
 
     expect(html).toContain('What do you want to ask Bob?')
     expect(html).toContain(`name="esupervision[${crn}][${id}][scheduleCheckIn][bespokeQuestionInput]"`)
+    expect(html).toMatch(/govuk-details__text">\s*<p class="govuk-body"><strong>You should:<\/strong><\/p>/)
     expect(html).toContain('<form method="post" autocomplete="off" action="/current">')
     expect(html).toContain('data-qa="submit-btn"')
     expect(html).toContain(`href="${addPage}" data-qa="cancel-link"`)
