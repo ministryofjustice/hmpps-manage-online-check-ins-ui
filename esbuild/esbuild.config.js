@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-/* eslint-disable import/no-extraneous-dependencies */
 const path = require('path')
 const { glob } = require('glob')
 const chokidar = require('chokidar')
@@ -96,11 +95,11 @@ function main() {
   if (args.includes('--watch')) {
     console.log('\u{1b}[1m\u{1F52D} Watching for changes...\u{1b}[0m')
     // Assets
-    chokidar.watch(['assets/**/*'], chokidarOptions).on('all', () => buildAssets(buildConfig).catch(console.error))
+    chokidar.watch(['assets'], chokidarOptions).on('all', () => buildAssets(buildConfig).catch(console.error))
 
     // App
     chokidar
-      .watch(['server/**/*', 'app/**/*'], { ...chokidarOptions, ignored: ['**/*.test.ts'] })
+      .watch(['server', 'app'], { ...chokidarOptions, ignored: file => file.endsWith('.test.ts') })
       .on('all', () => buildApp(buildConfig).catch(console.error))
   }
 }

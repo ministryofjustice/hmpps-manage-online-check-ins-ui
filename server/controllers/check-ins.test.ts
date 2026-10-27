@@ -3214,4 +3214,55 @@ describe('checkInsController', () => {
       })
     })
   })
+
+  describe('back query param on check-in review redirects', () => {
+    const mpopBack = 'https://localhost:9091/manage-people-on-probation/case/X000001/activity-log?page=1&view=default'
+
+    afterEach(() => {
+      delete res.locals.checkIn
+    })
+
+    it('keeps every query param of an absolute back URL when redirecting to the update page', async () => {
+      res.locals.checkIn = { status: 'EXPIRED' }
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: mpopBack },
+      })
+      await controllers.checkIns.getReviewIdentityCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/${uuid}/check-in/update?back=${encodeURIComponent(mpopBack)}`,
+      )
+    })
+
+    it('does not redirect to an off-site back URL from the notes page', async () => {
+      res.locals.checkIn = { status: 'SUBMITTED' }
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: 'https://evil.example.com' },
+      })
+      await controllers.checkIns.getReviewNotesCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/review/identity`)
+    })
+
+    it.each([
+      ['/case/:crn/appointments/:id/check-in/view-expired', '/VIEW-EXPIRED/', 'view-expired'],
+      ['/case/:crn/appointments/:id/check-in/view', '/View/', 'view'],
+    ])('redirects to the matched route %s after saving a note', async (routePath, pathSuffix, page) => {
+      jest.spyOn(ESupervisionClient.prototype, 'postOffenderCheckInNote').mockResolvedValueOnce(undefined)
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `/case/${crn}/appointments/${uuid}/check-in${pathSuffix}`,
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: mpopBack },
+      })
+      req.route = { path: routePath }
+      await controllers.checkIns.postViewCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/${uuid}/check-in/${page}?back=${encodeURIComponent(mpopBack)}`,
+      )
+    })
+  })
 })

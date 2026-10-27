@@ -34,6 +34,7 @@ import logger from '../../logger'
 import { dateWithYear, dateToLongDate } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
+import safeBackUrl from '../utils/safeBackUrl'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } from '../utils/checkinSchedule'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
@@ -1560,7 +1561,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status !== 'SUBMITTED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(
         res,
@@ -1594,11 +1597,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const checkInSession = getDataValue(data, ['esupervision', crn, id, 'checkins'])
       if (checkInSession?.manualIdCheck === undefined) {
-        return res.redirect(back ? (back as string) : `/case/${crn}/appointments/${id}/check-in/review/identity`)
+        return res.redirect(safeBackUrl(back) ?? `/case/${crn}/appointments/${id}/check-in/review/identity`)
       }
 
       if (checkIn.status !== 'SUBMITTED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_REVIEW_SUBMITTED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/notes.njk', { crn, id, back, checkIn })
@@ -1640,10 +1645,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { back } = req.query
       const { checkIn } = res.locals
       if (checkIn.status === 'EXPIRED' && checkIn.reviewedAt) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/view-expired${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/view-expired${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       if (checkIn.status !== 'EXPIRED') {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ONLINE_CHECK_IN_MISSED', crn, SubjectType.CRN)
       return res.render('pages/check-in/review/expired.njk', { crn, id, back, checkIn })
@@ -1679,7 +1688,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   postViewCheckIn: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
-      const { url } = req
+      // Use the matched route pattern, not req.path, which may vary in case or trailing slash
+      const page = String(req.route?.path ?? '').endsWith('/view-expired') ? 'view-expired' : 'view'
+      const back = safeBackUrl(req.query.back)
+      const url = `/case/${crn}/appointments/${id}/check-in/${page}${back ? `?back=${encodeURIComponent(back)}` : ''}`
 
       const { data } = req.session
       const checkIn = getDataValue(data, ['esupervision', crn, id, 'checkins'])
@@ -1710,7 +1722,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { checkIn } = res.locals
 
       if (checkIn.status !== 'EXPIRED' || !checkIn.reviewedAt) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${back}` : ''}`)
+        return res.redirect(
+          `/case/${crn}/appointments/${id}/check-in/update${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
+        )
       }
       return res.render('pages/check-in/view-expired.njk', { crn, id, back, checkIn })
     }
@@ -1737,7 +1751,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       if (Object.keys(statusMap).includes(checkIn.status)) {
         return res.redirect(
-          `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${back}` : ''}`,
+          `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
         )
       }
       return renderError(404)(req, res)
