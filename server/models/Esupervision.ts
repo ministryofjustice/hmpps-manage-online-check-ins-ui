@@ -40,8 +40,6 @@ export interface ManageQuestionsSession {
   availableTemplates?: EsupervisionQuestionTemplatesList[]
   questionTemplateAndInputs?: Record<string, string>
   draftQuestionInput?: string
-  // What was typed into "Write your own question" on the choose-a-question page
-  bespokeQuestionInput?: string
   expectedCheckinDate?: string
 }
 export interface LocalParams {

@@ -1,4 +1,17 @@
-import { isEmail, isNotEmpty } from './validationUtils'
+import { isEmail, isNotBlank, isNotEmpty } from './validationUtils'
+
+describe('isNotBlank', () => {
+  it.each([
+    ['empty string', [''], false],
+    ['whitespace only', ['   \n\t'], false],
+    ['null', [null], false],
+    ['undefined', [undefined], false],
+    ['populated', ['asdsad'], true],
+    ['padded text', ['  asdsad  '], true],
+  ])('%s', (_: string, a: any[], expected: boolean) => {
+    expect(isNotBlank(a)).toEqual(expected)
+  })
+})
 
 describe('is not empty', () => {
   it.each([

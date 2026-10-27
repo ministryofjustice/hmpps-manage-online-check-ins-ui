@@ -1,6 +1,11 @@
 import httpMocks from 'node-mocks-http'
 import validate from './eSupervision'
 
+// The validation spec reaches the bespoke question helpers, which import the ESM-only uuid package.
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
+}))
+
 const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 

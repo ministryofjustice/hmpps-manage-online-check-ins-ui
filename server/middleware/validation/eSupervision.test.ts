@@ -599,6 +599,60 @@ describe('Test eSuperVision validation', () => {
       expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
     })
 
+    it('rejects a question that is only whitespace', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith('   '),
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
+    })
+
+    it('counts the question mark it will add towards the length limit', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith('x'.repeat(1000)),
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Question must be 1000 characters or less'])
+    })
+
+    it('allows a question of exactly the length limit that already ends with a question mark', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith(`${'x'.repeat(999)}?`),
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).toHaveBeenCalled()
+    })
+
+    it('rejects a bespoke question edit that is only whitespace', () => {
+      const req = makeReq({
+        url: `/case/${crn}/appointments/check-in/manage/${id}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+        body: { esupervision: { [crn]: { [id]: { manageQuestions: { draftQuestionInput: '   ' } } } } },
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
+    })
+
     it('uses the same message when editing a bespoke question with nothing entered', () => {
       const req = makeReq({
         url: `/case/${crn}/appointments/check-in/manage/${id}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
@@ -757,6 +811,48 @@ describe('Test eSuperVision validation', () => {
         expect(next).not.toHaveBeenCalled()
         const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
         expect(Object.values(renderArgs.errorMessages)).toEqual(['Question must be 1000 characters or less'])
+      })
+
+      it('rejects a question that is only whitespace', () => {
+        const req = makeReq({
+          url: scheduleListQuestionsUrl,
+          body: bodyWith('   '),
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Enter what you want to ask the person'])
+      })
+
+      it('counts the question mark it will add towards the length limit', () => {
+        const req = makeReq({
+          url: scheduleListQuestionsUrl,
+          body: bodyWith('x'.repeat(1000)),
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Question must be 1000 characters or less'])
+      })
+
+      it('rejects a bespoke question edit that is only whitespace', () => {
+        const req = makeReq({
+          url: `${scheduleDateUrl}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+          body: { esupervision: scheduleSession({ draftQuestionInput: '   ' }) },
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Enter what you want to ask the person'])
       })
 
       it('renders the ad hoc edit page as bespoke when editing a written question with nothing entered', () => {

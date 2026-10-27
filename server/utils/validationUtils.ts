@@ -16,6 +16,8 @@ export const hasAllDigits = (string: string) => /^\d+$/.test(string)
 export const isNotEmpty = (args: any[]) => {
   return !!args[0] && args[0] !== undefined
 }
+// Free text that must contain something other than whitespace.
+export const isNotBlank = (args: any[]) => typeof args[0] === 'string' && args[0].trim().length > 0
 export const contactPrefEmailCheck = (args: any[]) => {
   if (!args[0] || args[0] === 'PHONE') {
     return true

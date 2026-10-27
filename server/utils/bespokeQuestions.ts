@@ -16,6 +16,10 @@ export const ensureQuestionMark = (text: string): string => {
   return trimmed.endsWith('?') ? trimmed : `${trimmed}?`
 }
 
+// Validator for the length limit: a bespoke question is stored as ensureQuestionMark() leaves it,
+// which may add a trailing '?', so the limit applies to that text rather than what was typed.
+export const bespokeQuestionCharsOrLess = (args: any[]): boolean => ensureQuestionMark(args[1]).length <= args[0]
+
 // A template the API returns that is not one of the offered SYSTEM templates and has nothing to
 // fill in is a bespoke question saved earlier, authored by a practitioner.
 export const isBespokeTemplate = (template: {

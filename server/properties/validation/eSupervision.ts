@@ -5,12 +5,14 @@ import {
   contactPrefMobileCheck,
   isEmail,
   isFutureDate,
+  isNotBlank,
   isNotEmpty,
   isTodayOrLater,
   isValidDate,
   isValidDateFormat,
   isValidMobileNumber,
 } from '../../utils/validationUtils'
+import { bespokeQuestionCharsOrLess } from '../../utils/bespokeQuestions'
 
 export interface ESupervisionValidationArgs {
   crn: string
@@ -313,14 +315,14 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'edit-question',
       checks: [
         {
-          validator: isNotEmpty,
+          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
           msg: bespokeQuestion ? 'Enter what you want to ask the person' : 'Enter what you want to ask',
           log: 'Question text not entered',
         },
         ...(bespokeQuestion
           ? [
               {
-                validator: charsOrLess,
+                validator: bespokeQuestionCharsOrLess,
                 length: BESPOKE_QUESTION_MAX_LENGTH,
                 msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
               },
@@ -334,12 +336,12 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'list-questions',
       checks: [
         {
-          validator: isNotEmpty,
+          validator: isNotBlank,
           msg: 'Enter what you want to ask the person',
           log: 'Bespoke question text not entered',
         },
         {
-          validator: charsOrLess,
+          validator: bespokeQuestionCharsOrLess,
           length: BESPOKE_QUESTION_MAX_LENGTH,
           msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
         },
@@ -367,14 +369,14 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'schedule-check-in-edit-question',
       checks: [
         {
-          validator: isNotEmpty,
+          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
           msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
         ...(bespokeQuestion
           ? [
               {
-                validator: charsOrLess,
+                validator: bespokeQuestionCharsOrLess,
                 length: BESPOKE_QUESTION_MAX_LENGTH,
                 msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
               },
@@ -388,12 +390,12 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'schedule-check-in-list-questions',
       checks: [
         {
-          validator: isNotEmpty,
+          validator: isNotBlank,
           msg: 'Enter what you want to ask the person',
           log: 'Bespoke question text not entered',
         },
         {
-          validator: charsOrLess,
+          validator: bespokeQuestionCharsOrLess,
           length: BESPOKE_QUESTION_MAX_LENGTH,
           msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
         },

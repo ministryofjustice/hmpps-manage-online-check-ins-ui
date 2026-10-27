@@ -260,6 +260,16 @@ const normalizeQuestionPlaceholder = (input: string, suffix: string): string => 
   return trimmedInput.endsWith('?') && trimmedSuffix.endsWith('?') ? trimmedInput.slice(0, -1).trimEnd() : trimmedInput
 }
 
+// Whether a practitioner-written question with this draft id is held in the flow's session group.
+const bespokeQuestionInSession = (
+  data: Record<string, any> | undefined,
+  crn: string,
+  id: string,
+  group: 'manageQuestions' | 'scheduleCheckIn',
+  questionId: string,
+): boolean =>
+  getDataValue(data, ['esupervision', crn, id, group, 'questionTemplateAndInputs', questionId]) !== undefined
+
 const buildQuestionText = (prefix: string, input: string, suffix: string) => {
   const normalizedInput = normalizeQuestionPlaceholder(input, suffix)
   return `${prefix}${normalizedInput}${suffix}`.replace(/\s+/g, ' ').trim()
@@ -2577,7 +2587,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (Object.keys(questionTemplateAndInputs).length >= 3) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
       }
-      const displayTemplates = toDisplayTemplates(templatesList.templates)
+      // Only the customisable templates are offered, matching what the validation re-render shows.
+      const displayTemplates = toDisplayTemplates(availableTemplates)
       return res.render('pages/check-in/questions/list-questions.njk', {
         crn,
         id,
@@ -2647,8 +2658,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
-      // A bespoke question has no template: the page shows the whole question for editing.
+      // A bespoke question has no template: the page shows the whole question for editing. It only
+      // exists in the session, so an id that is not there has nothing to edit.
       const isBespoke = isBespokeDraftId(questionId)
+      if (isBespoke && !bespokeQuestionInSession(req.session.data, crn, id, 'manageQuestions', questionId)) {
+        return renderError(404)(req, res)
+      }
       const templateId = questionId.split('-')[0]
       const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
 
@@ -2674,6 +2689,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const inputValue = req.body?.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput
+
+      // A template question arrives here fresh from the select page, but a bespoke one must already
+      // be in the session: saving under an unknown bespoke id would add a question past the cap.
+      if (
+        isBespokeDraftId(questionId) &&
+        !bespokeQuestionInSession(req.session.data, crn, id, 'manageQuestions', questionId)
+      ) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      }
 
       if (inputValue && inputValue.trim() !== '') {
         setDataValue(
@@ -3083,8 +3107,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
-      // A bespoke question has no template: the page shows the whole question for editing.
+      // A bespoke question has no template: the page shows the whole question for editing. It only
+      // exists in the session, so an id that is not there has nothing to edit.
       const isBespoke = isBespokeDraftId(questionId)
+      if (isBespoke && !bespokeQuestionInSession(req.session.data, crn, id, 'scheduleCheckIn', questionId)) {
+        return renderError(404)(req, res)
+      }
       const templateId = questionId.split('-')[0]
       const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
       if (!isBespoke && !questionForView) return renderError(404)(req, res)
@@ -3109,6 +3137,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const inputValue = req.body?.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput
+
+      // A template question arrives here fresh from the select page, but a bespoke one must already
+      // be in the session: saving under an unknown bespoke id would add a question past the cap.
+      if (
+        isBespokeDraftId(questionId) &&
+        !bespokeQuestionInSession(req.session.data, crn, id, 'scheduleCheckIn', questionId)
+      ) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+      }
 
       if (inputValue && inputValue.trim() !== '') {
         setDataValue(

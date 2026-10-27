@@ -1,4 +1,10 @@
-import { ensureQuestionMark, isBespokeDraftId, isBespokeTemplate, newBespokeDraftId } from './bespokeQuestions'
+import {
+  bespokeQuestionCharsOrLess,
+  ensureQuestionMark,
+  isBespokeDraftId,
+  isBespokeTemplate,
+  newBespokeDraftId,
+} from './bespokeQuestions'
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
@@ -33,6 +39,20 @@ describe('utils/bespokeQuestions', () => {
     it('is false for a template with placeholders or a fixed question', () => {
       expect(isBespokeTemplate({ policy: 'CUSTOMISABLE', responseSpec: { placeholders: ['thing'] } })).toBe(false)
       expect(isBespokeTemplate({ policy: 'FIXED', responseSpec: { placeholders: [] } })).toBe(false)
+    })
+  })
+
+  describe('bespokeQuestionCharsOrLess', () => {
+    it.each([
+      ['short question', [10, 'Hi?'], true],
+      ['at the limit ending in a question mark', [10, 'abcdefghi?'], true],
+      ['at the limit but needing a question mark added', [10, 'abcdefghij'], false],
+      ['one under the limit needing a question mark added', [10, 'abcdefghi'], true],
+      ['surrounding whitespace is not counted', [10, '   abcdefghi?   '], true],
+      ['over the limit', [10, 'abcdefghijk?'], false],
+      ['empty', [10, ''], true],
+    ])('%s', (_: string, a: any[], expected: boolean) => {
+      expect(bespokeQuestionCharsOrLess(a)).toEqual(expected)
     })
   })
 })
