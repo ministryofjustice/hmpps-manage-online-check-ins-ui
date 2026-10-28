@@ -302,9 +302,10 @@ describe('the is-eligible discussion checkboxes', () => {
 
   it('explains that the accredited-programme cohort can reduce in-person appointments to monthly', async () => {
     const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', base)
+    const pageTitle = 'The person is eligible to use online check ins to reduce in person appointments to monthly'
     const title = 'Bob is eligible to use online check ins to reduce in person appointments to monthly'
 
-    expect(html).toMatch(new RegExp(`<title>\\s*${title} -`))
+    expect(html).toMatch(new RegExp(`<title>\\s*${pageTitle} -`))
     expect(html).toMatch(new RegExp(`<h2[^>]*data-qa="pageHeading">\\s*${title}`))
   })
 
