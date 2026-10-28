@@ -266,8 +266,7 @@ export interface EsupervisionQuestionTemplatesList {
     hint: string
     placeholders: string[]
   }
-  policy?: string
-  policy$hmpps_esupervision_api?: string
+  policy: string
 }
 
 // GET /v2/questions/upcoming/{crn}/question-items
@@ -285,8 +284,7 @@ export interface EsupervisionUpcomingQuestionItem {
     responseFormat: 'TEXT'
     responseSpec: Record<string, unknown>
     example: string
-    policy?: string
-    policy$hmpps_esupervision_api: string
+    policy: string
   }
   params: Record<string, string>
 }

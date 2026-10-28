@@ -24,10 +24,8 @@ export const bespokeQuestionCharsOrLess = (args: any[]): boolean => ensureQuesti
 // fill in is a bespoke question saved earlier, authored by a practitioner.
 export const isBespokeTemplate = (template: {
   policy?: string
-  policy$hmpps_esupervision_api?: string
   responseSpec?: { placeholders?: unknown }
 }): boolean => {
-  const policy = template?.policy ?? template?.policy$hmpps_esupervision_api
   const placeholders = template?.responseSpec?.placeholders
-  return policy === 'CUSTOMISABLE' && (!Array.isArray(placeholders) || placeholders.length === 0)
+  return template?.policy === 'CUSTOMISABLE' && (!Array.isArray(placeholders) || placeholders.length === 0)
 }

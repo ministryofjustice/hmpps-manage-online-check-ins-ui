@@ -689,7 +689,7 @@
                   "thing"
                 ]
               },
-              "policy$hmpps_esupervision_api": "CUSTOMISABLE"
+              "policy": "CUSTOMISABLE"
             },
             {
               "id": 2,
@@ -702,7 +702,7 @@
                   "thing"
                 ]
               },
-              "policy$hmpps_esupervision_api": "CUSTOMISABLE"
+              "policy": "CUSTOMISABLE"
             }
           ]
         },

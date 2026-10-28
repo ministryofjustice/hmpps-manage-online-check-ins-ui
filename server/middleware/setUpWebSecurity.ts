@@ -8,7 +8,7 @@ export default function setUpWebSecurity(): Router {
   const managePeopleOnProbationUrl = new URL(config.managePeopleOnProbation.link).origin
   const hmppsAuthUrl = new URL(config.apis.hmppsAuth.externalUrl).origin
   // LocalStack stands in for S3 when the API runs locally; presigned upload and photo URLs point at it.
-  // Only ever added in the local environment - see the connect-src note below.
+  // Empty everywhere but the local environment, so it can be spread into any directive as is.
   const localS3Sources = config.env === 'local' ? ['http://localhost:4566'] : []
 
   // Secure code best practice - see:
@@ -62,13 +62,13 @@ export default function setUpWebSecurity(): Router {
               // This is required for the S3 bucket to upload checkin images
               // (either have a custom domain for each environment or use the default wild card domain)
               'https://*.s3.eu-west-2.amazonaws.com',
+              ...localS3Sources,
             ]
 
             // Allow localhost for local development only
             if (config.env === 'local') {
               sources.push('http://localhost:9091')
               sources.push('http://localhost:3000')
-              sources.push(...localS3Sources)
             }
 
             return sources

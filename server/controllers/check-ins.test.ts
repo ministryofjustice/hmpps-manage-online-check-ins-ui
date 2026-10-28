@@ -1757,7 +1757,6 @@ describe('checkInsController', () => {
                   responseFormat: 'TEXT',
                   responseSpec: { hint: 'Add as much detail as you feel comfortable with', placeholders: [] },
                   policy: 'CUSTOMISABLE',
-                  policy$hmpps_esupervision_api: 'CUSTOMISABLE',
                 },
                 params: { placeholders: {} },
               },
@@ -1777,6 +1776,46 @@ describe('checkInsController', () => {
         )
       })
 
+      it('restores a question whose template has since been retired as a bespoke question of its text', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        // Template 7 is not in the CUSTOMISABLE list the API now offers, but the assignment still resolves it.
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValue({
+          upcoming: {
+            expectedCheckinDate: '2026-11-03',
+            items: [
+              {
+                template: {
+                  id: 7,
+                  template: 'Have you heard back from {{thing}}?',
+                  responseFormat: 'TEXT',
+                  responseSpec: { hint: '', placeholders: ['thing'] },
+                  policy: 'SYSTEM',
+                },
+                params: { placeholders: { thing: 'the housing team' } },
+              },
+            ],
+          },
+        } as any)
+
+        const req = baseReq({})
+
+        await controllers.checkIns.getAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageQuestions', 'questionTemplateAndInputs'],
+          { [`bespoke-${uuid}`]: 'Have you heard back from the housing team?' },
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: `bespoke-${uuid}`, fullText: 'Have you heard back from the housing team?' }],
+          }),
+        )
+      })
+
       beforeEach(() => {
         jest.spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates').mockResolvedValue({
           templates: [
@@ -1789,7 +1828,7 @@ describe('checkInsController', () => {
                 hint: 'Hint for the question about the {{thing}}',
                 placeholders: ['thing'],
               },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
             {
               id: 2,
@@ -1801,7 +1840,7 @@ describe('checkInsController', () => {
                 hint: 'Hint for the question about the {{thing}}',
                 placeholders: ['thing'],
               },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         } as any)
@@ -1846,7 +1885,7 @@ describe('checkInsController', () => {
               id: 5,
               template: 'How is {{thing}}?',
               responseSpec: { placeholders: ['thing'] },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         } as any)
@@ -1895,7 +1934,7 @@ describe('checkInsController', () => {
                       id: '1',
                       template: 'How is {{thing}}?',
                       responseSpec: { placeholders: ['thing'] },
-                      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                      policy: 'CUSTOMISABLE',
                     },
                   ],
                 },
@@ -1932,7 +1971,7 @@ describe('checkInsController', () => {
                       id: '1',
                       template: 'How is {{thing}}?',
                       responseSpec: { placeholders: ['thing'] },
-                      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                      policy: 'CUSTOMISABLE',
                     },
                   ],
                 },
@@ -2181,7 +2220,7 @@ describe('checkInsController', () => {
                   id: '1',
                   template: 'Have you heard back from {{thing}}?',
                   responseSpec: { placeholders: ['thing'] },
-                  policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                  policy: 'CUSTOMISABLE',
                 },
               ],
             } as any),
@@ -2201,7 +2240,7 @@ describe('checkInsController', () => {
               id: '1',
               template: 'Have you heard back from {{thing}}?',
               responseSpec: { placeholders: ['thing'] },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         )
@@ -2230,13 +2269,13 @@ describe('checkInsController', () => {
                 id: '1',
                 template: 'Have you heard back from {{thing}}?',
                 responseSpec: { placeholders: ['thing'] },
-                policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                policy: 'CUSTOMISABLE',
               },
               {
                 id: '3',
                 template: 'A fixed question?',
                 responseSpec: { placeholders: [] },
-                policy$hmpps_esupervision_api: 'STANDARD',
+                policy: 'STANDARD',
               },
             ],
           } as any),
@@ -2475,7 +2514,7 @@ describe('checkInsController', () => {
                 id: '1',
                 template: 'Have you heard back from {{thing}}?',
                 responseSpec: { placeholders: ['thing'] },
-                policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                policy: 'CUSTOMISABLE',
               },
             ],
           } as any)
@@ -2703,7 +2742,7 @@ describe('checkInsController', () => {
       })
     })
 
-    describe('getDeleteQuestion', () => {
+    describe('postDeleteQuestion', () => {
       it('removes question from session and redirects to add questions page', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
@@ -2726,7 +2765,7 @@ describe('checkInsController', () => {
         const { id } = req.params as Record<string, string>
         req.params.questionId = '1-f47ac10b-58cc-4372-a567-0e02b2c3d479'
 
-        await controllers.checkIns.getDeleteQuestion(hmppsAuthClient)(req, res)
+        await controllers.checkIns.postDeleteQuestion(hmppsAuthClient)(req, res)
 
         expect(
           req.session.data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[
@@ -2739,7 +2778,7 @@ describe('checkInsController', () => {
           ],
         ).toBeDefined()
         expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+        checkSendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       })
     })
   })
@@ -2753,13 +2792,13 @@ describe('checkInsController', () => {
         id: 1,
         template: 'Have you been able to {{text}}?',
         responseSpec: { placeholders: ['text'] },
-        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+        policy: 'CUSTOMISABLE',
       },
       {
         id: 2,
         template: 'How has {{text}} been going recently?',
         responseSpec: { placeholders: ['text'] },
-        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+        policy: 'CUSTOMISABLE',
       },
     ]
 
@@ -3089,7 +3128,7 @@ describe('checkInsController', () => {
                   id: 77,
                   template: 'Have you been to the gym?',
                   responseSpec: { placeholders: [] },
-                  policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                  policy: 'CUSTOMISABLE',
                 },
                 params: { placeholders: {} },
               },
@@ -3109,6 +3148,40 @@ describe('checkInsController', () => {
         expect(renderSpy).toHaveBeenCalledWith(
           'pages/check-in/schedule-check-in/add-questions.njk',
           expect.objectContaining({ addedQuestions: [{ id: draftId, fullText: 'Have you been to the gym?' }] }),
+        )
+      })
+
+      it('restores a question whose template has since been retired as a bespoke question of its text', async () => {
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValueOnce({
+          upcoming: {
+            items: [
+              {
+                template: {
+                  id: 7,
+                  template: 'Have you heard back from {{thing}}?',
+                  responseSpec: { placeholders: ['thing'] },
+                  policy: 'SYSTEM',
+                },
+                params: { placeholders: { thing: 'the housing team' } },
+              },
+            ],
+          },
+        } as any)
+        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        const draftId = 'bespoke-f1654ea3-0abb-46eb-860b-654a96edbe20'
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          { [draftId]: 'Have you heard back from the housing team?' },
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: draftId, fullText: 'Have you heard back from the housing team?' }],
+          }),
         )
       })
 
@@ -3302,7 +3375,7 @@ describe('checkInsController', () => {
           id: 3,
           template: 'A fixed question?',
           responseSpec: { placeholders: [] as string[] },
-          policy$hmpps_esupervision_api: 'STANDARD',
+          policy: 'STANDARD',
         }
         getTemplatesSpy.mockResolvedValueOnce({ templates: [...questionTemplates, nonCustomisableTemplate] } as any)
         const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
@@ -3558,30 +3631,25 @@ describe('checkInsController', () => {
       })
     })
 
-    describe('getScheduleCheckInDeleteQuestion', () => {
+    describe('postScheduleCheckInDeleteQuestion', () => {
       it('removes only the chosen question from the session', async () => {
         const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-a': 'one', '2-b': 'two' } }))
         req.params.questionId = '1-a'
 
-        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+        await controllers.checkIns.postScheduleCheckInDeleteQuestion()(req, res)
 
         const saved = req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs
         expect(saved['1-a']).toBeUndefined()
         expect(saved['2-b']).toBe('two')
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
-        checkSendAuditMessage(
-          res,
-          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DELETE_QUESTION',
-          crn,
-          SubjectType.CRN,
-        )
+        checkSendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       })
 
       it('is a no-op when the question is not in the session', async () => {
         const req = baseReq(sessionWith({ questionTemplateAndInputs: { '2-b': 'two' } }))
         req.params.questionId = '1-a'
 
-        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+        await controllers.checkIns.postScheduleCheckInDeleteQuestion()(req, res)
 
         expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs['2-b']).toBe('two')
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)

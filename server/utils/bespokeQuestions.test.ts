@@ -33,7 +33,7 @@ describe('utils/bespokeQuestions', () => {
   describe('isBespokeTemplate', () => {
     it('is true for a customisable question with no placeholders', () => {
       expect(isBespokeTemplate({ policy: 'CUSTOMISABLE', responseSpec: { placeholders: [] } })).toBe(true)
-      expect(isBespokeTemplate({ policy$hmpps_esupervision_api: 'CUSTOMISABLE', responseSpec: {} })).toBe(true)
+      expect(isBespokeTemplate({ policy: 'CUSTOMISABLE', responseSpec: {} })).toBe(true)
     })
 
     it('is false for a template with placeholders or a fixed question', () => {

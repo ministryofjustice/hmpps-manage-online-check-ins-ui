@@ -599,6 +599,46 @@ describe('Test eSuperVision validation', () => {
       expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
     })
 
+    it('fetches the page again rather than re-rendering an empty table when the templates are not in session', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith(''),
+        session: { data: { esupervision: { [crn]: { [id]: { manageQuestions: {} } } } } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).not.toHaveBeenCalled()
+      expect(res.redirect).toHaveBeenCalledWith(listQuestionsUrl)
+    })
+
+    it('leaves a submission at the three-question cap to the controller to redirect', () => {
+      const req = makeReq({
+        url: listQuestionsUrl,
+        body: bodyWith(''),
+        session: {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  manageQuestions: {
+                    ...sessionEsupervision[crn][id].manageQuestions,
+                    questionTemplateAndInputs: { '1-a': 'work', '2-b': 'home', 'bespoke-c': 'How are you?' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(res.render).not.toHaveBeenCalled()
+      expect(next).toHaveBeenCalled()
+    })
+
     it('rejects a question that is only whitespace', () => {
       const req = makeReq({
         url: listQuestionsUrl,
