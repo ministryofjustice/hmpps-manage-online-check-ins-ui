@@ -68,9 +68,11 @@ const pilotReasons = (band: 'AB' | 'C', tier: string): EligibilityReason =>
           'not on an accredited programme',
           'you have no people who were signed up to use online check ins before 1 October 2026',
         ],
+        additionalTierInformation: true,
       }
     : {
-        reason: `is in Tier ${tier} and you do not have one or more people on your caseload who started using online check ins before 1 October 2026`,
+        reason: `is in Tier ${tier} and you do not have people on your caseload who started using online check ins before 1 October 2026`,
+        additionalTierInformation: true,
       }
 
 export type EligibilityTarget = 'not-eligible' | 'pilot-check' | 'is-eligible'
@@ -102,6 +104,8 @@ export const notSupervisedReason = 'is not currently being supervised'
 interface EligibilityReason {
   reason: string
   bullets?: string[]
+  // Ruled out by the Tier rules alone, so the page also explains those rules and the pilot.
+  additionalTierInformation?: boolean
 }
 
 export interface EligibilityOutcome extends Partial<EligibilityReason> {
@@ -146,7 +150,11 @@ export function nextAfterEligibilityCheck(
       .filter(({ applies }) => applies(status, selections))
       .map(({ clause }) => clause)
     if (fragments.length) {
-      clauses.push(programmeExclusionClause(tierLabel(band, tierScore), fragments))
+      const programmeClause = programmeExclusionClause(tierLabel(band, tierScore), fragments)
+      if (!clauses.length) {
+        return { target: 'not-eligible', reason: programmeClause, additionalTierInformation: true }
+      }
+      clauses.push(programmeClause)
     }
   }
   // Anything found so far rules the person out on every branch, so there is no point asking

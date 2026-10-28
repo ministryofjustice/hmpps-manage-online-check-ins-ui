@@ -32,6 +32,7 @@ export interface CheckinUserDetails {
   settingsUpdated?: boolean
   eligibility?: string[]
   tierBand?: 'AB' | 'C' | 'DG'
+  pilotCheck?: string
   eligibilitySPOApproval?: any
   rationale?: string
 }
@@ -63,6 +64,8 @@ export interface LocalParams {
   hasContactDetails?: boolean
   isAdHoc?: boolean
   tierBand?: string
+  eligibilitySessionKey?: 'checkins' | 'restartCheckin'
+  eligibilityUrlPrefix?: string
   questionId?: string
   question?: {
     prefix: string

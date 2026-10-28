@@ -5,6 +5,7 @@
   pageHeading: [pageTitleText]
 }) %}
 {% set back = back if back else '' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
 {# Every other reason came from an answer given on the eligibility check, so going back there is a
    real way to revisit it. None of the tier statuses is an answer - the check would rule the person
    out again the moment it loaded, looping straight back here - so the link leads to the case
@@ -14,7 +15,7 @@
    loop the same way. Early engagement does come back here, since it only rules the person out
    alongside the accredited programme box - unticking that is a real way to revisit it. #}
 {% set returnToOverviewPage = missingTier or provisionalTier or notSupervised or noSupervisionPackage or inFinalThird %}
-{% set backLink = '/case/' + crn if returnToOverviewPage else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{% set backLink = '/case/' + crn if returnToOverviewPage else eligibilityUrlPrefix + 'eligibility-check' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
 
@@ -53,9 +54,20 @@
                 <li>{{ bullet }}</li>
             {% endfor %}
         </ul>
-        <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+        {% if not additionalTierInformation %}
+            <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+        {% endif %}
     {% else %}
         <p class="govuk-body">This is because {{case.name.forename}} {{reason}}.</p>
-        <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+        {% if not additionalTierInformation %}
+            <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+        {% endif %}
+    {% endif %}
+
+    {% if additionalTierInformation %}
+        <p class="govuk-body" data-qa="additionalTierInformation">Tiers A to C are not eligible to use online check ins unless they fall into specific categories.</p>
+        <p class="govuk-body">If you started using online check ins before 1 October 2026, you’ll also be able to sign other people up on your caseload to use online check ins who are in any Tier. This is a pilot to see how online check ins work for those in Tiers A to C. We’ll be running this pilot until March 2027, then will decide if online check ins is opened up to all Tiers.</p>
+        <p class="govuk-body">If you think this is wrong, you can go back and perform the eligibility check again. <a class="govuk-link" href="{{ guidanceUrl }}/practitioner-guidance" target="_blank" rel="noreferrer noopener">Find out more about eligibility in our guidance (opens in new tab).</a></p>
+        <p class="govuk-body">If you have any questions or need support, you can contact the online check ins support mailbox at <a class="govuk-link" href="mailto:checkinwithprobation@justice.gov.uk">checkinwithprobation@justice.gov.uk (opens in email app)</a> for support.</p>
     {% endif %}
 {% endblock %}

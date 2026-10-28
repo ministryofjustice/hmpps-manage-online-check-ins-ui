@@ -1,4 +1,5 @@
 import express, { Router } from 'express'
+import { telemetryMiddleware } from '@ministryofjustice/hmpps-azure-telemetry'
 
 import createError from 'http-errors'
 
@@ -9,6 +10,7 @@ import authorisationMiddleware from './middleware/authorisationMiddleware'
 import setUpAlertsCount from './middleware/setUpAlertsCount'
 import setUpAuthentication from './middleware/setUpAuthentication'
 import setUpCsrf from './middleware/setUpCsrf'
+import sanitiseBackParam from './middleware/sanitiseBackParam'
 import setUpCurrentUser from './middleware/setUpCurrentUser'
 import setUpHealthChecks from './middleware/setUpHealthChecks'
 import setUpStaticResources from './middleware/setUpStaticResources'
@@ -35,6 +37,7 @@ export default function createApp(services: Services): express.Application {
   app.use(setUpWebSession())
   app.use(baseController())
   app.use(setUpWebRequestParsing())
+  app.use(sanitiseBackParam)
   app.use(setUpStaticResources())
   nunjucksSetup(app)
   app.use((req, res, next) => {
@@ -46,6 +49,7 @@ export default function createApp(services: Services): express.Application {
   app.use(authorisationMiddleware())
   app.use(setUpCsrf())
   app.use(setUpCurrentUser())
+  app.use(telemetryMiddleware.addUserMetadataToTelemetry())
   app.use(setUpAlertsCount(services.hmppsAuthClient))
   app.use(
     pdsComponents.getPageComponents({

@@ -100,6 +100,35 @@ describe('utils/decorateFormAttributes', () => {
     }
     expect(decorateFormAttributes(req, res)(obj, sections)).toEqual(expected)
   })
+  describe('a field re-rendered with a validation error', () => {
+    const sections = ['appointments', crn, id, 'date']
+    const fieldId = `appointments-${crn}-${id}-date`
+    const decorate = (body: Record<string, unknown>, errorMessages: Record<string, string> = {}) => {
+      const res = mockAppResponse({ errorMessages })
+      const req = httpMocks.createRequest({
+        body,
+        session: { data: { appointments: { [crn]: { [id]: { date: '2025-04-09' } } } } },
+      })
+      return decorateFormAttributes(req, res)({ label: { text: 'Date' } }, sections)
+    }
+
+    it('shows the rejected submission rather than the saved value', () => {
+      const result = decorate({ appointments: { [crn]: { [id]: { date: '31/2/2030' } } } }, { [fieldId]: 'Bad date' })
+      expect(result.value).toBe('31/2/2030')
+      expect(result.errorMessage).toEqual({ text: 'Bad date' })
+    })
+
+    it('shows an empty value when the field was submitted empty', () => {
+      const result = decorate({ appointments: { [crn]: { [id]: { date: '' } } } }, { [fieldId]: 'Enter a date' })
+      expect(result.value).toBe('')
+    })
+
+    it('still shows the saved value when the field has no error', () => {
+      const result = decorate({ appointments: { [crn]: { [id]: { date: '31/2/2030' } } } })
+      expect(result.value).toBe('9/4/2025')
+    })
+  })
+
   it('should decorate a date input value from the value stored in the session', () => {
     const res = mockAppResponse({
       errorMessages: {

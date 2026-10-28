@@ -3,22 +3,16 @@
 const autoprefixer = require('autoprefixer')
 const postcss = require('postcss')
 const postcssPresetEnv = require('postcss-preset-env')
-const { copy } = require('esbuild-plugin-copy')
 const { sassPlugin } = require('esbuild-sass-plugin')
-const { clean } = require('esbuild-plugin-clean')
 const esbuild = require('esbuild')
 const path = require('path')
 const { glob } = require('glob')
+const { cleanPlugin, copyPlugin } = require('./plugins')
 
 const buildAdditionalAssets = buildConfig =>
   esbuild.build({
     outdir: buildConfig.assets.outDir,
-    plugins: [
-      copy({
-        resolveFrom: 'cwd',
-        assets: buildConfig.assets.copy,
-      }),
-    ],
+    plugins: [copyPlugin(buildConfig.assets.copy)],
   })
 
 const buildAssets = buildConfig =>
@@ -33,9 +27,7 @@ const buildAssets = buildConfig =>
     external: ['/assets/*'],
     bundle: true,
     plugins: [
-      clean({
-        patterns: glob.sync(buildConfig.assets.clear),
-      }),
+      cleanPlugin(glob.sync(buildConfig.assets.clear)),
       sassPlugin({
         quietDeps: true,
         loadPaths: [process.cwd(), path.join(process.cwd(), 'node_modules')],

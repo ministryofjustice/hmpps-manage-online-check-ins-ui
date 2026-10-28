@@ -3,6 +3,8 @@ import ManageCheckins from '../pages/check-ins/manage-checkins'
 import CheckinSettingsDatePage from '../pages/check-ins/settings/checkin-settings-date.page'
 import CheckinSettingsFrequencyPage from '../pages/check-ins/settings/checkin-settings-frequency.page'
 import ScheduleCheckinPage from '../pages/check-ins/schedule-checkin.page'
+import EligibilityCheckPage from '../pages/check-ins/eligibility/eligibility-check'
+import IsEligiblePage from '../pages/check-ins/eligibility/is-eligible'
 import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-checkin-frequency.page'
 import RestartContactPreferencePage from '../pages/check-ins/restart/restart-contact-preference.page'
 import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
@@ -37,6 +39,19 @@ const openManagePage = () => {
   return manageCheckins
 }
 
+const startRestartJourney = () => {
+  cy.visit(`${manageById}/restart-eligibility-check`)
+  const eligibilityPage = new EligibilityCheckPage()
+  eligibilityPage.checkOnPage()
+  eligibilityPage.getNone().click()
+  eligibilityPage.getSubmitBtn().click()
+
+  const isEligiblePage = new IsEligiblePage()
+  isEligiblePage.checkOnPage()
+  isEligiblePage.confirmDiscussion()
+  isEligiblePage.getSubmitBtn().click()
+}
+
 context('check in settings for a scheduled person', () => {
   beforeEach(() => {
     cy.task('resetMocks')
@@ -59,6 +74,16 @@ context('check in settings for a scheduled person', () => {
     })
   })
 
+  // Once the check in is active we can't change the date because notifications have been sent.
+  // So the card no longer shows the check in link.
+  it('offers no change of date once the next check in is due today', () => {
+    cy.task('stubGetUpcomingCheckinQuestions', 0)
+    const manageCheckins = openManagePage()
+    manageCheckins.getNextCheckInValue().first().should('contain.text', DateTime.now().toFormat('d MMMM yyyy'))
+    manageCheckins.getChangeDateLink().should('not.exist')
+    manageCheckins.getChangeFrequencyLink().should('have.attr', 'href', `${manageById}/settings`)
+  })
+
   it('offers a change of next check in date and of frequency', () => {
     const manageCheckins = openManagePage()
     manageCheckins.getFrequencyValue().should('contain.text', 'Every week')
@@ -66,8 +91,8 @@ context('check in settings for a scheduled person', () => {
     manageCheckins.getChangeFrequencyLink().should('have.attr', 'href', `${manageById}/settings`)
   })
 
-  // Only a move from ad-hoc needs a date, so a scheduled person's change saves straight away,
-  // carrying their upcoming check in forward as the date the new interval runs from.
+  // Only moving from adhoc checkins to scheduled, needs a date, so a scheduled person's change saves
+  // straight away, using their upcoming check in forward as the date the new interval runs from.
   it('saves a change of frequency straight away, keeping the next check in date', () => {
     openManagePage().getChangeFrequencyLink().click()
     const frequencyPage = new CheckinSettingsFrequencyPage()
@@ -85,6 +110,37 @@ context('check in settings for a scheduled person', () => {
         mode: 'SCHEDULED',
         checkinInterval: 'TWO_WEEKS',
         firstCheckin: DateTime.now().plus({ days: 5 }).toISODate(),
+      })
+    })
+  })
+
+  // The fixture's weekly schedule started on 3 November 2025. With no check in booked yet, the next
+  // check in day is worked out by repeating that schedule, so the practitioner is not asked for a date.
+  it('saves a change of frequency from the saved schedule when no check in is booked yet', () => {
+    cy.task('stubNoUpcomingCheckin')
+    const start = DateTime.fromISO('2025-11-03')
+    // The first weekly repeat strictly after today: today's own check in, if any, is already done.
+    const weeksSince = Math.floor(Math.round(DateTime.now().startOf('day').diff(start, 'days').days) / 7) + 1
+    const nextWeeklyDay = start.plus({ weeks: weeksSince })
+
+    const managePageBefore = openManagePage()
+    // The settings card shows that day too, not the long-past first date the schedule started on.
+    managePageBefore.getNextCheckInValue().last().should('contain.text', nextWeeklyDay.toFormat('d MMMM yyyy'))
+    managePageBefore.getChangeFrequencyLink().click()
+    const frequencyPage = new CheckinSettingsFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(TWO_WEEKS)
+    frequencyPage.getSubmitBtn().click()
+
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getUpdateBanner().should('contain.text', 'Check in settings saved')
+    lastApiRequestBody('/v2/offenders/.+?/update_details').then(sent => {
+      expect(sent.checkinSchedule).to.include({
+        mode: 'SCHEDULED',
+        checkinInterval: 'TWO_WEEKS',
+        firstCheckin: nextWeeklyDay.toISODate(),
       })
     })
   })
@@ -122,11 +178,52 @@ context('check in settings for an ad-hoc person', () => {
     clearApiRequests()
   })
 
-  it('shows the ad-hoc frequency with no next check in date to change', () => {
+  // The upcoming check in stub books one five days out, so the manage card offers to move it by
+  // booking again, with the picker starting on the booked date.
+  it('shows the ad-hoc frequency and moves the booked check in from the schedule page', () => {
     const manageCheckins = openManagePage()
     manageCheckins.getFrequencyValue().should('contain.text', "I'll schedule them one at a time")
-    manageCheckins.getChangeDateLink().should('not.exist')
     manageCheckins.getChangeFrequencyLink().should('have.attr', 'href', `${manageById}/settings`)
+    manageCheckins.getChangeDateLink().should('have.attr', 'href', `${manageById}/schedule-check-in`)
+    manageCheckins.getChangeDateLink().click()
+
+    const schedulePage = new ScheduleCheckinPage()
+    schedulePage.checkOnPage()
+    schedulePage
+      .getDatePickerInput()
+      .find('input')
+      .should('have.value', DateTime.now().plus({ days: 5 }).toFormat('d/M/yyyy'))
+
+    // A moved check in may not land on today: it would become active at once.
+    schedulePage.getDatePickerInput().find('input').clear().type(DateTime.now().toFormat('d/M/yyyy'))
+    schedulePage.getSubmitBtn().click()
+    schedulePage.checkErrorSummaryBox(['The next online check in date must be in the future'])
+
+    // Moving a booked check in only changes its date, so it saves without the questions step.
+    const movedTo = DateTime.now().plus({ days: 2 })
+    schedulePage.getDatePickerInput().find('input').clear().type(movedTo.toFormat('d/M/yyyy'))
+    schedulePage.getSubmitBtn().click()
+
+    manageCheckins.checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins
+      .getUpdateBanner()
+      .should('contain.text', `Single online check in for Joe has been moved to ${movedTo.toFormat('d MMMM yyyy')}`)
+    lastApiRequestBody(`/v2/offenders/crn/${crn}/schedule-ad-hoc-check-in`).then(sent => {
+      expect(sent).to.deep.equal({ requestedBy: 'USER1', firstCheckin: movedTo.toISODate() })
+    })
+  })
+
+  it('offers no change of date once the booked check in is due today, and refuses a direct visit', () => {
+    cy.task('stubGetUpcomingCheckinQuestions', 0)
+    const manageCheckins = openManagePage()
+    manageCheckins.getChangeDateLink().should('not.exist')
+    cy.get('[data-qa="schedule-check-in-btn"]').should('not.exist')
+
+    // Nothing can be booked over the active check in, so the schedule page sends them straight back.
+    cy.visit(`${manageById}/schedule-check-in`)
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', manageById)
   })
 
   // An ad-hoc person has no schedule to carry forward, so this is the one change that asks for a date.
@@ -159,8 +256,9 @@ context('check in settings for an ad-hoc person', () => {
     })
   })
 
-  // The API takes ad-hoc as a mode alone: it rejects an interval or a date sent with it.
-  it('saves staying ad-hoc without asking for a date', () => {
+  // Nothing changed, so nothing is saved: no date is asked for, no update is sent and no
+  // "settings saved" banner is shown for a change that never happened.
+  it('returns to the manage page without saving when ad-hoc is re-submitted', () => {
     openManagePage().getChangeFrequencyLink().click()
     const frequencyPage = new CheckinSettingsFrequencyPage()
     frequencyPage.checkOnPage()
@@ -169,18 +267,29 @@ context('check in settings for an ad-hoc person', () => {
 
     const manageCheckins = new ManageCheckins()
     manageCheckins.checkOnPage()
-    manageCheckins.getUpdateBanner().should('contain.text', 'Check in settings saved')
-    lastApiRequestBody('/v2/offenders/.+?/update_details').then(sent => {
-      expect(sent.checkinSchedule).to.include({ mode: 'AD_HOC' })
-      expect(sent.checkinSchedule).not.to.have.property('checkinInterval')
-      expect(sent.checkinSchedule).not.to.have.property('firstCheckin')
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getUpdateBanner().should('not.exist')
+    cy.request('POST', `${wiremockAdmin}/requests/find`, {
+      method: 'POST',
+      urlPathPattern: '/v2/offenders/.+?/update_details',
+    }).then(({ body }) => {
+      expect(body.requests, 'an update sent for an unchanged frequency').to.have.length(0)
     })
   })
 
   it('creates an ad-hoc check in for the selected date', () => {
+    cy.task('stubNoUpcomingCheckin')
     const checkinDate = DateTime.now().plus({ days: 2 })
-    cy.visit(`${manageById}/schedule-check-in`)
+    openManagePage().getChangeDateLink().should('not.exist')
+    cy.get('[data-qa="schedule-check-in-btn"]').click()
     const schedulePage = new ScheduleCheckinPage()
+    schedulePage.checkOnPage()
+    schedulePage.getDatePickerInput().find('input').should('have.value', '')
+    // Unlike a move, a new booking may be for today.
+    schedulePage.getDatePickerInput().find('input').type(DateTime.now().toFormat('d/M/yyyy'))
+    schedulePage.getSubmitBtn().click()
+    cy.location('pathname').should('equal', `${manageById}/schedule-check-in/questions/add`)
+    cy.go('back')
     schedulePage.checkOnPage()
     schedulePage.getDatePickerInput().find('input').clear().type(checkinDate.toFormat('d/M/yyyy'))
     schedulePage.getSubmitBtn().click()
@@ -203,11 +312,12 @@ context('restarting check ins as ad-hoc', () => {
     cy.task('resetMocks')
     // A weekly person with a mobile number on file, so contact can be confirmed as it stands.
     cy.task('stubGetScheduledOffenderByCRN', crn)
+    cy.task('stubGetOffenderHeaderByCRN', crn)
     clearApiRequests()
   })
 
   it('skips the date page and restarts with no schedule', () => {
-    cy.visit(`${manageById}/restart-checkin`)
+    startRestartJourney()
     const frequencyPage = new RestartCheckinFrequencyPage()
     frequencyPage.checkOnPage()
     frequencyPage.selectFrequency(AD_HOC)

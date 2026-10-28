@@ -355,7 +355,7 @@ context('Appointment check-ins', () => {
       pilotCheckPage.getSubmitBtn().click()
 
       const notEligiblePage = new NotEligiblePage()
-      notEligiblePage.getReason().should('contain', 'is in Tier C and you do not have one or more people')
+      notEligiblePage.getReason().should('contain', 'is in Tier C and you do not have people on your caseload')
     })
   })
 
@@ -954,8 +954,8 @@ context('Appointment check-ins', () => {
     datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
 
-    // Frequency change: a standard interval still needs a first check-in date, so the date page is
-    // shown again (pre-filled) on the way back to the summary.
+    // Frequency change: the first check-in date is already on file, so this returns straight to
+    // the summary without showing the date page again.
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')
       .find('.govuk-summary-list__value')
@@ -965,8 +965,6 @@ context('Appointment check-ins', () => {
     frequencyPage.checkOnPage()
     frequencyPage.selectFrequency(2)
     frequencyPage.getSubmitBtn().click()
-    datePage.checkOnPage()
-    datePage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
       .getSummaryListRowByAction('intervalAction')
@@ -1232,7 +1230,20 @@ context('check-ins overview and manage pages', () => {
   })
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
-    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-checkin`)
+    cy.task('stubGetOffenderHeaderByCRN', 'X778160')
+    cy.visit(
+      `/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-eligibility-check`,
+    )
+    const eligibilityPage = new EligibilityCheckPage()
+    eligibilityPage.checkOnPage()
+    eligibilityPage.getNone().click()
+    eligibilityPage.getSubmitBtn().click()
+
+    const isEligiblePage = new IsEligiblePage()
+    isEligiblePage.checkOnPage()
+    isEligiblePage.confirmDiscussion()
+    isEligiblePage.getSubmitBtn().click()
+
     const restartFrequencyPage = new RestartCheckinFrequencyPage()
     restartFrequencyPage.checkOnPage()
     restartFrequencyPage.selectFrequency(0)

@@ -1,5 +1,4 @@
 /* eslint-disable max-classes-per-file */
-const { deleteSync } = require('del')
 const childProcess = require('node:child_process')
 const { styleText } = require('node:util')
 
@@ -223,21 +222,6 @@ function buildNotificationPlugin(buildName, isWatchMode) {
   }
 }
 
-function cleanPlugin(patterns = []) {
-  return {
-    name: 'clean',
-    setup({ onStart: registerOnStartCallback }) {
-      if (!patterns.length || patterns.length === 0) {
-        return
-      }
-
-      registerOnStartCallback(() => {
-        deleteSync(patterns)
-      })
-    },
-  }
-}
-
 function getEnvFile(args) {
   const index = args.findIndex(arg => arg === '--env' || arg.startsWith('--env='))
   if (index === -1) return '.env'
@@ -250,7 +234,6 @@ module.exports = {
   emojis,
   getEnvFile,
   buildNotificationPlugin,
-  cleanPlugin,
   ESBuildManager,
   ServerManager,
 }

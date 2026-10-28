@@ -16,6 +16,7 @@
 {% else %}
   {% set hintText = "For example, low risk of reoffending, stable lifestyle factors." %}
 {% endif %}
+{% set eligibilitySessionKey = eligibilitySessionKey or 'checkins' %}
 
 {% block form %}
     <div class="govuk-grid-row">
@@ -36,7 +37,7 @@
             hint: {
                 text: hintText
             }
-        } | decorateFormAttributes(['esupervision', crn, id, 'checkins', 'rationale'])) }}
+        } | decorateFormAttributes(['esupervision', crn, id, eligibilitySessionKey, 'rationale'])) }}
         </div>
     </div>
 {% endblock %}

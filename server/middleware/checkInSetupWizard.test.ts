@@ -5,6 +5,23 @@ import restrictPageAccess, { dateUnlessAdHoc, RequiredValue } from './restrictPa
 const crn = 'Y021754'
 const id = 'dad89a83-3029-488a-ac24-ac2d0cf2e16c'
 
+const checkPageAccess = async (
+  requiredValues: RequiredValue[],
+  data: Record<string, unknown>,
+  eligibilityJourney: 'setup' | 'reactivation' = 'setup',
+) => {
+  const req = httpMocks.createRequest({ params: { crn, id }, session: { data }, query: {} })
+  const res = {
+    redirect: jest.fn(),
+    render: jest.fn(),
+    locals: { checkInEligibilityJourney: eligibilityJourney },
+  } as never
+  const next = jest.fn()
+  await restrictPageAccess({ requiredValues })(req, res, next)
+  const { redirect } = res as unknown as { redirect: jest.Mock }
+  return next.mock.calls.length ? 'ALLOWED' : `BOUNCED -> ${redirect.mock.calls[0]?.[0]}`
+}
+
 // Walk the wizard the way a browser does: each POST stores its page, then the next GET's
 // restrictPageAccess must let us through rather than bounce us to eligibility-check.
 it('walks eligibility -> rationale -> check-in-frequency -> check-in-date -> contact -> photo -> summary', async () => {
@@ -14,14 +31,7 @@ it('walks eligibility -> rationale -> check-in-frequency -> check-in-date -> con
     await autoStoreSessionData(null)(req, httpMocks.createResponse(), jest.fn())
     session.data = req.session.data
   }
-  const checkAccess = async (requiredValues: RequiredValue[]) => {
-    const req = httpMocks.createRequest({ params: { crn, id }, session, query: {} })
-    const res = { redirect: jest.fn(), render: jest.fn(), locals: {} } as never
-    const next = jest.fn()
-    await restrictPageAccess({ requiredValues })(req, res, next)
-    const { redirect } = res as unknown as { redirect: jest.Mock }
-    return next.mock.calls.length ? 'ALLOWED' : `BOUNCED -> ${redirect.mock.calls[0]?.[0]}`
-  }
+  const checkAccess = (requiredValues: RequiredValue[]) => checkPageAccess(requiredValues, session.data)
   const ck = (v: any) => ({ esupervision: { [crn]: { [id]: { checkins: v } } } })
 
   await post(ck({ eligibility: ['eligibility-none'] }))
@@ -72,4 +82,28 @@ it('lets an ad-hoc setup reach contact-preference without a date', async () => {
   const next = jest.fn()
   await restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] })(req, res, next)
   expect(next).toHaveBeenCalled()
+})
+
+it('redirects a restart with no session state to its eligibility check', async () => {
+  expect(await checkPageAccess(['id'], {}, 'reactivation')).toBe(
+    `BOUNCED -> /case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+  )
+})
+
+it('requires a date before a scheduled restart reaches contact details', async () => {
+  const data = {
+    esupervision: { [crn]: { [id]: { restartCheckin: { id, interval: 'WEEKLY' } } } },
+  }
+
+  expect(await checkPageAccess(['interval', dateUnlessAdHoc], data, 'reactivation')).toBe(
+    `BOUNCED -> /case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+  )
+})
+
+it('lets an ad-hoc restart reach contact details without a date', async () => {
+  const data = {
+    esupervision: { [crn]: { [id]: { restartCheckin: { id, interval: 'AD_HOC' } } } },
+  }
+
+  expect(await checkPageAccess(['interval', dateUnlessAdHoc], data, 'reactivation')).toBe('ALLOWED')
 })

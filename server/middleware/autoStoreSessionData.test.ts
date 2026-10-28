@@ -351,4 +351,38 @@ describe('/middleware/autoStoreSessionData', () => {
       })
     })
   })
+
+  // These are derived by the eligibility rules; a posted value must not replace them.
+  it('ignores posted eligibility outcome fields inside a wizard group', () => {
+    const req = httpMocks.createRequest({
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: { [crn]: { [id]: { restartCheckin: { accreditedProgramme: true, tierBand: 'AB' } } } },
+        },
+      },
+      body: {
+        esupervision: {
+          [crn]: {
+            [id]: {
+              restartCheckin: {
+                discussion: ['optional'],
+                accreditedProgramme: '',
+                tierBand: 'DG',
+                additionalTierInformation: 'true',
+              },
+            },
+          },
+        },
+      },
+    })
+
+    autoStoreSessionData(hmppsAuthClient)(req, res, nextSpy)
+
+    expect(req.session.data.esupervision[crn][id].restartCheckin).toEqual({
+      accreditedProgramme: true,
+      tierBand: 'AB',
+      discussion: ['optional'],
+    })
+  })
 })

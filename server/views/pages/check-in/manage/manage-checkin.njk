@@ -10,7 +10,7 @@
 {% set scheduleCheckInLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/schedule-check-in' %}
 {% set changeContactLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/contact' %}
 {% set stopCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/stop-checkin' %}
-{% set restartCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/restart-checkin' %}
+{% set restartCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/restart-eligibility-check' %}
 {% set photoLabel = "Photo of " + case.name.forename %}
 {% set photoUrl = offenderCheckinsByCRNResponse.photoUrl %}
 {% set backLink = '/case/' + crn %}
@@ -44,10 +44,10 @@
 
   {% if offenderCheckinsByCRNResponse.status === 'VERIFIED' %}
           {% set checkinLabel = 'Next check in' %}
-                    {% if hasUpcomingCheckin %}
-              {% set checkinText = upcomingCheckin.expectedCheckinDate | dateWithYear %}
-                    {% elif not isAdHoc %}
-              {% set checkinText = offenderCheckinsByCRNResponse.firstCheckin | dateWithYear %}
+          {# The controller supplies the upcoming check in or, for a scheduled person with none booked
+             yet, the next day their schedule falls on. An ad-hoc person with nothing booked has none. #}
+          {% if nextCheckinDate %}
+              {% set checkinText = nextCheckinDate | dateWithYear %}
           {% endif %}
         <div class="moj-button-group">
                         {% if isAdHoc and not hasUpcomingCheckin %}
@@ -107,20 +107,7 @@
     {% set checkin %}
     {% set nextCheckin = offenderCheckinsByCRNResponse %}
     {% set settingsRows = [] %}
-    {% if checkinText %}
-        {% set _ = settingsRows.push({
-            key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
-            value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'},
-            actions: {
-                items: [{
-                    href: changeDateLink,
-                    text: 'Change',
-                    visuallyHiddenText: 'next check in date',
-                    attributes: { 'data-qa': 'changeDateAction' }
-                }]
-            } if showChange and checkinFrequency !== 'AD_HOC'
-        }) %}
-    {% endif %}
+
     {% set _ = settingsRows.push({
         key: { html: '<span data-qa="frequencyLabel">Frequency</span>'},
         value: { html: '<span data-qa="frequencyValue">' + (checkinFrequency | userFriendlyString) + '</span>'},
@@ -133,6 +120,23 @@
             }]
         } if showChange
     }) %}
+        {% if checkinText %}
+            {# A scheduled person moves their next check in from the settings date page. A booked ad-hoc
+               check in is moved by booking it again: the API treats that as a change of due date.
+               Either way the controller only allows it while the check in is still to come. #}
+            {% set _ = settingsRows.push({
+                key: { html: '<span data-qa="nextCheckinDueLabel">' + checkinLabel + '</span>'},
+                value: { html: '<span data-qa="nextCheckInValue">' + checkinText + '</span>'},
+                actions: {
+                    items: [{
+                        href: scheduleCheckInLink if isAdHoc else changeDateLink,
+                        text: 'Change',
+                        visuallyHiddenText: 'next check in date',
+                        attributes: { 'data-qa': 'changeDateAction' }
+                    }]
+                } if canChangeDate
+            }) %}
+        {% endif %}
     {% set nextCheckinText %}
             {{ govukSummaryList({
                 rows: settingsRows

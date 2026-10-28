@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { Route } from '../../@types/Route.type'
 import { LocalParams } from '../../models/Esupervision'
+import type { AppLocals } from '../../models/Locals'
 import { eSuperVisionValidation } from '../../properties/validation/eSupervision'
 import getDataValue from '../../utils/getDataValue'
 import setDataValue from '../../utils/setDataValue'
@@ -9,6 +10,7 @@ import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
+import { CheckInEligibilityPage, getCheckInEligibilityContext } from '../../utils/checkInEligibilityContext'
 import { fromApiSchedule } from '../../utils/checkinSchedule'
 
 const eSuperVision: Route<void> = (req, res, next) => {
@@ -34,6 +36,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
     checkInMobile: bodyCheckInMobile,
     checkInEmail: bodyCheckInEmail,
   }
+  localParams.eligibilityUrlPrefix = getCheckInEligibilityContext(
+    (res.locals as AppLocals).checkInEligibilityJourney ?? 'setup',
+    crn,
+    id,
+  ).eligibilityUrlPrefix
   const baseUrl = req.url.split('?')[0]
   let render = `pages/${[
     url
@@ -116,7 +123,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
     validateSetupPage('check-in-date', 'check-in-date', 'check-in-date')
     if (baseUrl.includes(setup('check-in-date'))) {
-      localParams.backLink = cya === 'true' ? setup('checkin-summary') : setup('check-in-frequency')
+      // Mirrors getDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = setup('check-in-frequency')
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('checkins', 'date')
+          ? setup('checkin-summary')
+          : `${setup('check-in-frequency')}?cya=true`
+      }
     }
     validateSetupPage('photo-options', 'photo-options', 'photo-options')
     validateSetupPage('upload-a-photo', 'upload-a-photo', 'upload-a-photo')
@@ -159,6 +172,46 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  const validateRestartEligibilityFlow = () => {
+    const flowKind = (res.locals as AppLocals).checkInEligibilityJourney
+    if (flowKind !== 'reactivation') return
+    const eligibilityContext = getCheckInEligibilityContext(flowKind, crn, id)
+    const validatePage = (segment: CheckInEligibilityPage, view: string, page: string) => {
+      if (baseUrl !== eligibilityContext.urlForEligibilityPage(segment)) return false
+      render = `pages/check-in/${view}`
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({ crn, id, page, eligibilitySessionKey: 'restartCheckin' }),
+      )
+      return true
+    }
+
+    localParams.eligibilitySessionKey = 'restartCheckin'
+    localParams.eligibilityUrlPrefix = eligibilityContext.eligibilityUrlPrefix
+    const tierStatus = getTierBand(res.locals.tierScore as string)
+    const isBand = tierStatus !== MISSING_TIER && tierStatus !== NOT_SUPERVISED_TIER
+    const band = isBand && res.locals.tierProvisional !== true ? tierStatus : null
+    if (band) {
+      localParams.tierBand = band
+      validatePage('eligibility-check', eligibilityViews[band]['eligibility-check'], 'eligibility-check')
+      if (band !== 'DG') {
+        validatePage('pilot-check', eligibilityViews[band]['pilot-check'], 'pilot-check')
+      }
+      const accreditedProgramme = sessionVal('restartCheckin', 'accreditedProgramme')
+      const isEligibleView = band === 'AB' && accreditedProgramme ? 'accredited-programme-is-eligible' : 'is-eligible'
+      validatePage('is-eligible', eligibilityViews[band][isEligibleView], 'is-eligible')
+    }
+    validatePage('accredited-programme-approval', 'accredited-programme-approval', 'accredited-programme-approval')
+    validatePage('rationale', 'rationale', 'rationale')
+    if (baseUrl === eligibilityContext.urlForEligibilityPage('rationale')) {
+      localParams.accreditedProgramme = Boolean(sessionVal('restartCheckin', 'accreditedProgramme'))
+      localParams.backLink =
+        cya === 'true'
+          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+          : eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
+    }
+  }
+
   const validateStopCheckins = () => {
     if (baseUrl.includes(manage('stop-checkin'))) {
       render = `pages/check-in/manage/stop-checkin`
@@ -193,9 +246,11 @@ const eSuperVision: Route<void> = (req, res, next) => {
         // See getSettingsDatePage: a scheduled person came from the manage card, an ad-hoc person
         // from the frequency page.
         const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
-        localParams.backLink = fromApiSchedule(offenderDetails) === 'AD_HOC' ? `${managePage}/settings` : managePage
-        // The record holds an ISO date; the picker and its validator want d/M/yyyy.
-        const savedDate = DateTime.fromISO(offenderDetails?.firstCheckin ?? '')
+        const isAdHoc = fromApiSchedule(offenderDetails) === 'AD_HOC'
+        localParams.backLink = isAdHoc ? `${managePage}/settings` : managePage
+        // The record holds an ISO date; the picker and its validator want d/M/yyyy. An ad-hoc
+        // person's firstCheckin is their last booked ad-hoc check in, not a date to restore.
+        const savedDate = DateTime.fromISO(isAdHoc ? '' : (offenderDetails?.firstCheckin ?? ''))
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageCheckin', 'date'],
@@ -275,13 +330,25 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/restart-checkin-frequency`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin' }))
-      localParams.backLink =
-        cya === 'true' ? `/${manage('restart-summary')}` : `/case/${crn}/appointments/check-in/manage/${id}`
+      // Mirrors getRestartCheckinPage's backLink.
+      if (cya === 'true') {
+        localParams.backLink = `/${manage('restart-summary')}`
+      } else {
+        localParams.backLink = sessionVal('restartCheckin', 'accreditedProgramme')
+          ? `/${manage('restart-rationale')}`
+          : `/${manage('restart-is-eligible')}`
+      }
     } else if (baseUrl.endsWith(manage('restart-checkin-date'))) {
       render = `pages/check-in/manage/restart-checkin-date`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin-date' }))
-      localParams.backLink = cya === 'true' ? `/${manage('restart-summary')}` : `/${manage('restart-checkin')}`
+      // Mirrors getRestartCheckinDatePage: with no saved date the frequency was just switched from ad-hoc.
+      localParams.backLink = `/${manage('restart-checkin')}`
+      if (cya === 'true') {
+        localParams.backLink = sessionVal('restartCheckin', 'date')
+          ? `/${manage('restart-summary')}`
+          : `/${manage('restart-checkin')}?cya=true`
+      }
     }
   }
 
@@ -327,13 +394,20 @@ const eSuperVision: Route<void> = (req, res, next) => {
     if (/\/schedule-check-in\/?$/.test(baseUrl)) {
       render = `pages/check-in/schedule-check-in/date`
       localParams.id = id
-      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date' }))
+      // The date page controller records the booking being moved, if any, when it renders.
+      const movingBookedCheckin = !!sessionVal('scheduleCheckIn', 'bookedDate')
+      errorMessages = validateWithSpec(
+        req,
+        eSuperVisionValidation({ crn, id, page: 'schedule-check-in-date', movingBookedCheckin }),
+      )
     }
   }
 
   const validateRestartContact = () => {
     if (baseUrl.includes(manage('restart-contact'))) {
       render = `pages/check-in/manage/restart-contact-preference`
+      // The page's Back goes to the frequency page for an ad-hoc restart, which has no date page.
+      localParams.isAdHoc = sessionVal('restartCheckin', 'interval') === 'AD_HOC'
       if (body?.change === 'main') {
         const checkInEmail = sessionVal('restartCheckin', 'checkInEmail')
         const checkInMobile = sessionVal('restartCheckin', 'checkInMobile')
@@ -361,6 +435,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   validateSetupFlow()
+  validateRestartEligibilityFlow()
   validateStopCheckins()
   validateCheckinSettings()
   validateManageContact()
@@ -382,6 +457,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
       case: offenderDetails?.details ?? res.locals.case,
       guidanceUrl: config.guidance.link,
       data: req.session.data,
+      // Pages reached from a check-your-answers change link derive their Back and change links
+      // from cya, so a validation error must not drop it.
+      cya: cya === 'true',
     })
   }
   return next()

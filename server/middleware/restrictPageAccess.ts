@@ -3,11 +3,13 @@ import getDataValue from '../utils/getDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from './renderError'
+import type { AppLocals } from '../models/Locals'
+import { getCheckInEligibilityContext } from '../utils/checkInEligibilityContext'
 
 type Answers = Record<string, unknown>
 type ValuePath = string | string[]
-// A requirement may depend on earlier answers: the function gets the setup answers so far and
-// returns the path that must be present, or nothing when this page needs no extra answer.
+// A requirement may depend on earlier answers: it can return a path that must be present, a
+// or nothing when this page needs no extra answer.
 export type RequiredValue = ValuePath | ((answers: Answers) => ValuePath | undefined)
 
 // An ad-hoc setup schedules no first check in, so only a standard interval needs a date.
@@ -27,11 +29,16 @@ const restrictPageAccess = ({ requiredValues = [] }: { requiredValues?: Required
       return renderError(404)(req, res)
     }
 
-    const dataPath = ['esupervision', crn, id, 'checkins']
+    const eligibilityContext = getCheckInEligibilityContext(
+      (res.locals as AppLocals).checkInEligibilityJourney ?? 'setup',
+      crn,
+      id,
+    )
+    const dataPath = ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey]
     const { data } = req.session
 
     if (getDataValue(data, dataPath) === undefined) {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
     }
 
     if (!req.query?.cya) {
@@ -41,7 +48,7 @@ const restrictPageAccess = ({ requiredValues = [] }: { requiredValues?: Required
         if (resolved === undefined) continue // eslint-disable-line no-continue
         const path = Array.isArray(resolved) ? resolved : [resolved]
         if (!getDataValue(data, [...dataPath, ...path])) {
-          return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+          return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
         }
       }
     }

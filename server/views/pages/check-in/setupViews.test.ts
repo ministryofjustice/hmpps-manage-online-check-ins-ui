@@ -70,12 +70,55 @@ const views = [
   'instructions',
   'manage/checkin-settings-frequency',
   'manage/checkin-settings-date',
+  'manage/restart-checkin-summary',
+  'manage/restart-checkin-date',
 ]
 
 const render = (view: string, locals: Record<string, unknown>): Promise<string> =>
   new Promise((resolve, reject) => {
     app.render(`pages/check-in/${view}.njk`, locals, (err: Error, html: string) => (err ? reject(err) : resolve(html)))
   })
+
+const cancelLinkOf = (html: string) =>
+  html.match(/<a[^>]*data-qa="formAnchorLink"[^>]*>/)?.[0].match(/href="([^"]+)"/)?.[1]
+
+describe('check-in-date', () => {
+  const setupPage = `/case/${crn}/appointments/${id}/check-in`
+
+  it('offers no cancel link on the first pass', async () => {
+    const html = await render('check-in-date', { ...base, backLink: `${setupPage}/check-in-frequency` })
+    expect(cancelLinkOf(html)).toBeUndefined()
+  })
+
+  // The summary restores the ad-hoc answer this date would have replaced.
+  it('cancels back to the summary during a check-your-answers edit', async () => {
+    const html = await render('check-in-date', {
+      ...base,
+      cya: true,
+      backLink: `${setupPage}/check-in-frequency?cya=true`,
+    })
+    expect(cancelLinkOf(html)).toBe(`${setupPage}/checkin-summary`)
+  })
+})
+
+describe('manage/restart-checkin-date', () => {
+  const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
+
+  it('cancels the whole restart on the first pass', async () => {
+    const html = await render('manage/restart-checkin-date', { ...base, backLink: `${managePage}/restart-checkin` })
+    expect(cancelLinkOf(html)).toBe(managePage)
+  })
+
+  // The summary restores the ad-hoc answer this date would have replaced.
+  it('cancels back to the summary during a check-your-answers edit', async () => {
+    const html = await render('manage/restart-checkin-date', {
+      ...base,
+      cya: true,
+      backLink: `${managePage}/restart-checkin?cya=true`,
+    })
+    expect(cancelLinkOf(html)).toBe(`${managePage}/restart-summary`)
+  })
+})
 
 describe('schedule-check-in/add-questions', () => {
   it('posts question deletion with a CSRF token', async () => {
@@ -111,6 +154,61 @@ describe.each(views)('%s', view => {
       errorMessages: { [`esupervision-${crn}-${id}-checkins-eligibility`]: 'Select if any of these apply' },
     })
     expect(html.length).toBeGreaterThan(0)
+  })
+})
+
+describe('shared eligibility templates in reactivation', () => {
+  const eligibilityUrlPrefix = `/case/${crn}/appointments/check-in/manage/${id}/restart-`
+  const restartBase = {
+    ...base,
+    eligibilitySessionKey: 'restartCheckin',
+    eligibilityUrlPrefix,
+    data: {
+      esupervision: {
+        [crn]: {
+          [id]: { restartCheckin: { eligibility: ['none'], pilotCheck: 'true', discussion: [] as string[] } },
+        },
+      },
+      features: {},
+    },
+  }
+
+  it('posts eligibility, pilot, discussion, approval, and rationale under restartCheckin', async () => {
+    const eligibility = await render('eligibility/eligibility-check', restartBase)
+    const pilot = await render('eligibility/pilot-check', restartBase)
+    const isEligible = await render('eligibility/pilot-is-eligible', restartBase)
+    const approval = await render('accredited-programme-approval', restartBase)
+    const rationale = await render('rationale', { ...restartBase, accreditedProgramme: true })
+
+    expect(eligibility).toContain(`[${id}][restartCheckin][eligibility]`)
+    expect(pilot).toContain(`[${id}][restartCheckin][pilotCheck]`)
+    expect(isEligible).toContain(`[${id}][restartCheckin][discussion]`)
+    expect(approval).toContain(`[${id}][restartCheckin][accreditedProgrammeApproval]`)
+    expect(rationale).toContain('Why is the person suitable to use online check ins?')
+  })
+
+  it('keeps the pilot eligible back link in the reactivation journey', async () => {
+    const html = await render('eligibility/pilot-is-eligible', restartBase)
+    expect(html).toContain(`href="${eligibilityUrlPrefix}pilot-check"`)
+  })
+
+  it('returns answer-based exclusions to the restart eligibility check', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...restartBase,
+      reason: 'has been recalled to prison',
+    })
+    expect(html).toContain(`href="${eligibilityUrlPrefix}eligibility-check"`)
+  })
+
+  it('keeps record-based exclusions linked to the case overview', async () => {
+    const html = await render('eligibility/not-eligible', { ...restartBase, missingTier: true })
+    expect(html).toContain(`href="/case/${crn}"`)
+    expect(html).not.toContain('restart-eligibility-check')
+  })
+
+  it('returns the discussion gate to the restart eligible page', async () => {
+    const html = await render('eligibility/discuss-before-signup', restartBase)
+    expect(html).toContain(`href="${eligibilityUrlPrefix}is-eligible"`)
   })
 })
 
@@ -200,6 +298,14 @@ describe('the is-eligible discussion checkboxes', () => {
     const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', base)
     expect(valuesIn(html)).toEqual([...sharedPoints, 'programmeOnly', 'notAll'])
     expect(html).toContain('They can only use online check ins while they are on an accredited programme')
+  })
+
+  it('explains that the accredited-programme cohort can reduce in-person appointments to monthly', async () => {
+    const html = await render('eligibility/tiers-a-b/accredited-programme-is-eligible', base)
+    const title = 'Bob is eligible to use online check ins to reduce in person appointments to monthly'
+
+    expect(html).toMatch(new RegExp(`<title>\\s*${title} -`))
+    expect(html).toMatch(new RegExp(`<h2[^>]*data-qa="pageHeading">\\s*${title}`))
   })
 
   it.each(['eligibility/pilot-is-eligible', 'eligibility/tiers-d-g/is-eligible'])(
@@ -362,6 +468,50 @@ describe('eligibility/not-eligible', () => {
     })
     expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
+
+  // Ruled out by Tier alone, so the page explains the Tier A to C rules and the pilot instead.
+  it.each([
+    [
+      'a Tier A/B programme exclusion',
+      { reason: 'is in Tier A and on an accredited programme, but they are in early engagement' },
+    ],
+    [
+      'a Tier A/B person outside the pilot',
+      {
+        reason: 'is in Tier A and',
+        reasonBullets: [
+          'not on an accredited programme',
+          'you have no people who were signed up to use online check ins before 1 October 2026',
+        ],
+      },
+    ],
+    [
+      'a Tier C person outside the pilot',
+      {
+        reason:
+          'is in Tier C and you do not have people on your caseload who started using online check ins before 1 October 2026',
+      },
+    ],
+  ])('explains the Tier A to C rules and the pilot for %s', async (_name, outcome) => {
+    const html = await render('eligibility/not-eligible', { ...base, ...outcome, additionalTierInformation: true })
+    expect(html).toContain(
+      'Tiers A to C are not eligible to use online check ins unless they fall into specific categories.',
+    )
+    expect(html).toContain('We’ll be running this pilot until March 2027')
+    expect(html).toContain(
+      'If you think this is wrong, you can go back and perform the eligibility check again. <a class="govuk-link" href="https://example.com/practitioner-guidance" target="_blank" rel="noreferrer noopener">Find out more about eligibility in our guidance (opens in new tab).</a>',
+    )
+    expect(html).toContain(
+      '<a class="govuk-link" href="mailto:checkinwithprobation@justice.gov.uk">checkinwithprobation@justice.gov.uk (opens in email app)</a> for support.',
+    )
+    expect(html).not.toContain('If you think this information is wrong')
+  })
+
+  it('leaves the Tier A to C explanation off other reasons', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, reason: 'has been recalled to prison' })
+    expect(html).not.toContain('Tiers A to C')
+    expect(html).toContain('If you think this information is wrong')
+  })
 })
 
 // An ad-hoc setup schedules no first check in, so there is no date to show or change.
@@ -391,6 +541,39 @@ describe('the manage settings pages', () => {
       errorMessages: { [`esupervision-${crn}-${id}-manageCheckin-date`]: 'Enter a date' },
     })
     expect(html).toMatch(/<title>\s*Error: When would you like the person/)
+  })
+})
+
+describe('a reactivation summary', () => {
+  it.each([
+    ['Email', 'Email address', 'bob@example.com', 'checkInEmailAction', 'checkInMobileAction'],
+    ['Text message', 'Mobile number', '07700900000', 'checkInMobileAction', 'checkInEmailAction'],
+  ])('shows only the selected %s contact detail', async (preferredComs, label, value, selectedAction, otherAction) => {
+    const html = await render('manage/restart-checkin-summary', {
+      ...base,
+      userDetails: { ...(base.userDetails as Record<string, unknown>), preferredComs },
+    })
+
+    expect(html).toContain(label)
+    expect(html).toContain(value)
+    expect(html).toContain('How does Bob want us to send a link to the service?')
+    expect(html).toContain(`data-qa="preferredComsAction"`)
+    expect(html).toContain(`data-qa="${selectedAction}"`)
+    expect(html).not.toContain(`data-qa="${otherAction}"`)
+  })
+
+  it('shows the rationale for the accredited-programme cohort', async () => {
+    const html = await render('manage/restart-checkin-summary', {
+      ...base,
+      userDetails: {
+        ...(base.userDetails as Record<string, unknown>),
+        accreditedProgramme: true,
+        rationale: 'Stable and low risk',
+      },
+    })
+    expect(html).toContain('Why is Bob suitable to use online check ins?')
+    expect(html).toContain('Stable and low risk')
+    expect(html).toContain('data-qa="rationaleAction"')
   })
 })
 
@@ -441,7 +624,9 @@ describe('the manage page settings card', () => {
       contactPreference: 'EMAIL',
     },
     checkinFrequency: 'WEEKLY',
+    nextCheckinDate: '2026-10-20',
     showChange: true,
+    canChangeDate: true,
     email: 'bob@example.com',
     mobile: '07700900000',
   }
@@ -463,6 +648,7 @@ describe('the manage page settings card', () => {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, mode: 'AD_HOC' },
       checkinFrequency: 'AD_HOC',
+      nextCheckinDate: undefined,
       upcomingCheckin: { questions: [{ question: 'Stale question' }] },
     })
 
@@ -495,6 +681,13 @@ describe('the manage page settings card', () => {
     if (mode === 'AD_HOC') expect(html).toContain("I'll schedule them one at a time")
   })
 
+  // The saved first date is where the schedule started; the controller supplies the day it next falls on.
+  it('shows the next check in day the controller supplies, not the saved first date', async () => {
+    const html = await render('manage/manage-checkin', scheduled)
+    expect(html).toContain('20 October 2026')
+    expect(html).not.toContain('1 August 2026')
+  })
+
   it('lets a scheduled person change their next check in date and their frequency', async () => {
     const html = await render('manage/manage-checkin', scheduled)
     // govukSummaryList leaves whitespace between the href and the data attributes.
@@ -502,13 +695,40 @@ describe('the manage page settings card', () => {
     expect(html).toMatch(new RegExp(`href="${managePage}/settings"\\s+data-qa="changeFrequencyAction"`))
   })
 
-  // An ad-hoc person has no next check in to move: they book one from the schedule page instead.
-  it('offers only the frequency change to an ad-hoc person', async () => {
+  // An ad-hoc person with nothing booked has no next check in to move: they book one instead.
+  it('offers only the frequency change to an ad-hoc person with nothing booked', async () => {
     const html = await render('manage/manage-checkin', {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
       checkinFrequency: 'AD_HOC',
+      nextCheckinDate: undefined,
     })
+    expect(html).not.toContain('data-qa="nextCheckinDueLabel"')
+    expect(html).not.toContain('data-qa="changeDateAction"')
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  // A booked ad-hoc check in is moved by booking it again, so its change link goes to that journey.
+  it('lets an ad-hoc person move a booked check in from the schedule page', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, firstCheckin: null, mode: 'AD_HOC' },
+      checkinFrequency: 'AD_HOC',
+      upcomingCheckin: { expectedCheckinDate: '2026-10-20', questions: [] },
+    })
+    expect(html).toMatch(new RegExp(`href="${managePage}/schedule-check-in"\\s+data-qa="changeDateAction"`))
+    expect(html).not.toMatch(new RegExp(`href="${managePage}/settings-date"`))
+    expect(html).toContain('data-qa="changeFrequencyAction"')
+  })
+
+  // The controller withholds canChangeDate once the check in is active (due today) or past.
+  it('keeps the date but drops its change link once the check in is active', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...scheduled,
+      canChangeDate: false,
+      upcomingCheckin: { expectedCheckinDate: '2026-10-16', questions: [] },
+    })
+    expect(html).toContain('data-qa="nextCheckinDueLabel"')
     expect(html).not.toContain('data-qa="changeDateAction"')
     expect(html).toContain('data-qa="changeFrequencyAction"')
   })
@@ -518,6 +738,7 @@ describe('the manage page settings card', () => {
       ...scheduled,
       offenderCheckinsByCRNResponse: { ...scheduled.offenderCheckinsByCRNResponse, status: 'INACTIVE' },
       showChange: false,
+      canChangeDate: false,
     })
     expect(html).not.toContain('data-qa="changeDateAction"')
     expect(html).not.toContain('data-qa="changeFrequencyAction"')

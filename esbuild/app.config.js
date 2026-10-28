@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
-const { copy } = require('esbuild-plugin-copy')
 const { typecheckPlugin } = require('@jgoz/esbuild-plugin-typecheck')
 const esbuild = require('esbuild')
 const glob = require('glob')
 const pkg = require('../package.json')
+const { copyPlugin } = require('./plugins')
 
 const buildApp = buildConfig =>
   esbuild.build({
@@ -16,13 +16,7 @@ const buildApp = buildConfig =>
     external: buildConfig.isProduction
       ? [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.peerDependencies || {})]
       : [],
-    plugins: [
-      typecheckPlugin(),
-      copy({
-        resolveFrom: 'cwd',
-        assets: buildConfig.app.copy,
-      }),
-    ],
+    plugins: [typecheckPlugin(), copyPlugin(buildConfig.app.copy)],
   })
 
 module.exports = buildConfig => {
