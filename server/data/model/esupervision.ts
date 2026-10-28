@@ -85,7 +85,6 @@ export interface OffenderInfo {
   mode?: CheckinMode
   contactPreference: string
   startedAt?: string
-  eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   rationale?: string
 }
 
@@ -211,6 +210,7 @@ export interface DeactivateOffenderRequest {
 export interface ReactivateOffenderRequest {
   requestedBy: string
   reason?: string
+  pilotCheck?: string
   checkinSchedule?: {
     requestedBy?: string
     firstCheckin?: string

@@ -90,4 +90,80 @@ describe('setup validation re-render', () => {
     expect(next).toHaveBeenCalled()
     expect(res.render).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['setup', `/case/${crn}/appointments/${id}/check-in/rationale`, 'checkins'],
+    ['reactivation', `/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`, 'restartCheckin'],
+  ] as const)('rejects whitespace-only rationale for %s', (journey, url, sessionKey) => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { [sessionKey]: { rationale: '   ' } } } } },
+      session: { data: { esupervision: { [crn]: { [id]: { [sessionKey]: { accreditedProgramme: true } } } } } },
+    })
+    const res: any = {
+      locals: {
+        tierScore: 'A',
+        ...(journey === 'reactivation' && { checkInEligibilityJourney: 'reactivation' }),
+      },
+      render: jest.fn(),
+    }
+    const next = jest.fn()
+
+    validate(req, res, next)
+
+    expect(next).not.toHaveBeenCalled()
+    expect(res.render).toHaveBeenCalledWith(
+      'pages/check-in/rationale',
+      expect.objectContaining({
+        errorMessages: expect.objectContaining({
+          [`esupervision-${crn}-${id}-${sessionKey}-rationale`]: expect.any(String),
+        }),
+      }),
+    )
+  })
+
+  it('validates restart eligibility under restartCheckin and re-renders the shared eligibility view', () => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { restartCheckin: {} } } } },
+      session: { data: {} },
+    })
+    const res: any = {
+      locals: { tierScore: 'A', checkInEligibilityJourney: 'reactivation' },
+      render: jest.fn(),
+    }
+    validate(req, res, jest.fn())
+
+    const [view, locals] = res.render.mock.calls[0]
+    expect(view).toBe('pages/check-in/eligibility/eligibility-check')
+    expect(locals.eligibilitySessionKey).toBe('restartCheckin')
+    expect(locals.eligibilityUrlPrefix).toBe(`/case/${crn}/appointments/check-in/manage/${id}/restart-`)
+    expect(Object.keys(locals.errorMessages)).toContain(`esupervision-${crn}-${id}-restartCheckin-eligibility`)
+  })
+
+  it.each([
+    ['Tier A/B accredited-programme', 'A', { accreditedProgramme: true }, 'accredited-programme-is-eligible'],
+    ['Tier D-G', 'D', {}, 'is-eligible'],
+  ])('supplies the setup eligibility URL prefix when %s is re-rendered', (_description, tierScore, answers, view) => {
+    const req = httpMocks.createRequest({
+      method: 'POST',
+      url: `/case/${crn}/appointments/${id}/check-in/is-eligible`,
+      params: { crn, id },
+      query: {},
+      body: { esupervision: { [crn]: { [id]: { checkins: {} } } } },
+      session: { data: { esupervision: { [crn]: { [id]: { checkins: answers } } } } },
+    })
+    const res: any = { locals: { tierScore }, render: jest.fn() }
+    validate(req, res, jest.fn())
+
+    const [renderedView, locals] = res.render.mock.calls[0]
+    expect(renderedView).toContain(view)
+    expect(locals.eligibilityUrlPrefix).toBe(`/case/${crn}/appointments/${id}/check-in/`)
+  })
 })

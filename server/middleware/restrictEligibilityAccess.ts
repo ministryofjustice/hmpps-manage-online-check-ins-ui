@@ -3,6 +3,8 @@ import getDataValue from '../utils/getDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import renderError from './renderError'
+import type { AppLocals } from '../models/Locals'
+import { getCheckInEligibilityContext } from '../utils/checkInEligibilityContext'
 import {
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
@@ -27,17 +29,22 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       return renderError(404)(req, res)
     }
 
+    const eligibilityContext = getCheckInEligibilityContext(
+      (res.locals as AppLocals).checkInEligibilityJourney ?? 'setup',
+      crn,
+      id,
+    )
     const { data } = req.session
-    const checkins = getDataValue(data, ['esupervision', crn, id, 'checkins'])
+    const checkins = getDataValue(data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey])
     const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
     if (!checkins || !band || !supervisionPackageStatus) {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
     }
 
     if (!toSelections(checkins.eligibility).length) {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
     }
 
     // Recorded by the eligibility-check pages from the ESUP call, since those answers are not fetched
@@ -63,21 +70,44 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
       }
       // Anything past pilot-check is only reachable once it has actually been answered.
       if (!checkins.pilotCheck) {
-        return res.redirect(`/case/${crn}/appointments/${id}/check-in/pilot-check`)
+        return res.redirect(eligibilityContext.urlForEligibilityPage('pilot-check'))
       }
       outcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck)).target
     } else if (page === 'pilot-check') {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${eligibility.target}`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage(eligibility.target))
     }
 
     if (outcome !== 'is-eligible') {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/${outcome}`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage(outcome))
     }
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
-    const accreditedProgramme = Boolean(checkins.accreditedProgramme)
+    // From the rules rather than the stored flag, which a later page can post new answers past.
+    const accreditedProgramme = Boolean(eligibility.accreditedProgramme)
+    const isAccreditedProgrammeApprovalPage =
+      req.path === eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
+    const isRationalePage = req.path === eligibilityContext.urlForEligibilityPage('rationale')
     if (page === 'setup' && !hasCompletedDiscussion(checkins.discussion, { accreditedProgramme })) {
-      return res.redirect(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
+      return res.redirect(eligibilityContext.urlForEligibilityPage('is-eligible'))
+    }
+    if (
+      eligibilityContext.journey === 'reactivation' &&
+      page === 'setup' &&
+      !isAccreditedProgrammeApprovalPage &&
+      accreditedProgramme &&
+      !toSelections(checkins.accreditedProgrammeApproval).includes('accredited-programme-approval')
+    ) {
+      return res.redirect(eligibilityContext.urlForEligibilityPage('accredited-programme-approval'))
+    }
+    if (
+      eligibilityContext.journey === 'reactivation' &&
+      page === 'setup' &&
+      accreditedProgramme &&
+      !isAccreditedProgrammeApprovalPage &&
+      !isRationalePage &&
+      (typeof checkins.rationale !== 'string' || !checkins.rationale.trim())
+    ) {
+      return res.redirect(eligibilityContext.urlForEligibilityPage('rationale'))
     }
     return next()
   }

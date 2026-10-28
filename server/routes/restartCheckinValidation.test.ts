@@ -12,6 +12,16 @@ jest.mock('@ministryofjustice/hmpps-audit-client', () => ({
   auditService: { sendAuditMessage: jest.fn().mockResolvedValue(undefined) },
 }))
 jest.mock('../data/eSupervisionClient')
+// These tests start past the restart eligibility check, which has its own tests.
+jest.mock(
+  '../middleware/restrictEligibilityAccess',
+  () => () => (_req: unknown, _res: unknown, next: () => void) => next(),
+)
+jest.mock('../middleware/restrictPageAccess', () => ({
+  ...jest.requireActual('../middleware/restrictPageAccess'),
+  __esModule: true,
+  default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}))
 // uuid ships ESM only, which ts-jest does not transform.
 jest.mock('uuid', () => ({ v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20') }))
 

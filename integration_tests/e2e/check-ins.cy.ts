@@ -1229,7 +1229,20 @@ context('check-ins overview and manage pages', () => {
   })
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
-    cy.visit(`/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-checkin`)
+    cy.task('stubGetOffenderHeaderByCRN', 'X778160')
+    cy.visit(
+      `/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-eligibility-check`,
+    )
+    const eligibilityPage = new EligibilityCheckPage()
+    eligibilityPage.checkOnPage()
+    eligibilityPage.getNone().click()
+    eligibilityPage.getSubmitBtn().click()
+
+    const isEligiblePage = new IsEligiblePage()
+    isEligiblePage.checkOnPage()
+    isEligiblePage.confirmDiscussion()
+    isEligiblePage.getSubmitBtn().click()
+
     const restartFrequencyPage = new RestartCheckinFrequencyPage()
     restartFrequencyPage.checkOnPage()
     restartFrequencyPage.selectFrequency(0)

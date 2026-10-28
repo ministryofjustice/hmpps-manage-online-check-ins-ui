@@ -9,6 +9,16 @@ import setDataValue from '../utils/setDataValue'
 // setup took, or claiming questions were added.
 const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded', 'supervisionPackageStatus']
 
+// Derived by the eligibility rules inside a wizard group (`checkins`, `restartCheckin`); trusting a
+// posted value would let a crafted post skip the accredited-programme approval and rationale.
+const SERVER_OWNED_GROUP_KEYS = [
+  'accreditedProgramme',
+  'tierBand',
+  'notEligibleReason',
+  'notEligibleReasonBullets',
+  'additionalTierInformation',
+]
+
 const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {
   return async (req, _res, next) => {
     const newSessionData: Data = req.session.data ?? {}
@@ -33,8 +43,13 @@ const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<
             // Each page of a wizard posts only its own fields within a shared group (e.g.
             // `checkins`). Merge rather than assign, so answers from earlier pages survive.
             if (newValue && typeof newValue === 'object' && !Array.isArray(newValue)) {
+              const posted = Object.fromEntries(
+                Object.entries(newValue as Record<string, unknown>).filter(
+                  ([field]) => !SERVER_OWNED_GROUP_KEYS.includes(field),
+                ),
+              )
               const existing = getDataValue<Record<string, unknown> | undefined>(newSessionData, setPath)
-              newValue = { ...(existing ?? {}), ...(newValue as Record<string, unknown>) }
+              newValue = { ...(existing ?? {}), ...posted }
             }
 
             setDataValue(newSessionData, setPath, newValue)

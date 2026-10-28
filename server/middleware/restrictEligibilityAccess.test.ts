@@ -31,12 +31,12 @@ const buildReq = (checkins: Record<string, unknown> | undefined) => {
   })
 }
 
-const buildRes = () =>
+const buildRes = (checkInEligibilityJourney: 'setup' | 'reactivation' = 'setup') =>
   ({
     redirect: jest.fn(),
     status: jest.fn().mockReturnThis(),
     render: jest.fn(),
-    locals: {},
+    locals: { checkInEligibilityJourney },
   }) as unknown as Response
 
 describe('restrictEligibilityAccess', () => {
@@ -302,12 +302,200 @@ describe('restrictEligibilityAccess', () => {
     ['Tier D-G', { tierBand: 'DG', onSupervisionPackage: true, eligibility: ['none'] }],
     [
       'the Tier A/B accredited-programme cohort',
-      { tierBand: 'AB', onSupervisionPackage: true, eligibility: ['accreditedProgramme'] },
+      {
+        tierBand: 'AB',
+        onSupervisionPackage: true,
+        eligibility: ['accreditedProgramme'],
+        discussion: [...discussion, 'programmeOnly'],
+      },
     ],
     ['the pilot cohort', { tierBand: 'C', onSupervisionPackage: true, eligibility: ['none'], pilotCheck: 'true' }],
   ])('allows the setup pages for %s once the discussion is confirmed', async (_, checkins) => {
     const req = buildReq({ discussion, ...checkins })
     const res = buildRes()
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.redirect).not.toHaveBeenCalled()
+  })
+
+  it('requires the accredited-programme confirmation before a reactivation can continue', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(
+      `/case/${crn}/appointments/check-in/manage/${id}/restart-accredited-programme-approval`,
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  // A later page can post new eligibility answers without the stored cohort flag being recomputed.
+  it('requires the programme steps when the answers say programme but the stored flag says not', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  pilotCheck: 'false',
+                  accreditedProgramme: false,
+                  discussion: [...discussion, 'programmeOnly'],
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(
+      `/case/${crn}/appointments/check-in/manage/${id}/restart-accredited-programme-approval`,
+    )
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('allows a reactivation to reach the accredited-programme confirmation page', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-accredited-programme-approval`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.redirect).not.toHaveBeenCalled()
+  })
+
+  it('requires rationale before an accredited-programme reactivation can continue', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                  accreditedProgrammeApproval: 'accredited-programme-approval',
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
+    const next = jest.fn()
+
+    await restrictEligibilityAccess('setup')(req, res, next)
+
+    expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`)
+    expect(next).not.toHaveBeenCalled()
+  })
+
+  it('allows an accredited-programme reactivation to reach rationale before it is entered', async () => {
+    const req = httpMocks.createRequest({
+      url: `/case/${crn}/appointments/check-in/manage/${id}/restart-rationale`,
+      params: { crn, id },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                restartCheckin: {
+                  tierBand: 'AB',
+                  eligibility: ['accreditedProgramme'],
+                  accreditedProgramme: true,
+                  discussion: [...discussion, 'programmeOnly'],
+                  accreditedProgrammeApproval: 'accredited-programme-approval',
+                },
+                supervisionPackageStatus: {
+                  onSupervisionPackage: true,
+                  inFinalThird: false,
+                  inEarlyEngagement: false,
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+    const res = buildRes('reactivation')
     const next = jest.fn()
 
     await restrictEligibilityAccess('setup')(req, res, next)
