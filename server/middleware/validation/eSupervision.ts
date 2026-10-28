@@ -417,7 +417,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
     // Without the templates (a lapsed or cleared session) the page would re-render with an empty
     // table, so fetch it again instead; the GET restores the templates to session.
-    if (availableTemplates.length === 0) {
+    if (!getDataValue(req.session.data, ['esupervision', crn, id, group, 'availableTemplates'])) {
       redirectTo = baseUrl
       return
     }
