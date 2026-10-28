@@ -7,10 +7,12 @@
 
 {% if accreditedProgrammeDiscussion %}
   {% set title = case.name.forename + " is eligible to use online check ins to reduce in person appointments to monthly" %}
+  {% set pageTitleText = "The person is eligible to use online check ins to reduce in person appointments to monthly" %}
 {% else %}
   {% set title = case.name.forename + " is eligible to use online check ins" %}
+  {% set pageTitleText = "The person is eligible to use online check ins" %}
 {% endif %}
-{% set pageTitleText = title %}
+
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
     pageHeading: ["Error: " + pageTitleText]
