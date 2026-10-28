@@ -1,6 +1,7 @@
 import type { Response } from 'express'
 import { Errors } from './Errors'
 import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/esupervision'
+import type { CheckInEligibilityJourney } from '../utils/checkInEligibilityContext'
 
 export interface LocalsUser {
   userId?: string
@@ -55,6 +56,7 @@ export interface AppLocals extends Record<string, unknown> {
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
   supervisionPackageStatus?: SupervisionPackageStatus | null
+  checkInEligibilityJourney?: CheckInEligibilityJourney
   flags?: FeatureFlags
 }
 

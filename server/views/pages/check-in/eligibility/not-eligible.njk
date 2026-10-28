@@ -5,6 +5,7 @@
   pageHeading: [pageTitleText]
 }) %}
 {% set back = back if back else '' %}
+{% set eligibilityUrlPrefix = eligibilityUrlPrefix or '/case/' + crn + '/appointments/' + id + '/check-in/' %}
 {# Every other reason came from an answer given on the eligibility check, so going back there is a
    real way to revisit it. None of the tier statuses is an answer - the check would rule the person
    out again the moment it loaded, looping straight back here - so the link leads to the case
@@ -14,7 +15,7 @@
    loop the same way. Early engagement does come back here, since it only rules the person out
    alongside the accredited programme box - unticking that is a real way to revisit it. #}
 {% set returnToOverviewPage = missingTier or provisionalTier or notSupervised or noSupervisionPackage or inFinalThird %}
-{% set backLink = '/case/' + crn if returnToOverviewPage else '/case/' + crn + '/appointments/' + id + '/check-in/eligibility-check' %}
+{% set backLink = '/case/' + crn if returnToOverviewPage else eligibilityUrlPrefix + 'eligibility-check' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
 

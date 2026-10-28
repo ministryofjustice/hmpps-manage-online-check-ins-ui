@@ -781,6 +781,24 @@ describe('checkInsController', () => {
         }),
       )
     })
+
+    it.each([
+      [true, 'restart-rationale'],
+      [false, 'restart-is-eligible'],
+    ])('goes Back to the previous eligibility step (accredited programme %s)', async (accreditedProgramme, page) => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { id: uuid, accreditedProgramme } } } },
+      })
+
+      await controllers.checkIns.getRestartCheckinPage(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/manage/restart-checkin-frequency.njk',
+        expect.objectContaining({ backLink: `/case/${crn}/appointments/check-in/manage/${uuid}/${page}` }),
+      )
+    })
   })
 
   describe('postRestartCheckinPage', () => {
@@ -1499,6 +1517,9 @@ describe('checkInsController', () => {
                 date: '19/2/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
+                eligibility: ['accreditedProgramme', 'youthSentence'],
+                pilotCheck: 'true',
+                rationale: 'Discussed with the programme treatment manager',
                 reason: 'Back on supervision',
               },
             },
@@ -1512,6 +1533,7 @@ describe('checkInsController', () => {
         uuid,
         expect.objectContaining({
           requestedBy: res.locals.user.username,
+          reason: 'Discussed with the programme treatment manager',
           checkinSchedule: expect.objectContaining({
             requestedBy: res.locals.user.username,
             firstCheckin: '2026-02-19',
@@ -1520,6 +1542,7 @@ describe('checkInsController', () => {
             requestedBy: res.locals.user.username,
             contactPreference: 'EMAIL',
           }),
+          pilotCheck: 'true',
         }),
       )
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-confirmation`)
@@ -1537,6 +1560,7 @@ describe('checkInsController', () => {
       expect(postReactivateOffenderSpy).toHaveBeenCalledWith(
         uuid,
         expect.objectContaining({
+          reason: 'Reactivated via UI',
           checkinSchedule: { requestedBy: res.locals.user.username, mode: 'AD_HOC' },
         }),
       )
