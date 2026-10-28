@@ -86,7 +86,7 @@ export interface OffenderSetupAnswers {
   eligibilityAnswers: EligibilityAnswers
 }
 
-export interface OffenderInfo extends OffenderSetupAnswers {
+export interface OffenderInfo {
   setupUuid: string
   practitionerId: string
   crn: string
@@ -97,6 +97,8 @@ export interface OffenderInfo extends OffenderSetupAnswers {
   mode?: CheckinMode
   contactPreference: string
   startedAt?: string
+  rationale?: string
+  eligibilityAnswers: EligibilityAnswers
 }
 
 export interface LocationInfo {

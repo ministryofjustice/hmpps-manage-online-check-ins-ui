@@ -1,4 +1,5 @@
 import {
+  eligibilityAnswersFromSelections,
   eligibilityViews,
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
@@ -24,6 +25,31 @@ const status = (overrides: Partial<SupervisionPackageStatus> = {}): SupervisionP
 })
 
 describe('utils/eligibilityRules', () => {
+  describe('eligibilityAnswersFromSelections', () => {
+    it.each([{ eligibility: undefined }, { eligibility: null }, { eligibility: [] }])(
+      'rejects missing selections: %p',
+      ({ eligibility }) => {
+        expect(() => eligibilityAnswersFromSelections(eligibility, 'AB')).toThrow(
+          'Complete the eligibility check before continuing',
+        )
+      },
+    )
+
+    it('rejects a missing tier instead of discarding the programme answer', () => {
+      expect(() => eligibilityAnswersFromSelections(['accreditedProgramme'])).toThrow(
+        'Complete the eligibility check before continuing',
+      )
+    })
+
+    it.each(bands)('accepts an explicit none for band %s', band => {
+      expect(eligibilityAnswersFromSelections(['none'], band)).toEqual({
+        accreditedProgramme: band === 'AB' ? false : null,
+        deviceRestriction: false,
+        youthSentence: band === 'AB' ? false : null,
+      })
+    })
+  })
+
   describe('nextAfterEligibilityCheck', () => {
     describe('disqualifiers that apply to every tier', () => {
       it.each(bands)('rules a %s person out when they are not on a supervision package', band => {

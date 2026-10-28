@@ -1,4 +1,5 @@
 import { Errors } from './Errors'
+import { TierBand } from '../utils/getTierBand'
 import { EsupervisionQuestionTemplatesList, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface ESupervisionSession {
@@ -31,7 +32,7 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
-  tierBand?: 'AB' | 'C' | 'DG'
+  tierBand?: TierBand
   pilotCheck?: string
   eligibilitySPOApproval?: any
   rationale?: string

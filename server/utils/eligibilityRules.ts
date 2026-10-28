@@ -232,11 +232,14 @@ export const toSelections = (value: unknown): string[] => {
   return (Array.isArray(value) ? value : [value]).map(String)
 }
 
-export const eligibilityAnswersFromSelections = (
-  eligibility: unknown,
-  tierBand?: 'AB' | 'C' | 'DG',
-): EligibilityAnswers => {
+export const eligibilityAnswersFromSelections = (eligibility: unknown, tierBand?: TierBand): EligibilityAnswers => {
   const selections = toSelections(eligibility)
+  if (!['AB', 'C', 'DG'].includes(tierBand) || selections.length === 0) {
+    throw Object.assign(new Error('Complete the eligibility check before continuing'), {
+      status: 400,
+      data: { status: 400, userMessage: 'Complete the eligibility check before continuing' },
+    })
+  }
   return {
     accreditedProgramme: tierBand === 'AB' ? selections.includes('accreditedProgramme') : null,
     deviceRestriction: selections.includes('deviceRestriction'),

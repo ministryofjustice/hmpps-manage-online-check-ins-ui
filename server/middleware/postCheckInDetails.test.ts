@@ -53,6 +53,7 @@ const buildRequest = () =>
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
                 tierBand: 'AB',
+                eligibility: ['none'],
                 rationale: 'Stable and low risk',
               },
               setupStartedAt: startedAt,
@@ -112,7 +113,6 @@ describe('postCheckInDetails', () => {
       ['accreditedProgramme', 'youthSentence'],
       { accreditedProgramme: true, deviceRestriction: false, youthSentence: true },
     ],
-    [undefined, { accreditedProgramme: false, deviceRestriction: false, youthSentence: false }],
   ])('sends the eligibility answers for %p', async (eligibility, eligibilityAnswers) => {
     const req = buildRequest()
     req.session.data.esupervision[crn][id].checkins.eligibility = eligibility
@@ -120,6 +120,16 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(req, res)
 
     expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ eligibilityAnswers }))
+  })
+
+  it.each(['eligibility', 'tierBand'])('does not start setup when %s is missing', async field => {
+    const req = buildRequest()
+    delete req.session.data.esupervision[crn][id].checkins[field]
+
+    await expect(postCheckInDetails(hmppsAuthClient)(req, res)).rejects.toMatchObject({ status: 400 })
+
+    expect(mockPostOffenderSetup).not.toHaveBeenCalled()
+    expect(mockGetProfilePhotoUploadLocation).not.toHaveBeenCalled()
   })
 
   it.each(['C', 'DG'])('sends null for A/B-only answers for tier band %s', async tierBand => {

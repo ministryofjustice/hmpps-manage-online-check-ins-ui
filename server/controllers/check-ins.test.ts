@@ -1558,7 +1558,13 @@ describe('checkInsController', () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       const data = {
-        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', preferredComs: 'EMAIL' } } } },
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: { interval: 'AD_HOC', preferredComs: 'EMAIL', eligibility: ['none'], tierBand: 'DG' },
+            },
+          },
+        },
       }
       const req = baseReq(data)
       await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
@@ -1588,7 +1594,13 @@ describe('checkInsController', () => {
       mockIsValidUUID.mockReturnValue(true)
 
       const data = {
-        esupervision: { [crn]: { [uuid]: { restartCheckin: { date: '19/2/2026', interval: 'WEEKLY' } } } },
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: { date: '19/2/2026', interval: 'WEEKLY', eligibility: ['none'], tierBand: 'DG' },
+            },
+          },
+        },
       }
       const req = baseReq(data)
 
@@ -1599,6 +1611,19 @@ describe('checkInsController', () => {
       expect(mockRenderError).toHaveBeenCalledWith(500)
       expect(mockMiddlewareFn).toHaveBeenCalledWith(req, res)
     })
+
+    it.each([{ eligibility: ['none'] }, { tierBand: 'DG' }])(
+      'does not reactivate with incomplete eligibility data %p',
+      async eligibilityData => {
+        const req = baseReq({
+          esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', ...eligibilityData } } } },
+        })
+
+        await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
+
+        expect(postReactivateOffenderSpy).not.toHaveBeenCalled()
+      },
+    )
   })
 
   describe('getRestartConfirmation', () => {

@@ -1100,6 +1100,23 @@ describe('check-in setup flow', () => {
   })
 
   describe('postConfirmEnd', () => {
+    it.each([{}, { eligibility: ['none'] }, { tierBand: 'AB' }])(
+      'does not complete setup with incomplete eligibility data %p',
+      async checkins => {
+        const postOffenderSetupComplete = jest.fn()
+        ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
+        const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins } } } } })
+        const res = mockAppResponse()
+
+        await expect(controllers.checkIns.postConfirmEnd(hmppsAuthClient)(req, res)).rejects.toMatchObject({
+          status: 400,
+        })
+
+        expect(postOffenderSetupComplete).not.toHaveBeenCalled()
+        expect(res.redirect).not.toHaveBeenCalled()
+      },
+    )
+
     it('completes setup and redirects to the GET confirmation page', async () => {
       const postOffenderSetupComplete = jest.fn().mockResolvedValue({})
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ postOffenderSetupComplete }))
