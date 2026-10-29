@@ -13,6 +13,7 @@ import {
   EsupervisionUpcomingQuestionsResponse,
   OffenderInfo,
   OffenderSetup,
+  OffenderSetupAnswers,
   OffenderSetupCompleteResponse,
   ReactivateOffenderRequest,
   UploadLocationResponse,
@@ -53,9 +54,13 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  async postOffenderSetupComplete(setupId: string): Promise<OffenderSetupCompleteResponse> {
+  async postOffenderSetupComplete(
+    setupId: string,
+    answers: OffenderSetupAnswers,
+  ): Promise<OffenderSetupCompleteResponse> {
     return this.post({
       path: `/v2/offender_setup/${setupId}/complete`,
+      data: answers,
       errorMessage: 'Failed to complete offender checkin registration',
     })
   }

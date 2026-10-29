@@ -276,7 +276,7 @@ describe('/middleware/autoStoreSessionData', () => {
           esupervision: {
             [crn]: {
               [setupId]: {
-                checkins: { id: setupId, eligibility: ['eligibility-none'], eligibilityChoice: 'REPLACE_F2F' },
+                checkins: { id: setupId, eligibility: ['eligibility-none'] },
               },
             },
           },
@@ -293,7 +293,6 @@ describe('/middleware/autoStoreSessionData', () => {
       expect(req.session.data.esupervision[crn][setupId].checkins).toEqual({
         id: setupId,
         eligibility: ['eligibility-none'],
-        eligibilityChoice: 'REPLACE_F2F',
         rationale: 'Stable and low risk',
       })
     })

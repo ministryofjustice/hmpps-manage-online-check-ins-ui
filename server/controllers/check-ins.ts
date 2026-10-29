@@ -47,6 +47,7 @@ import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } fr
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
+  eligibilityAnswersFromSelections,
   hasCompletedDiscussion,
   missingTierReason,
   nextAfterEligibilityCheck,
@@ -2456,6 +2457,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           requestedBy: res.locals.user.username,
           reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
           pilotCheck: restartDetails.pilotCheck,
+          eligibilityAnswers: eligibilityAnswersFromSelections(restartDetails.eligibility, restartDetails.tierBand),
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.
