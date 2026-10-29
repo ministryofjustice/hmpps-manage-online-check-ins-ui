@@ -1,4 +1,5 @@
 import { Errors } from './Errors'
+import { NdeliusEvent } from '../data/model/personalDetails'
 import { EsupervisionQuestionTemplatesList, SupervisionPackageStatus } from '../data/model/esupervision'
 
 export interface ESupervisionSession {
@@ -18,6 +19,8 @@ export interface ESupervisionSession {
 
 export interface CheckinUserDetails {
   uuid?: string
+  currentEvent?: number
+  events?: NdeliusEvent[]
   date?: string
   dateDt?: Date
   interval?: string

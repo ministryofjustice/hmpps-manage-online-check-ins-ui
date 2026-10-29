@@ -1,7 +1,7 @@
 import config from '../config'
 
 import {
-  CheckinScheduleRequest,
+  UpdateDetailsRequest,
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
   EsupervisionAssignQuestionsRequest,
@@ -113,11 +113,11 @@ export default class ESupervisionClient extends RestClient {
   // POST /v2/offenders/{uuid}/update_details — update check-in date or contact preference
   async postUpdateOffenderDetails(
     uuid: string,
-    checkinScheduleRequest: CheckinScheduleRequest,
+    updateDetailsRequest: UpdateDetailsRequest,
   ): Promise<CheckinScheduleResponse> {
     return this.post({
       path: `/v2/offenders/${uuid}/update_details`,
-      data: checkinScheduleRequest,
+      data: updateDetailsRequest,
     })
   }
 
@@ -177,7 +177,7 @@ export default class ESupervisionClient extends RestClient {
     })
   }
 
-  // GET /v2/offenders/crn/{crn}/personal-details — name and contact details for a PoP.
+  // GET /v2/offenders/crn/{crn}/personal-details — name and contact/person details as well as NDelius events for a PoP.
   // Used by the setup flow before an offender record exists, so it cannot come from getOffenderByCRN.
   async getPersonalDetails(crn: string): Promise<PersonalDetails | null> {
     return this.get({ path: `/v2/offenders/crn/${crn}/personal-details`, handle404: true })

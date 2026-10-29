@@ -1514,6 +1514,7 @@ describe('checkInsController', () => {
           [crn]: {
             [uuid]: {
               restartCheckin: {
+                currentEvent: 7,
                 date: '19/2/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
@@ -1534,6 +1535,7 @@ describe('checkInsController', () => {
         expect.objectContaining({
           requestedBy: res.locals.user.username,
           reason: 'Discussed with the programme treatment manager',
+          currentEvent: 7,
           checkinSchedule: expect.objectContaining({
             requestedBy: res.locals.user.username,
             firstCheckin: '2026-02-19',

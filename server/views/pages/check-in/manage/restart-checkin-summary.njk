@@ -17,6 +17,7 @@
 {% set sendLinkLabel = "How does " + case.name.forename + " want us to send a link to the service?" %}
 {% set name = "Image of " + case.name.forename + " added for identification" %}
 {% set confirmEndUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-summary' %}
+{% set changeSentenceUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-sentence-selection?cya=true' %}
 {% set changeFrequencyUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin?cya=true' %}
 {% set changeRationaleUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-rationale?cya=true' %}
 {% set changeDateUrl = '/case/' + crn + '/appointments/check-in/manage/' + id + '/restart-checkin-date?cya=true' %}
@@ -98,6 +99,27 @@
     {% endif %}
     {%  block pageContent %}
     {% set summaryRows = [] %}
+
+    {% for event in userDetails.events %}
+    {% if event.number == userDetails.currentEvent %}
+    {% set sentenceValue %}
+        {{ event.mainOffence.description }}{% if event.sentence %} - {{ event.sentence.description }}{% if event.sentence.length and event.sentence.lengthUnit %} ({{ event.sentence.length }} {{ event.sentence.lengthUnit }}){% endif %}{% endif %}
+        <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
+    {% endset %}
+    {% set _ = summaryRows.push({
+        key: { text: "Sentence" },
+        value: { html: sentenceValue },
+        actions: {
+            items: [{
+                href: changeSentenceUrl,
+                text: "Change",
+                visuallyHiddenText: "sentence associated with online check ins",
+                attributes: { 'data-qa': 'sentenceAction' }
+            }]
+        } if userDetails.events.length > 1 else undefined
+    }) %}
+    {% endif %}
+    {% endfor %}
 
     {# An ad-hoc restart schedules no first check in, so there is no date to show or change. #}
     {% if not userDetails.isAdHoc %}

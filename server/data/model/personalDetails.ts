@@ -13,6 +13,7 @@ export interface PersonalDetails {
   mobile?: string | null
   email?: string | null
   practitioner?: Practitioner
+  events?: NdeliusEvents
 }
 
 export interface PersonalDetailsUpdateRequest {
@@ -34,4 +35,27 @@ export interface ProbationPractitioner {
   username: string
   email?: string
   probationDeliveryUnit?: PDU
+}
+
+export interface NdeliusEvents {
+  events: NdeliusEvent[]
+}
+
+export interface NdeliusEvent {
+  number: number
+  mainOffence: CodedDescription
+  sentence: Sentence | null
+}
+
+export interface CodedDescription {
+  code: string
+  description: string
+}
+
+export interface Sentence {
+  date: string
+  description: string
+  expectedEndDate: string | null
+  length: number | null
+  lengthUnit: string | null
 }

@@ -49,6 +49,7 @@ const buildRequest = () =>
           [crn]: {
             [id]: {
               checkins: {
+                currentEvent: 7,
                 date: '1/8/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
@@ -94,6 +95,11 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
 
     expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ startedAt }))
+  })
+
+  it('sends the selected sentence event number when starting setup', async () => {
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ currentEvent: 7 }))
   })
 
   it('leaves startedAt unset when the session has no start time', async () => {

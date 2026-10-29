@@ -31,6 +31,9 @@ import TakeAPhotoPage from '../pages/check-ins/take-a-photo'
 import TakeAPhotoOptionsPage from '../pages/check-ins/take-a-photo-options'
 import UploadAPhotoPage from '../pages/check-ins/upload-a-photo'
 import ErrorPage from '../pages/error'
+import SentenceSelectionPage from '../pages/check-ins/sentence-selection'
+import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
+import RestartConfirmationPage from '../pages/check-ins/restart/restart-confirmation.page'
 import { getCheckinUuid } from '../utils/common'
 
 // The header stub derives each CRN's tier from its last digit, so a spec picks its CRN to pick
@@ -68,6 +71,34 @@ const CRN_TIER_UNREADABLE = 'X000011'
 const CRN_TIER_PROVISIONAL = 'X000012'
 // X000013's header answers 'NOT_SUPERVISED', which rules the person out outright.
 const CRN_NOT_SUPERVISED = 'X000013'
+
+const SENTENCE_EVENTS = [
+  {
+    number: 1,
+    mainOffence: { code: '001', description: 'Theft' },
+    sentence: {
+      date: '2026-01-01',
+      description: 'Community order',
+      expectedEndDate: '2030-01-02',
+      length: 12,
+      lengthUnit: 'months',
+    },
+  },
+  {
+    number: 2,
+    mainOffence: { code: '002', description: 'Burglary' },
+    sentence: {
+      date: '2026-01-01',
+      description: 'Suspended sentence order',
+      expectedEndDate: '2032-03-04',
+      length: 24,
+      lengthUnit: 'months',
+    },
+  },
+]
+const RESTART_CRN = 'X778160'
+const RESTART_ID = '3fa85f64-5717-4562-b3fc-2c963f66afa7'
+const RESTART_ROOT = `/case/${RESTART_CRN}/appointments/check-in/manage/${RESTART_ID}`
 
 // failOnStatusCode is for the pages that are meant to answer with an error status - cy.visit
 // treats any non-2xx as a test failure otherwise, even when the error page is what we asserted on.
@@ -109,6 +140,20 @@ const completeEligibilityCheck = () => {
 // response after loadPage has reset the mocks.
 const passEligibilityCheck = (crn: string = CRN_TIER_DG) => {
   startSetup(crn)
+  completeEligibilityCheck()
+}
+
+const passEligibilityCheckWithSentences = (events = SENTENCE_EVENTS) => {
+  startSetup()
+  cy.task('stubSentenceEvents', { crn: CRN_TIER_DG, events })
+  completeEligibilityCheck()
+}
+
+const passRestartEligibilityCheckWithSentences = (events = SENTENCE_EVENTS, currentEvent = 1) => {
+  cy.task('resetMocks')
+  cy.task('stubGetOffenderHeaderByCRN', RESTART_CRN)
+  cy.task('stubSentenceEvents', { crn: RESTART_CRN, events, currentEvent })
+  cy.visit(`${RESTART_ROOT}/restart-eligibility-check`)
   completeEligibilityCheck()
 }
 
@@ -675,6 +720,209 @@ context('Appointment check-ins', () => {
 
     rationalePage.getSubmitBtn().click()
     rationalePage.getErrorSummaryBox().should('be.visible')
+  })
+
+  it('should skip sentence selection when there are no active events', () => {
+    passEligibilityCheckWithSentences([])
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+  })
+
+  it('should skip sentence selection when there is one active event', () => {
+    passEligibilityCheckWithSentences([SENTENCE_EVENTS[0]])
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+  })
+
+  it('should show sentences with the furthest end date first', () => {
+    passEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSentences().should('have.length', 2)
+    sentenceSelectionPage
+      .getSentences()
+      .first()
+      .should('contain.text', 'Suspended sentence order')
+      .and('contain.text', '4 March 2032')
+      .and('not.contain.text', 'Burglary')
+      .and('not.contain.text', '24 months')
+    sentenceSelectionPage
+      .getSentences()
+      .last()
+      .should('contain.text', 'Community order')
+      .and('contain.text', '2 January 2030')
+      .and('not.contain.text', 'Theft')
+      .and('not.contain.text', '12 months')
+    sentenceSelectionPage.getSelectedSentence().should('not.exist')
+  })
+
+  it('sentence selection page should fail with validation errors', () => {
+    passEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSubmitBtn().click()
+    sentenceSelectionPage.checkErrorSummaryBox(['Select which sentence you want to add online check ins to'])
+
+    getCheckinUuid().then(uuid => {
+      sentenceSelectionPage.getElement(`#esupervision-X000001-${uuid}-checkins-currentEvent-error`).should($error => {
+        expect($error.text().trim()).to.include('Select which sentence you want to add online check ins to')
+      })
+    })
+  })
+
+  it('should be able to submit sentence selection details and retain them when going back', () => {
+    passEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.selectSentence(2)
+    sentenceSelectionPage.getSubmitBtn().click()
+    const frequencyPage = new CheckInFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.getBackLink().click()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSelectedSentence().should('have.value', '2')
+  })
+
+  it('should be able to change the sentence from cya and submit the selected event', () => {
+    passEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.selectSentence(2)
+    sentenceSelectionPage.getSubmitBtn().click()
+    completeFrequencyAndDate()
+    const contactPreferencePage = new ContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getCheckInPreferredComs().find('input[value="PHONE"]').click()
+    contactPreferencePage.getSubmitBtn().click()
+    confirmContactPreference()
+    const takeAPhotoOptionsPage = new TakeAPhotoOptionsPage()
+    takeAPhotoOptionsPage.checkOnPage()
+    takeAPhotoOptionsPage.getPhotoOptions().find('.govuk-radios__item').eq(1).find('.govuk-radios__input').click()
+    takeAPhotoOptionsPage.getSubmitBtn().click()
+    const uploadAPhotoPage = new UploadAPhotoPage()
+    uploadAPhotoPage.checkOnPage()
+    uploadAPhotoPage.uploadPhoto('person.jpg')
+    uploadAPhotoPage.continueButton().click()
+    const photoRulesPage = new PhotoRulesPage()
+    photoRulesPage.checkOnPage()
+    photoRulesPage.getSubmitBtn().click()
+    const checkYourAnswersPage = new CheckYourAnswersPage()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getElementData('sentenceAction').click()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSelectedSentence().should('have.value', '2')
+    sentenceSelectionPage.selectSentence(1)
+    sentenceSelectionPage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage
+      .getSummaryListRowByAction('sentenceAction')
+      .should('contain.text', 'Theft')
+      .and('contain.text', 'Sentence end date: 2 January 2030')
+    cy.request('DELETE', 'http://localhost:9091/__admin/requests')
+    checkYourAnswersPage.getSubmitBtn().click()
+    const checkinConfirmationPage = new CheckinConfirmationPage()
+    checkinConfirmationPage.checkOnPage()
+    cy.request('POST', 'http://localhost:9091/__admin/requests/find', {
+      method: 'POST',
+      urlPathPattern: '/v2/offender_setup',
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length.greaterThan(0)
+      expect(JSON.parse(body.requests[0].body).currentEvent).to.equal(1)
+    })
+  })
+
+  it('should skip sentence selection during reactivation when there are no active events', () => {
+    passRestartEligibilityCheckWithSentences([])
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.checkOnPage()
+  })
+
+  it('should skip sentence selection during reactivation when there is one active event', () => {
+    passRestartEligibilityCheckWithSentences([SENTENCE_EVENTS[0]])
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.checkOnPage()
+  })
+
+  it('should preselect the saved sentence during reactivation when it is still active', () => {
+    passRestartEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSelectedSentence().should('have.value', '1')
+  })
+
+  it('reactivation sentence selection page should fail with validation errors when the saved event is no longer active', () => {
+    passRestartEligibilityCheckWithSentences(SENTENCE_EVENTS, 99)
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSelectedSentence().should('not.exist')
+    sentenceSelectionPage.getSubmitBtn().click()
+    sentenceSelectionPage.checkErrorSummaryBox(['Select which sentence you want to add online check ins to'])
+    sentenceSelectionPage.selectSentence(2)
+    sentenceSelectionPage.getSubmitBtn().click()
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.checkOnPage()
+  })
+
+  it('should be able to change the reactivation sentence from cya and submit the selected event', () => {
+    passRestartEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSubmitBtn().click()
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(4)
+    frequencyPage.getSubmitBtn().click()
+    const contactPreferencePage = new RestartContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getSubmitBtn().click()
+    const checkYourAnswersPage = new RestartCheckYourAnswersPage()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Theft')
+    checkYourAnswersPage.getElementData('sentenceAction').click()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.getSelectedSentence().should('have.value', '1')
+    sentenceSelectionPage.selectSentence(2)
+    sentenceSelectionPage.getSubmitBtn().click()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Burglary')
+    cy.request('DELETE', 'http://localhost:9091/__admin/requests')
+    checkYourAnswersPage.getSubmitBtn().click()
+    const confirmationPage = new RestartConfirmationPage()
+    confirmationPage.checkOnPage()
+    cy.request('POST', 'http://localhost:9091/__admin/requests/find', {
+      method: 'POST',
+      urlPathPattern: '/v2/offenders/.+?/reactivate',
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length.greaterThan(0)
+      expect(JSON.parse(body.requests[0].body).currentEvent).to.equal(2)
+    })
+  })
+
+  it('should automatically associate the sole remaining sentence during reactivation', () => {
+    passRestartEligibilityCheckWithSentences([SENTENCE_EVENTS[1]])
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.checkOnPage()
+    frequencyPage.selectFrequency(4)
+    frequencyPage.getSubmitBtn().click()
+    const contactPreferencePage = new RestartContactPreferencePage()
+    contactPreferencePage.checkOnPage()
+    contactPreferencePage.getSubmitBtn().click()
+    const checkYourAnswersPage = new RestartCheckYourAnswersPage()
+    checkYourAnswersPage.checkOnPage()
+    checkYourAnswersPage.getElement('.govuk-summary-list').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getElementData('sentenceAction').should('not.exist')
+    cy.request('DELETE', 'http://localhost:9091/__admin/requests')
+    checkYourAnswersPage.getSubmitBtn().click()
+    const confirmationPage = new RestartConfirmationPage()
+    confirmationPage.checkOnPage()
+    cy.request('POST', 'http://localhost:9091/__admin/requests/find', {
+      method: 'POST',
+      urlPathPattern: '/v2/offenders/.+?/reactivate',
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length.greaterThan(0)
+      expect(JSON.parse(body.requests[0].body).currentEvent).to.equal(2)
+    })
   })
 
   it('check-in frequency page should fail with validation errors', () => {

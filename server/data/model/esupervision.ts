@@ -76,6 +76,7 @@ export interface OffenderSetup {
 
 export interface OffenderInfo {
   setupUuid: string
+  currentEvent?: number
   practitionerId: string
   crn: string
   // Absent for an ad-hoc setup, which schedules no first check in.
@@ -151,6 +152,7 @@ interface Name {
 export interface OffenderByCRNResponse {
   uuid: string
   crn: string
+  currentEvent?: number | null
   status: OffenderStatus
   // Null for an ad-hoc person with no check in booked yet.
   firstCheckin?: string | null
@@ -170,7 +172,7 @@ export interface OffenderByCRNResponse {
   }
 }
 
-export interface CheckinScheduleRequest {
+export interface UpdateDetailsRequest {
   checkinSchedule?: {
     requestedBy: string
     // Required for SCHEDULED, optional for AD_HOC - see the API's CheckinScheduleUpdateRequest.
@@ -182,6 +184,7 @@ export interface CheckinScheduleRequest {
     requestedBy: string
     contactPreference: 'PHONE' | 'EMAIL'
   }
+  currentEvent?: number
 }
 
 export interface CheckinScheduleResponse {
@@ -209,6 +212,7 @@ export interface DeactivateOffenderRequest {
 }
 export interface ReactivateOffenderRequest {
   requestedBy: string
+  currentEvent?: number
   reason?: string
   pilotCheck?: string
   checkinSchedule?: {
