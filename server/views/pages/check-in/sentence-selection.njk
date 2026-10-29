@@ -1,0 +1,45 @@
+{% extends "../_form.njk" %}
+{% set pageTitleText = "Which sentence do you want to add online check ins to?" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + pageTitleText]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [pageTitleText]
+  }) %}
+{% endif %}
+{% set hidePageTitle = true %}
+{% set backLink = backLink %}
+
+
+{% block form %}
+    {% set sentenceItems = [] %}
+    {% for event in events %}
+        {% set _ = sentenceItems.push({
+            value: event.number | string,
+            text: event.sentence.description,
+            checked: event.number == currentEvent,
+            hint: { text: event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }
+        }) %}
+    {% endfor %}
+    {{ govukRadios({
+        fieldset: {
+            legend: {
+                text: pageTitleText,
+                isPageHeading: true,
+                classes: "govuk-fieldset__legend--l"
+            }
+        },
+        formGroup: {
+            attributes: {
+                'data-qa': 'sentenceSelection'
+            }
+        },
+        hint: {
+            text: "Once the sentence ends, online check ins will be stopped. If you want to continue using online check ins, you’ll have to set the person up again."
+        },
+        items: sentenceItems
+    } | decorateFormAttributes(['esupervision', crn, id, eligibilitySessionKey, 'currentEvent'])) }}
+
+{% endblock %}

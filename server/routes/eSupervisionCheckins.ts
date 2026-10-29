@@ -152,6 +152,19 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postRationalePage(),
   )
 
+  router.get('/case/:crn/appointments/:id/check-in/sentence-selection', [
+    restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/:id/check-in/sentence-selection', [
+    restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.postSentenceSelectionPage(),
+  ])
+
   router.get('/case/:crn/appointments/:id/check-in/check-in-frequency', [
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
@@ -507,6 +520,27 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     autoStoreSessionData(hmppsAuthClient),
     controllers.checkIns.postRationalePage(),
   )
+
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart-sentence-selection', [
+    validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient),
+  ])
+  router.post('/case/:crn/appointments/check-in/manage/:id/restart-sentence-selection', [
+    validateCrnAndId,
+    setCheckInEligibilityJourney('reactivation'),
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    restrictPageAccess({ requiredValues: ['id'] }),
+    restrictEligibilityAccess('setup'),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.postSentenceSelectionPage(),
+  ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-checkin', [
     validateCrnAndId,

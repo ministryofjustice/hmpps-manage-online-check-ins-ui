@@ -52,6 +52,123 @@ describe('check-in setup flow', () => {
     }))
   })
 
+  describe('sentence selection', () => {
+    const event = (number: number, expectedEndDate: string | null) => ({
+      number,
+      mainOffence: { code: '001', description: 'Offence' },
+      sentence: { description: 'Community order', expectedEndDate },
+    })
+
+    const withEvents = (events: ReturnType<typeof event>[]) => {
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getPersonalDetails: jest.fn().mockResolvedValue({ crn, events: { events } }),
+      }))
+    }
+
+    it('orders sentences by furthest end date, with undated sentences last', async () => {
+      const events = [event(1, '2027-01-01'), event(2, null), event(3, '2028-01-01')]
+      withEvents(events)
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/sentence-selection.njk',
+        expect.objectContaining({
+          events: [events[2], events[0], events[1]],
+        }),
+      )
+    })
+
+    it.each([[[]], [[event(4, '2028-01-01')]]])('bypasses selection for fewer than two events: %j', async events => {
+      withEvents(events)
+      const req = requestFor()
+      const res = mockAppResponse()
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+      expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(events[0]?.number)
+    })
+
+    it('preselects the previous active event during reactivation', async () => {
+      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
+      const req = requestFor()
+      const res = mockAppResponse({
+        checkInEligibilityJourney: 'reactivation',
+        offenderCheckinsByCRNResponse: { currentEvent: 1 },
+      })
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(req.session.data.esupervision[crn][id].restartCheckin.currentEvent).toBe(1)
+    })
+
+    it('does not preselect a saved event that is no longer active', async () => {
+      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
+      const req = requestFor()
+      const res = mockAppResponse({
+        checkInEligibilityJourney: 'reactivation',
+        offenderCheckinsByCRNResponse: { currentEvent: 3 },
+      })
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(req.session.data.esupervision[crn][id].restartCheckin.currentEvent).toBeUndefined()
+    })
+
+    it.each(['setup', 'reactivation'] as const)('retains the chosen sentence when revisiting %s', async journey => {
+      const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
+      const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 2 } } } } } })
+      const res = mockAppResponse({
+        checkInEligibilityJourney: journey,
+        offenderCheckinsByCRNResponse: { currentEvent: 1 },
+      })
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(req.session.data.esupervision[crn][id][group].currentEvent).toBe(2)
+    })
+
+    it.each(['setup', 'reactivation'] as const)(
+      'validates and saves a sentence in %s, returning edits to the summary',
+      async journey => {
+        const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+        const req = requestFor(
+          { esupervision: { [crn]: { [id]: { [group]: { currentEvent: '2' } } } } },
+          { data: { esupervision: { [crn]: { [id]: { [group]: { events: [event(1, null), event(2, null)] } } } } } },
+        )
+        req.query.cya = 'true'
+        const res = mockAppResponse({ checkInEligibilityJourney: journey })
+        await controllers.checkIns.postSentenceSelectionPage()(req, res)
+        expect(req.session.data.esupervision[crn][id][group].currentEvent).toBe(2)
+        expect(res.redirect).toHaveBeenCalledWith(
+          journey === 'setup'
+            ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+            : `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+        )
+      },
+    )
+
+    it.each([undefined, '', '999', ['1', '2']])('rejects a missing or invalid event: %j', async currentEvent => {
+      const req = requestFor(
+        { esupervision: { [crn]: { [id]: { checkins: { currentEvent } } } } },
+        {
+          data: {
+            esupervision: {
+              [crn]: { [id]: { checkins: { currentEvent: 1, events: [event(1, null), event(2, null)] } } },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.postSentenceSelectionPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/sentence-selection.njk',
+        expect.objectContaining({
+          errorMessages: {
+            [`esupervision-${crn}-${id}-checkins-currentEvent`]:
+              'Select which sentence you want to add online check ins to',
+          },
+        }),
+      )
+      expect(res.redirect).not.toHaveBeenCalled()
+      expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(1)
+    })
+  })
+
   describe('starting a setup', () => {
     // The eligibility check is the wizard's opening page. The instructions page is kept for now
     // in case the guidance is wanted back, but nothing routes into or out of it.
@@ -650,9 +767,9 @@ describe('check-in setup flow', () => {
       return (res.redirect as jest.Mock).mock.calls[0][0]
     }
 
-    it('continues to check-in frequency once every discussion point is confirmed', async () => {
+    it('continues to sentence selection once every discussion point is confirmed', async () => {
       expect(await postIsEligible({ discussion: allDiscussionPoints })).toBe(
-        `/case/${crn}/appointments/${id}/check-in/check-in-frequency`,
+        `/case/${crn}/appointments/${id}/check-in/sentence-selection`,
       )
     })
 
@@ -821,9 +938,9 @@ describe('check-in setup flow', () => {
     })
 
     // Rationale only applies to the accredited-programme cohort.
-    it('redirects to check-in frequency for everyone else', async () => {
+    it('redirects to sentence selection for everyone else', async () => {
       const { res } = await renderFor({ accreditedProgramme: false })
-      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/sentence-selection`)
       expect(res.render).not.toHaveBeenCalled()
     })
   })

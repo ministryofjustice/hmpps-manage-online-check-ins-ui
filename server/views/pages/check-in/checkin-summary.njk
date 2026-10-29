@@ -24,6 +24,7 @@
 {% set photoOptopionLabel = "How do you want to take a photo of " + case.name.forename + "?"  %}
 {% set photoPersonLabel = "Photo of " + case.name.forename %}
 {% set confirmEndUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/confirm-end' %}
+{% set changeSentenceUrl = '/case/' + crn + '/appointments/' + id + '/check-in/sentence-selection?cya=true' %}
 {% set changeRationaleUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/rationale?cya=true' %}
 {% set changeFrequencyUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-frequency?cya=true' %}
 {% set changeDateUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-date?cya=true' %}
@@ -115,6 +116,33 @@
     {% endif %}
     {%  block pageContent %}
     {% set summaryRows = [] %}
+
+    {% for event in userDetails.events %}
+    {% if event.number == userDetails.currentEvent %}
+    {% set sentenceValue %}
+        {{ event.mainOffence.description }}{% if event.sentence %} - {{ event.sentence.description }}{% if event.sentence.length and event.sentence.lengthUnit %} ({{ event.sentence.length }} {{ event.sentence.lengthUnit }}){% endif %}{% endif %}
+        <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
+    {% endset %}
+    {% set _ = summaryRows.push({
+        key: {
+            text: "Sentence"
+        },
+        value: {
+            html: sentenceValue
+        },
+        actions: {
+            items: [{
+                href: changeSentenceUrl,
+                text: "Change",
+                visuallyHiddenText: "sentence associated with online check ins",
+                attributes: {
+                    'data-qa': 'sentenceAction'
+                }
+            }]
+        } if userDetails.events.length > 1 else undefined
+    }) %}
+    {% endif %}
+    {% endfor %}
 
     {# Only the Tier A/B accredited-programme cohort is asked for a rationale. #}
     {% if userDetails.accreditedProgramme %}

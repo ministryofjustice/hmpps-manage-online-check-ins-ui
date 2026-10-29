@@ -12,6 +12,8 @@ const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded', 'supervisionPacka
 // Derived by the eligibility rules inside a wizard group (`checkins`, `restartCheckin`); trusting a
 // posted value would let a crafted post skip the accredited-programme approval and rationale.
 const SERVER_OWNED_GROUP_KEYS = [
+  'events',
+  'currentEvent',
   'accreditedProgramme',
   'tierBand',
   'notEligibleReason',

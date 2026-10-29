@@ -353,6 +353,26 @@ describe('/middleware/autoStoreSessionData', () => {
     })
   })
 
+  it('does not let other forms overwrite the validated sentence or available events', async () => {
+    const req = httpMocks.createRequest({
+      params: { crn, id },
+      session: {
+        data: { esupervision: { [crn]: { [id]: { checkins: { currentEvent: 1, events: [{ number: 1 }] } } } } },
+      },
+      body: {
+        esupervision: {
+          [crn]: { [id]: { checkins: { currentEvent: 999, events: [{ number: 999 }], interval: 'WEEKLY' } } },
+        },
+      },
+    })
+    await autoStoreSessionData(hmppsAuthClient)(req, res, nextSpy)
+    expect(req.session.data.esupervision[crn][id].checkins).toEqual({
+      currentEvent: 1,
+      events: [{ number: 1 }],
+      interval: 'WEEKLY',
+    })
+  })
+
   // These are derived by the eligibility rules; a posted value must not replace them.
   it('ignores posted eligibility outcome fields inside a wizard group', () => {
     const req = httpMocks.createRequest({

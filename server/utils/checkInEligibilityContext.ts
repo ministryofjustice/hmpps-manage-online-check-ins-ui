@@ -6,6 +6,7 @@ export type CheckInEligibilityPage =
   | 'discuss-before-signup'
   | 'accredited-programme-approval'
   | 'rationale'
+  | 'sentence-selection'
   | 'check-in-frequency'
 
 export type CheckInEligibilityJourney = 'setup' | 'reactivation'
@@ -25,6 +26,7 @@ const reactivationPageNames: Record<CheckInEligibilityPage, string> = {
   'discuss-before-signup': 'discuss-before-signup',
   'accredited-programme-approval': 'accredited-programme-approval',
   rationale: 'rationale',
+  'sentence-selection': 'sentence-selection',
   'check-in-frequency': 'checkin',
 }
 
