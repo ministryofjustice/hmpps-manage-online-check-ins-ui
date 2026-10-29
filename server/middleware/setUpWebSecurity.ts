@@ -7,6 +7,9 @@ export default function setUpWebSecurity(): Router {
   const router = express.Router()
   const managePeopleOnProbationUrl = new URL(config.managePeopleOnProbation.link).origin
   const hmppsAuthUrl = new URL(config.apis.hmppsAuth.externalUrl).origin
+  // LocalStack stands in for S3 when the API runs locally; presigned upload and photo URLs point at it.
+  // Empty everywhere but the local environment, so it can be spread into any directive as is.
+  const localS3Sources = config.env === 'local' ? ['http://localhost:4566'] : []
 
   // Secure code best practice - see:
   // 1. https://expressjs.com/en/advanced/best-practice-security.html,
@@ -25,6 +28,7 @@ export default function setUpWebSecurity(): Router {
             // This is required for the S3 bucket to upload checkin images
             // (either have a custom domain for each environment or use the default wild card domain)
             'https://*.s3.eu-west-2.amazonaws.com/',
+            ...localS3Sources,
           ],
           imgSrc: [
             "'self'",
@@ -33,6 +37,7 @@ export default function setUpWebSecurity(): Router {
             // data: Allow inline base64 images across all environments (needed for data URL previews)
             'data:',
             'https://*.s3.eu-west-2.amazonaws.com/',
+            ...localS3Sources,
           ],
           defaultSrc: ["'self'"],
           // This nonce allows us to use scripts with the use of the `cspNonce` local, e.g (in a Nunjucks template):
@@ -57,6 +62,7 @@ export default function setUpWebSecurity(): Router {
               // This is required for the S3 bucket to upload checkin images
               // (either have a custom domain for each environment or use the default wild card domain)
               'https://*.s3.eu-west-2.amazonaws.com',
+              ...localS3Sources,
             ]
 
             // Allow localhost for local development only

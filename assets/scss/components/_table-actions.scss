@@ -1,0 +1,33 @@
+@use 'govuk-frontend/dist/govuk/index' as *;
+
+.app-table-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: govuk-spacing(3);
+
+  > * {
+    margin-right: govuk-spacing(3);
+
+    &:after {
+      content: "|";
+      color: $govuk-secondary-text-colour;
+      position: relative;
+      right: govuk-spacing(3) * -1;
+      text-decoration: none;
+      user-select: none;
+      display: inline-block;
+    }
+
+    &:last-child {
+      padding-right: 0;
+      margin-right: 0;
+      border-right: 0;
+      &:after {
+        content: none;
+      }
+    }
+  }
+}

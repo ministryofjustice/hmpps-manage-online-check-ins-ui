@@ -8,6 +8,8 @@ import {
   CheckinScheduleRequest,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
+  EsupervisionAssignBespokeQuestion,
+  EsupervisionAssignTemplateQuestion,
   ESupervisionNote,
   ESupervisionReview,
   OffenderByCRNResponse,
@@ -23,7 +25,7 @@ import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
 import ESupervisionClient from '../data/eSupervisionClient'
 import HmppsAuthClient from '../data/hmppsAuthClient'
-import { Controller } from '../@types'
+import { Controller, Route } from '../@types'
 import { CheckinUserDetails } from '../models/Esupervision'
 import type { AppLocals } from '../models/Locals'
 import config from '../config'
@@ -36,6 +38,9 @@ import logger from '../../logger'
 import { dateWithYear, dateToLongDate } from '../utils/dateWithYear'
 import { dayOfWeek } from '../utils/dayOfWeek'
 import parseQuestionTemplate from '../utils/parseQuestionTemplate'
+import toDisplayTemplates from '../utils/toDisplayTemplates'
+import { ensureQuestionMark, isBespokeDraftId, newBespokeDraftId } from '../utils/bespokeQuestions'
+import { customisableTemplates, savedQuestionsToDrafts } from '../utils/questionTemplates'
 import safeBackUrl from '../utils/safeBackUrl'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } from '../utils/checkinSchedule'
@@ -269,9 +274,46 @@ const normalizeQuestionPlaceholder = (input: string, suffix: string): string => 
   return trimmedInput.endsWith('?') && trimmedSuffix.endsWith('?') ? trimmedInput.slice(0, -1).trimEnd() : trimmedInput
 }
 
+type QuestionSessionGroup = 'manageQuestions' | 'scheduleCheckIn'
+
+// Whether a practitioner-written question with this draft id is held in the flow's session group.
+const bespokeQuestionInSession = (
+  data: Record<string, any> | undefined,
+  crn: string,
+  id: string,
+  group: QuestionSessionGroup,
+  questionId: string,
+): boolean =>
+  getDataValue(data, ['esupervision', crn, id, group, 'questionTemplateAndInputs', questionId]) !== undefined
+
 const buildQuestionText = (prefix: string, input: string, suffix: string) => {
   const normalizedInput = normalizeQuestionPlaceholder(input, suffix)
   return `${prefix}${normalizedInput}${suffix}`.replace(/\s+/g, ' ').trim()
+}
+
+// "Write your own question" on the choose-a-question page. The validation middleware has already
+// rejected an empty answer. The manage flow and the ad hoc /schedule-check-in flow differ only in
+// the session group the draft is kept under and the add page they return to.
+const postBespokeQuestion = (group: QuestionSessionGroup, addPagePath: string): Route<Promise<void>> => {
+  return async (req, res) => {
+    const { crn, id } = req.params as Record<string, string>
+    req.session.data = req.session.data ?? {}
+    const { data } = req.session
+    const addPage = `/case/${crn}/appointments/check-in/manage/${id}/${addPagePath}`
+
+    const input = req.body?.esupervision?.[crn]?.[id]?.[group]?.bespokeQuestionInput
+    const questionText = ensureQuestionMark(typeof input === 'string' ? input : '')
+    const questionTemplateAndInputs =
+      getDataValue(data, ['esupervision', crn, id, group, 'questionTemplateAndInputs']) || {}
+    if (questionText && Object.keys(questionTemplateAndInputs).length < 3) {
+      setDataValue(
+        data,
+        ['esupervision', crn, id, group, 'questionTemplateAndInputs', newBespokeDraftId()],
+        questionText,
+      )
+    }
+    return res.redirect(addPage)
+  }
 }
 
 type CheckInRouteName =
@@ -345,8 +387,6 @@ type CheckInRouteName =
   | 'getRestartSummaryPage'
   | 'postRestartSummaryPage'
   | 'getRestartConfirmation'
-  | 'getStartQuestionsPage'
-  | 'postStartQuestionsPage'
   | 'getAddQuestionsPage'
   | 'postAddQuestionsPage'
   | 'getPreviewFeelingPage'
@@ -356,7 +396,7 @@ type CheckInRouteName =
   | 'getEditQuestionPage'
   | 'postEditQuestionPage'
   | 'getSelectQuestionPage'
-  | 'getDeleteQuestion'
+  | 'postDeleteQuestion'
   | 'getScheduleCheckInDate'
   | 'postScheduleCheckInDate'
   | 'getScheduleCheckInAddQuestions'
@@ -366,7 +406,7 @@ type CheckInRouteName =
   | 'getScheduleCheckInEditQuestion'
   | 'postScheduleCheckInEditQuestion'
   | 'getScheduleCheckInSelectQuestion'
-  | 'getScheduleCheckInDeleteQuestion'
+  | 'postScheduleCheckInDeleteQuestion'
   | 'getScheduleCheckInPreviewFeeling'
   | 'getScheduleCheckInPreviewSupport'
 
@@ -1990,25 +2030,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getStartQuestionsPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      const { back } = req.query
-      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
-      if (!offenderDetails) {
-        return renderError(404)(req, res)
-      }
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
-      return res.render('pages/check-in/questions/instructions.njk', {
-        crn,
-        back,
-        id,
-        data: req.session.data,
-        case: offenderDetails.details,
-      })
-    }
-  },
-
   getManageContactPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -2505,13 +2526,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postStartQuestionsPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-    }
-  },
-
   getAddQuestionsPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
@@ -2532,10 +2546,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (availableTemplates.length === 0) {
         const eSupClient = new ESupervisionClient(token)
         const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-        const customisableTemplates = templatesList.templates.filter(
-          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-        )
-        availableTemplates = customisableTemplates
+        availableTemplates = customisableTemplates(templatesList.templates)
         setDataValue(data, ['esupervision', crn, id, 'manageQuestions', 'availableTemplates'], availableTemplates)
       }
 
@@ -2554,16 +2565,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           const eSupClient = new ESupervisionClient(token)
           const response = await eSupClient.getUpcomingCheckinQuestionItems(crn, 'en-GB')
           expectedCheckinDate = response?.upcoming?.expectedCheckinDate
-          const items = response?.upcoming?.items || []
-
-          items.forEach((item: any) => {
-            const isCustomisable = availableTemplates.some((t: any) => String(t.id) === String(item.template.id))
-            if (isCustomisable) {
-              const draftId = `${item.template.id}-${uuidv4()}`
-              const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
-              questionTemplateAndInputs[draftId] = inputValue
-            }
-          })
+          // Offered templates are carried by id; bespoke questions, and questions whose template has
+          // since been retired, by their text - see savedQuestionsToDrafts.
+          questionTemplateAndInputs = savedQuestionsToDrafts(response?.upcoming?.items || [], availableTemplates)
         } catch (error: any) {
           const status = error?.status || error?.response?.status
           const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
@@ -2585,6 +2589,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
           if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          if (isBespokeDraftId(qId)) {
+            return { id: qId, fullText: inputValue.trim() }
+          }
           const templateId = parseInt(qId.split('-')[0], 10)
 
           const templateData = parseQuestionTemplate(availableTemplates, templateId)
@@ -2617,6 +2624,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const questionTemplateAndInputs = manageQuestionsSession.questionTemplateAndInputs || {}
       const availableTemplates = manageQuestionsSession.availableTemplates || []
       const formattedQuestions = Object.entries(questionTemplateAndInputs).map(([draftId, inputValue]) => {
+        if (isBespokeDraftId(draftId)) {
+          return { text: (inputValue as string).trim(), params: { placeholders: {} } }
+        }
         const templateId = parseInt(draftId.split('-')[0], 10)
         const originalTemplate = availableTemplates.find((t: any) => String(t.id) === String(templateId))
         const templateData =
@@ -2713,10 +2723,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
 
       const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-      const customisableTemplates = templatesList.templates.filter(
-        (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-      )
-      const availableTemplates = customisableTemplates
+      const availableTemplates = customisableTemplates(templatesList.templates)
 
       setDataValue(
         req.session.data,
@@ -2729,21 +2736,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (Object.keys(questionTemplateAndInputs).length >= 3) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
       }
-      // replace curly braces placeholder with [insert text] for presentation
-      const displayTemplates = templatesList.templates.map((q: any) => {
-        const start = q.template.indexOf('{{')
-        const end = q.template.indexOf('}}', start)
-
-        let displayTemplate = q.template
-        if (start !== -1 && end !== -1) {
-          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
-        }
-
-        return {
-          ...q,
-          displayTemplate,
-        }
-      })
+      // Only the customisable templates are offered, matching what the validation re-render shows.
+      const displayTemplates = toDisplayTemplates(availableTemplates)
       return res.render('pages/check-in/questions/list-questions.njk', {
         crn,
         id,
@@ -2755,12 +2749,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postQuestionsListPage: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-    }
-  },
+  postQuestionsListPage: () => postBespokeQuestion('manageQuestions', 'questions/add'),
 
   getEditQuestionPage: hmppsAuthClient => {
     return async (req, res) => {
@@ -2780,10 +2769,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (availableTemplates.length === 0) {
         const eSupClient = new ESupervisionClient(token)
         const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-        const customisableTemplates = templatesList.templates.filter(
-          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-        )
-        availableTemplates = customisableTemplates
+        availableTemplates = customisableTemplates(templatesList.templates)
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'manageQuestions', 'availableTemplates'],
@@ -2791,16 +2777,23 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
+      // A bespoke question has no template: the page shows the whole question for editing. It only
+      // exists in the session, so an id that is not there has nothing to edit.
+      const isBespoke = isBespokeDraftId(questionId)
+      if (isBespoke && !bespokeQuestionInSession(req.session.data, crn, id, 'manageQuestions', questionId)) {
+        return renderError(404)(req, res)
+      }
       const templateId = questionId.split('-')[0]
-      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
+      const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
 
-      if (!questionForView) return renderError(404)(req, res)
+      if (!isBespoke && !questionForView) return renderError(404)(req, res)
 
       return res.render('pages/check-in/questions/edit-question.njk', {
         crn,
         id,
         questionId,
         back,
+        isBespoke,
         case: offenderDetails.details,
         question: questionForView,
         data: req.session.data,
@@ -2816,11 +2809,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const inputValue = req.body?.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput
 
+      // A template question arrives here fresh from the select page, but a bespoke one must already
+      // be in the session: saving under an unknown bespoke id would add a question past the cap.
+      if (
+        isBespokeDraftId(questionId) &&
+        !bespokeQuestionInSession(req.session.data, crn, id, 'manageQuestions', questionId)
+      ) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      }
+
       if (inputValue && inputValue.trim() !== '') {
         setDataValue(
           data,
           ['esupervision', crn, id, 'manageQuestions', 'questionTemplateAndInputs', questionId],
-          inputValue.trim(),
+          isBespokeDraftId(questionId) ? ensureQuestionMark(inputValue) : inputValue.trim(),
         )
 
         if (data.esupervision?.[crn]?.[id]?.manageQuestions?.draftQuestionInput !== undefined) {
@@ -2848,12 +2850,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getDeleteQuestion: () => {
+  postDeleteQuestion: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
       req.session.data = req.session.data ?? {}
       const { data } = req.session
-      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+      await sendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       if (data.esupervision?.[crn]?.[id]?.manageQuestions?.questionTemplateAndInputs?.[questionId]) {
         delete data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[questionId]
       }
@@ -2970,9 +2972,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (availableTemplates.length === 0) {
         const eSupClient = new ESupervisionClient(token)
         const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-        availableTemplates = templatesList.templates.filter(
-          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-        )
+        availableTemplates = customisableTemplates(templatesList.templates)
         setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
       }
 
@@ -2989,13 +2989,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         questionTemplateAndInputs = {}
         try {
           const response = await new ESupervisionClient(token).getUpcomingCheckinQuestionItems(crn, 'en-GB')
-          const items = response?.upcoming?.items || []
-          items.forEach((item: any) => {
-            if (availableTemplates.some((t: any) => String(t.id) === String(item.template.id))) {
-              const inputValue = Object.values(item.params?.placeholders || {})[0] || ''
-              questionTemplateAndInputs[`${item.template.id}-${uuidv4()}`] = inputValue
-            }
-          })
+          // Offered templates are carried by id; bespoke questions, and questions whose template has
+          // since been retired, by their text - see savedQuestionsToDrafts.
+          questionTemplateAndInputs = savedQuestionsToDrafts(response?.upcoming?.items || [], availableTemplates)
         } catch (error: any) {
           const status = error?.status || error?.response?.status
           const isInactiveOffender = status === 422 && error?.data?.developerMessage === 'Offender status is INACTIVE'
@@ -3021,6 +3017,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const addedQuestions = Object.entries(questionTemplateAndInputs)
         .map(([qId, inputValue]) => {
           if (!inputValue || typeof inputValue !== 'string' || inputValue.trim() === '') return null
+          if (isBespokeDraftId(qId)) {
+            return { id: qId, fullText: inputValue.trim() }
+          }
           const templateId = parseInt(qId.split('-')[0], 10)
           const templateData = parseQuestionTemplate(availableTemplates, templateId)
           if (!templateData) return null
@@ -3061,29 +3060,37 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const availableTemplates = scheduleCheckIn.availableTemplates || []
       const questionTemplateAndInputs = scheduleCheckIn.questionTemplateAndInputs || {}
-      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(([draftId, inputValue]) => {
-        if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
-        const templateId = parseInt(draftId.split('-')[0], 10)
-        const originalTemplate = availableTemplates.find((template: any) => String(template.id) === String(templateId))
-        if (!originalTemplate) return []
-        const templateData =
-          typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
+      type AssignQuestion = EsupervisionAssignTemplateQuestion | EsupervisionAssignBespokeQuestion
+      const formattedQuestions = Object.entries(questionTemplateAndInputs).flatMap(
+        ([draftId, inputValue]): AssignQuestion[] => {
+          if (typeof inputValue !== 'string' || inputValue.trim() === '') return []
+          if (isBespokeDraftId(draftId)) {
+            return [{ text: inputValue.trim(), params: { placeholders: {} } }]
+          }
+          const templateId = parseInt(draftId.split('-')[0], 10)
+          const originalTemplate = availableTemplates.find(
+            (template: any) => String(template.id) === String(templateId),
+          )
+          if (!originalTemplate) return []
+          const templateData =
+            typeof originalTemplate.template === 'string' ? parseQuestionTemplate(availableTemplates, templateId) : null
 
-        return [
-          {
-            id: templateId,
-            params: {
-              placeholders: {
-                [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
-                  inputValue,
-                  templateData?.suffix || '',
-                ),
+          return [
+            {
+              id: templateId,
+              params: {
+                placeholders: {
+                  [originalTemplate.responseSpec?.placeholders?.[0] || 'text']: normalizeQuestionPlaceholder(
+                    inputValue,
+                    templateData?.suffix || '',
+                  ),
+                },
+                responseFormat: originalTemplate.responseFormat || 'TEXT',
               },
-              responseFormat: originalTemplate.responseFormat || 'TEXT',
             },
-          },
-        ]
-      })
+          ]
+        },
+      )
       const { username } = res.locals.user
       const request: ScheduleAdHocCheckinRequest = {
         requestedBy: username,
@@ -3131,9 +3138,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-      const availableTemplates = templatesList.templates.filter(
-        (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-      )
+      const availableTemplates = customisableTemplates(templatesList.templates)
       setDataValue(data, ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'], availableTemplates)
 
       const questionTemplateAndInputs =
@@ -3142,15 +3147,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
       }
 
-      const displayTemplates = availableTemplates.map((q: any) => {
-        const start = q.template.indexOf('{{')
-        const end = q.template.indexOf('}}', start)
-        let displayTemplate = q.template
-        if (start !== -1 && end !== -1) {
-          displayTemplate = `${q.template.substring(0, start)}[insert text]${q.template.substring(end + 2)}`
-        }
-        return { ...q, displayTemplate }
-      })
+      const displayTemplates = toDisplayTemplates(availableTemplates)
 
       return res.render('pages/check-in/schedule-check-in/list-questions.njk', {
         crn,
@@ -3163,12 +3160,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  postScheduleCheckInQuestionsList: () => {
-    return async (req, res) => {
-      const { crn, id } = req.params as Record<string, string>
-      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
-    }
-  },
+  postScheduleCheckInQuestionsList: () => postBespokeQuestion('scheduleCheckIn', 'schedule-check-in/questions/add'),
 
   getScheduleCheckInEditQuestion: hmppsAuthClient => {
     return async (req, res) => {
@@ -3186,9 +3178,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (availableTemplates.length === 0) {
         const eSupClient = new ESupervisionClient(token)
         const templatesList = await eSupClient.getQuestionsTemplates('en-GB')
-        availableTemplates = templatesList.templates.filter(
-          (t: any) => t.policy$hmpps_esupervision_api === 'CUSTOMISABLE',
-        )
+        availableTemplates = customisableTemplates(templatesList.templates)
         setDataValue(
           req.session.data,
           ['esupervision', crn, id, 'scheduleCheckIn', 'availableTemplates'],
@@ -3196,15 +3186,22 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         )
       }
 
+      // A bespoke question has no template: the page shows the whole question for editing. It only
+      // exists in the session, so an id that is not there has nothing to edit.
+      const isBespoke = isBespokeDraftId(questionId)
+      if (isBespoke && !bespokeQuestionInSession(req.session.data, crn, id, 'scheduleCheckIn', questionId)) {
+        return renderError(404)(req, res)
+      }
       const templateId = questionId.split('-')[0]
-      const questionForView = parseQuestionTemplate(availableTemplates, templateId)
-      if (!questionForView) return renderError(404)(req, res)
+      const questionForView = isBespoke ? null : parseQuestionTemplate(availableTemplates, templateId)
+      if (!isBespoke && !questionForView) return renderError(404)(req, res)
 
       return res.render('pages/check-in/schedule-check-in/edit-question.njk', {
         crn,
         id,
         questionId,
         back,
+        isBespoke,
         case: offenderDetails.details,
         question: questionForView,
         data: req.session.data,
@@ -3220,11 +3217,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       const inputValue = req.body?.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput
 
+      // A template question arrives here fresh from the select page, but a bespoke one must already
+      // be in the session: saving under an unknown bespoke id would add a question past the cap.
+      if (
+        isBespokeDraftId(questionId) &&
+        !bespokeQuestionInSession(req.session.data, crn, id, 'scheduleCheckIn', questionId)
+      ) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/add`)
+      }
+
       if (inputValue && inputValue.trim() !== '') {
         setDataValue(
           data,
           ['esupervision', crn, id, 'scheduleCheckIn', 'questionTemplateAndInputs', questionId],
-          inputValue.trim(),
+          isBespokeDraftId(questionId) ? ensureQuestionMark(inputValue) : inputValue.trim(),
         )
         if (data.esupervision?.[crn]?.[id]?.scheduleCheckIn?.draftQuestionInput !== undefined) {
           delete data.esupervision[crn][id].scheduleCheckIn.draftQuestionInput
@@ -3256,17 +3262,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getScheduleCheckInDeleteQuestion: () => {
+  postScheduleCheckInDeleteQuestion: () => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
       req.session.data = req.session.data ?? {}
       const { data } = req.session
-      await sendAuditMessage(
-        res,
-        'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DELETE_QUESTION',
-        crn,
-        SubjectType.CRN,
-      )
+      await sendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       if (data.esupervision?.[crn]?.[id]?.scheduleCheckIn?.questionTemplateAndInputs?.[questionId]) {
         delete data.esupervision[crn][id].scheduleCheckIn.questionTemplateAndInputs[questionId]
       }

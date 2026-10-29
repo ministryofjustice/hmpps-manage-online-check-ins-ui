@@ -1,15 +1,28 @@
 {% extends "../../_form.njk" %}
+{% from "govuk/components/details/macro.njk" import govukDetails %}
+
 {% set notStandardForm = true %}
-{% set title = "Choose a question to add" %}
-{% set pageTitleText = "Add questions to the person's next online check in" %}
-{% set pageTitle = makePageTitle({
-  pageHeading: [pageTitleText]
-}) %}
-{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
-{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
-{% set addQuestionLinkBase = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions/" %}
+{% set title = "Choose a question to add or write your own" %}
+{% if errorMessages and errorMessages | length %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: ["Error: " + title]
+  }) %}
+{% else %}
+  {% set pageTitle = makePageTitle({
+    pageHeading: [title]
+  }) %}
+{% endif %}
+{% set questionsPage = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions" %}
+{% set formAnchorLink = questionsPage + "/add" %}
+{% set backLink = back if back else questionsPage + "/add" %}
 {% set addQuestionText = "Add" %}
 {% set templates = templatesList.templates %}
+
+{% set htmlId = "esupervision-" + crn + "-" + id + "-manageQuestions-bespokeQuestionInput" %}
+{% set inputName = "esupervision[" + crn + "][" + id + "][manageQuestions][bespokeQuestionInput]" %}
+{% set fieldError = errorMessages[htmlId] if errorMessages else none %}
+{% set submittedInputValue = body.esupervision[crn][id].manageQuestions.bespokeQuestionInput if body else none %}
+{% set inputValue = submittedInputValue if submittedInputValue is defined and submittedInputValue is not none else "" %}
 
 {% set tableData = {
   firstCellIsHeader: true,
@@ -25,41 +38,97 @@
     },
     {
       text: "Action",
-      classes: "govuk-!-width-one-half"
+      classes: "govuk-!-width-one-half",
+      format: "numeric"
     }
   ],
   rows: []
 } %}
 
 {% for template in templates %}
-    {% set row = tableData.rows.push([
-        {
-            html: '<strong>' + template.displayTemplate + '</strong>'
-        },
-        {
-            text: template.example
-        },
-        {
-            html: '<a href="' + addQuestionLinkBase + template.id + '/select" class="govuk-link" data-qa="add-question-link">' + addQuestionText +'</a>'
-        }
-    ]) %}
+  {% set row = tableData.rows.push([
+    {
+      html: '<strong>' + template.displayTemplate + '</strong>'
+    },
+    {
+      text: template.example
+    },
+    {
+      html: '<a href="' + questionsPage + '/' + template.id + '/select" class="govuk-link" data-qa="add-question-link">' + addQuestionText + '</a>',
+      format: "numeric"
+    }
+  ]) %}
 {% endfor %}
 
 {% block primary %}
-
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
-            <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
-                {{ title }}
-            </h2>
-            <p class="govuk-body">You can add up to 3 questions. They will be asked in the order you select them.</p>
-        </div>
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if errorMessages and errorMessages | length %}
+        {{ govukErrorSummary({
+          titleText: "There is a problem",
+          classes: "govuk-!-margin-bottom-6",
+          errorList: errorMessages | toErrorList,
+          attributes: { "data-qa": "errorList" }
+        }) }}
+      {% endif %}
+      <h2 class="govuk-heading-l govuk-!-margin-bottom-6" data-qa="pageHeading">
+        {{ title }}
+      </h2>
+      <p class="govuk-body">You can add up to 3 questions. They will be asked in the order you select them. You can add your own question or tailor a question from the list.</p>
     </div>
+  </div>
 
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-full">
-            {{ govukTable(tableData) }}
+  <h3 class="govuk-heading-m govuk-!-margin-top-4">Choose a question</h3>
+  {{ govukTable(tableData) }}
+
+  <h3 class="govuk-heading-m">Write your own question</h3>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <p class="govuk-body">Think about how your question could sound to someone without the context of a face to face conversation.</p>
+      {% call govukDetails({
+        summaryText: "Writing questions for online check ins"
+      }) %}
+        <p class="govuk-body"><strong>You should:</strong></p>
+        <ul class="govuk-list govuk-list--bullet">
+          <li>consider if a question is appropriate for an online service</li>
+          <li>think about the person’s circumstances when asking questions about topics that could be upsetting or dangerous, such as drugs, alcohol or abusive relationships</li>
+          <li>not include any personal information about other people</li>
+          <li>avoid asking about more than one topic in a single question</li>
+          <li>avoid using complicated language or words that have a simpler alternative</li>
+          <li>check spelling and grammar</li>
+        </ul>
+      {% endcall %}
+
+      <form method="post" autocomplete="off" action="{{ paths.current }}">
+        <input type="hidden" name="_csrf" value="{{ csrfToken }}">
+
+        {{ govukInput({
+          id: htmlId,
+          name: inputName,
+          value: inputValue,
+          label: {
+            text: "What do you want to ask " + case.name.forename + "?",
+            classes: "govuk-label--s"
+          },
+          errorMessage: { text: fieldError.text | default(fieldError) } if fieldError else none,
+          attributes: { "data-qa": "bespoke-question-input" }
+        }) }}
+
+        {{ govukWarningText({
+          text: "Do not include information that could be sensitive or lead to harm if read by someone who is not the person",
+          iconFallbackText: "Warning"
+        }) }}
+
+        <div class="govuk-button-group">
+          {{ govukButton({
+            text: "Continue",
+            type: "submit",
+            attributes: { "data-qa": "submit-btn" }
+          }) }}
+          <a class="govuk-link" href="{{ formAnchorLink }}" data-qa="cancel-link">Cancel and go back</a>
         </div>
+      </form>
     </div>
-
+  </div>
 {% endblock %}

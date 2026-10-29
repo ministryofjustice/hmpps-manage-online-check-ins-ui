@@ -1,4 +1,4 @@
-import { type Router } from 'express'
+import { type Request, type Response, type Router } from 'express'
 import type { Services } from '../services'
 import config from '../config'
 import validate from '../middleware/validation'
@@ -725,21 +725,12 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.postViewCheckIn(hmppsAuthClient),
   ])
 
+  // The questions journey used to open on a start page. Nothing links to it now, but bookmarks and
+  // guidance may still, so send them on to where it begins.
   router.get('/case/:crn/appointments/check-in/manage/:id/questions/start', [
     validateCrnAndId,
-    getCheckinOffenderDetails(hmppsAuthClient),
-    validateOffenderCheckin,
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    getCheckInQuestionsRedirect(hmppsAuthClient),
-    controllers.checkIns.getStartQuestionsPage(hmppsAuthClient),
-  ])
-  router.post('/case/:crn/appointments/check-in/manage/:id/questions/start', [
-    validateCrnAndId,
-    getCheckinOffenderDetails(hmppsAuthClient),
-    validateOffenderCheckin,
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postStartQuestionsPage(hmppsAuthClient),
+    (req: Request, res: Response) =>
+      res.redirect(`/case/${req.params.crn}/appointments/check-in/manage/${req.params.id}/questions/add`),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/questions/add', [
@@ -774,7 +765,8 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
+    validate.eSuperVision,
     controllers.checkIns.postQuestionsListPage(hmppsAuthClient),
   ])
 
@@ -792,6 +784,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
+    getCheckInQuestionsRedirect(hmppsAuthClient),
     validate.eSuperVision,
     controllers.checkIns.postEditQuestionPage(hmppsAuthClient),
   ])
@@ -804,12 +797,12 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.getSelectQuestionPage(hmppsAuthClient),
   ])
 
-  router.get('/case/:crn/appointments/check-in/manage/:id/questions/:questionId/delete', [
+  router.post('/case/:crn/appointments/check-in/manage/:id/questions/:questionId/delete', [
     validateCrnAndId,
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getCheckInQuestionsRedirect(hmppsAuthClient),
-    controllers.checkIns.getDeleteQuestion(hmppsAuthClient),
+    controllers.checkIns.postDeleteQuestion(hmppsAuthClient),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/questions/preview/feeling', [
@@ -881,7 +874,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictScheduleCheckInAccess({ requireDate: true }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    autoStoreSessionData(hmppsAuthClient),
+    validate.eSuperVision,
     controllers.checkIns.postScheduleCheckInQuestionsList(),
   ])
 
@@ -918,7 +911,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateOffenderCheckin,
     restrictScheduleCheckInAccess({ requireDate: true }),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getScheduleCheckInDeleteQuestion(),
+    controllers.checkIns.postScheduleCheckInDeleteQuestion(),
   ])
 
   router.get('/case/:crn/appointments/check-in/manage/:id/schedule-check-in/questions/preview/feeling', [

@@ -11,7 +11,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 2,
@@ -23,7 +23,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 3,
@@ -35,7 +35,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 4,
@@ -46,7 +46,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 5,
@@ -58,7 +58,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 6,
@@ -70,7 +70,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 7,
@@ -81,7 +81,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 8,
@@ -92,7 +92,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 9,
@@ -103,7 +103,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 10,
@@ -115,7 +115,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 11,
@@ -127,7 +127,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 12,
@@ -139,7 +139,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 13,
@@ -151,7 +151,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 14,
@@ -163,7 +163,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 15,
@@ -175,7 +175,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 16,
@@ -187,7 +187,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 17,
@@ -198,7 +198,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 18,
@@ -210,7 +210,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 19,
@@ -222,7 +222,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
     {
       id: 20,
@@ -234,7 +234,7 @@ export const esupervisionAdditionalQuestions: EsupervisionQuestionTemplatesRespo
         hint: 'Hint for the question about the {{thing}}',
         placeholders: ['thing'],
       },
-      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+      policy: 'CUSTOMISABLE',
     },
   ],
 }

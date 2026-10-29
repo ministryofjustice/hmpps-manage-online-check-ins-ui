@@ -6,12 +6,14 @@ import { eSuperVisionValidation } from '../../properties/validation/eSupervision
 import getDataValue from '../../utils/getDataValue'
 import setDataValue from '../../utils/setDataValue'
 import parseQuestionTemplate from '../../utils/parseQuestionTemplate'
+import toDisplayTemplates from '../../utils/toDisplayTemplates'
 import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
 import { CheckInEligibilityPage, getCheckInEligibilityContext } from '../../utils/checkInEligibilityContext'
 import { fromApiSchedule } from '../../utils/checkinSchedule'
+import { isBespokeDraftId } from '../../utils/bespokeQuestions'
 
 const eSuperVision: Route<void> = (req, res, next) => {
   const { url, params, body } = req
@@ -52,6 +54,8 @@ const eSuperVision: Route<void> = (req, res, next) => {
   ]}`
 
   let errorMessages: Record<string, string> = {}
+  // Set when a page cannot be re-rendered with errors and should be fetched afresh instead.
+  let redirectTo: string | undefined
 
   const manage = (segment: string) => `case/${crn}/appointments/check-in/manage/${id}/${segment}`
   const setup = (segment: string) => `/case/${crn}/appointments/${id}/check-in/${segment}`
@@ -362,10 +366,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
     const isScheduleCheckIn = Boolean(questionMatch[1])
     const draftId = questionMatch[2]
     const templateId = draftId.split('-')[0]
+    // A question the practitioner wrote has no template; the page shows the whole question instead.
+    const isBespoke = isBespokeDraftId(draftId)
     render = isScheduleCheckIn
       ? `pages/check-in/schedule-check-in/edit-question`
       : `pages/check-in/questions/edit-question`
     localParams.questionId = draftId
+    localParams.isBespoke = isBespoke
 
     const availableTemplates =
       getDataValue(req.session.data, [
@@ -385,6 +392,45 @@ const eSuperVision: Route<void> = (req, res, next) => {
         crn,
         id,
         page: isScheduleCheckIn ? 'schedule-check-in-edit-question' : 'edit-question',
+        bespokeQuestion: isBespoke,
+      }),
+    )
+  }
+
+  // "Write your own question" on the choose-a-question page of both the manage flow and the ad hoc
+  // /schedule-check-in flow. Re-rendering needs the template table, which the GET handler saved to
+  // session under the flow's own group.
+  const validateListQuestions = () => {
+    const listMatch = baseUrl.match(/\/manage\/[\w-]+\/(schedule-check-in\/)?questions\/list\/?$/)
+    if (!listMatch) {
+      return
+    }
+    const isScheduleCheckIn = Boolean(listMatch[1])
+    const group = isScheduleCheckIn ? 'scheduleCheckIn' : 'manageQuestions'
+    const availableTemplates =
+      getDataValue(req.session.data, ['esupervision', crn, id, group, 'availableTemplates']) || []
+    const savedQuestions = getDataValue(req.session.data, ['esupervision', crn, id, group, 'questionTemplateAndInputs'])
+    // The GET redirects to the add page once three questions are held; a late submission at the cap
+    // is left to the controller to do the same rather than being shown an error it cannot act on.
+    if (Object.keys(savedQuestions || {}).length >= 3) {
+      return
+    }
+    // Without the templates (a lapsed or cleared session) the page would re-render with an empty
+    // table, so fetch it again instead; the GET restores the templates to session.
+    if (!getDataValue(req.session.data, ['esupervision', crn, id, group, 'availableTemplates'])) {
+      redirectTo = baseUrl
+      return
+    }
+    render = isScheduleCheckIn
+      ? `pages/check-in/schedule-check-in/list-questions`
+      : `pages/check-in/questions/list-questions`
+    localParams.templatesList = { templates: toDisplayTemplates(availableTemplates) }
+    errorMessages = validateWithSpec(
+      req,
+      eSuperVisionValidation({
+        crn,
+        id,
+        page: isScheduleCheckIn ? 'schedule-check-in-list-questions' : 'list-questions',
       }),
     )
   }
@@ -444,8 +490,12 @@ const eSuperVision: Route<void> = (req, res, next) => {
   validateRestartContact()
   validateRestartEditContact()
   validateEditQuestion()
+  validateListQuestions()
   validateScheduleCheckInDate()
 
+  if (redirectTo) {
+    return res.redirect(redirectTo)
+  }
   if (Object.keys(errorMessages).length) {
     const offenderDetails = res.locals.offenderCheckinsByCRNResponse
     res.locals.errorMessages = errorMessages

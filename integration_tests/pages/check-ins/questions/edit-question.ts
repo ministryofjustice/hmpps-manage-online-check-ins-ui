@@ -1,8 +1,10 @@
 import Page from '../../page'
 
 export default class EditQuestionPage extends Page {
-  constructor() {
-    super('What do you want to ask')
+  // A template question is headed "What do you want to ask <name>?"; a question the practitioner
+  // wrote themselves is headed "Write your own question".
+  constructor(heading: 'What do you want to ask' | 'Write your own question' = 'What do you want to ask') {
+    super(heading)
   }
 
   enterDraftQuestionInput(text: string) {

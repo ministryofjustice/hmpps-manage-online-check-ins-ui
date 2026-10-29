@@ -1708,43 +1708,114 @@ describe('checkInsController', () => {
   })
 
   describe('Additional questions for online check ins journey', () => {
-    describe('getStartQuestionsPage', () => {
-      it('renders start questions page when CRN is valid', async () => {
-        mockIsValidCrn.mockReturnValue(true)
-        mockIsValidUUID.mockReturnValue(true)
-
-        const req = baseReq()
-        const { id } = req.params as Record<string, string>
-
-        await controllers.checkIns.getStartQuestionsPage(hmppsAuthClient)(req, res)
-
-        expect(renderSpy).toHaveBeenCalledWith('pages/check-in/questions/instructions.njk', {
-          crn,
-          id,
-          back: req.query.back,
-          case: offenderCheckinsByCRNResponse.details,
-          data: req.session.data,
-        })
-        expect(mockRenderError).not.toHaveBeenCalled()
-        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_START', crn, SubjectType.CRN)
-      })
-    })
-
-    describe('postStartQuestionsPage', () => {
-      it('redirects to add questions page when CRN and id are valid', async () => {
-        mockIsValidCrn.mockReturnValue(true)
-        mockIsValidUUID.mockReturnValue(true)
-
-        const req = baseReq()
-        const { id } = req.params as Record<string, string>
-
-        await controllers.checkIns.postStartQuestionsPage(hmppsAuthClient)(req, res)
-
-        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-      })
-    })
-
     describe('getAddQuestionsPage', () => {
+      it('shows a bespoke question as its whole text', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  questionTemplateAndInputs: {
+                    'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612': 'Have you managed to speak to your landlord?',
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        await controllers.checkIns.getAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [
+              {
+                id: 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612',
+                fullText: 'Have you managed to speak to your landlord?',
+              },
+            ],
+          }),
+        )
+      })
+
+      it('restores a saved bespoke question from the upcoming check in items', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValue({
+          upcoming: {
+            expectedCheckinDate: '2026-11-03',
+            items: [
+              {
+                template: {
+                  id: 99,
+                  template: 'Have you managed to speak to your landlord?',
+                  responseFormat: 'TEXT',
+                  responseSpec: { hint: 'Add as much detail as you feel comfortable with', placeholders: [] },
+                  policy: 'CUSTOMISABLE',
+                },
+                params: { placeholders: {} },
+              },
+            ],
+          },
+        } as any)
+
+        const req = baseReq({})
+
+        await controllers.checkIns.getAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: `bespoke-${uuid}`, fullText: 'Have you managed to speak to your landlord?' }],
+          }),
+        )
+      })
+
+      it('restores a question whose template has since been retired as a bespoke question of its text', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        // Template 7 is not in the CUSTOMISABLE list the API now offers, but the assignment still resolves it.
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValue({
+          upcoming: {
+            expectedCheckinDate: '2026-11-03',
+            items: [
+              {
+                template: {
+                  id: 7,
+                  template: 'Have you heard back from {{thing}}?',
+                  responseFormat: 'TEXT',
+                  responseSpec: { hint: '', placeholders: ['thing'] },
+                  policy: 'CUSTOMISABLE',
+                },
+                params: { placeholders: { thing: 'the housing team' } },
+              },
+            ],
+          },
+        } as any)
+
+        const req = baseReq({})
+
+        await controllers.checkIns.getAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageQuestions', 'questionTemplateAndInputs'],
+          { [`bespoke-${uuid}`]: 'Have you heard back from the housing team?' },
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: `bespoke-${uuid}`, fullText: 'Have you heard back from the housing team?' }],
+          }),
+        )
+      })
+
       beforeEach(() => {
         jest.spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates').mockResolvedValue({
           templates: [
@@ -1757,7 +1828,7 @@ describe('checkInsController', () => {
                 hint: 'Hint for the question about the {{thing}}',
                 placeholders: ['thing'],
               },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
             {
               id: 2,
@@ -1769,7 +1840,7 @@ describe('checkInsController', () => {
                 hint: 'Hint for the question about the {{thing}}',
                 placeholders: ['thing'],
               },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         } as any)
@@ -1814,7 +1885,7 @@ describe('checkInsController', () => {
               id: 5,
               template: 'How is {{thing}}?',
               responseSpec: { placeholders: ['thing'] },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         } as any)
@@ -1863,7 +1934,7 @@ describe('checkInsController', () => {
                       id: '1',
                       template: 'How is {{thing}}?',
                       responseSpec: { placeholders: ['thing'] },
-                      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                      policy: 'CUSTOMISABLE',
                     },
                   ],
                 },
@@ -1900,7 +1971,7 @@ describe('checkInsController', () => {
                       id: '1',
                       template: 'How is {{thing}}?',
                       responseSpec: { placeholders: ['thing'] },
-                      policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                      policy: 'CUSTOMISABLE',
                     },
                   ],
                 },
@@ -1937,6 +2008,35 @@ describe('checkInsController', () => {
       beforeEach(() => {
         jest.spyOn(ESupervisionClient.prototype, 'putAssignQuestionsToCheckIn').mockResolvedValue({} as any)
         jest.spyOn(ESupervisionClient.prototype, 'deleteAssignedQuestionsFromCheckIn').mockResolvedValue({} as any)
+      })
+
+      it('sends a bespoke question as text', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  availableTemplates: [],
+                  questionTemplateAndInputs: {
+                    'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612': 'Have you managed to speak to your landlord?',
+                  },
+                },
+              },
+            },
+          },
+        })
+
+        await controllers.checkIns.postAddQuestionsPage(hmppsAuthClient)(req, res)
+
+        expect(ESupervisionClient.prototype.putAssignQuestionsToCheckIn).toHaveBeenCalledWith(crn, {
+          questions: [{ text: 'Have you managed to speak to your landlord?', params: { placeholders: {} } }],
+          language: 'en-GB',
+          author: 'user-1',
+        })
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
       })
 
       it('maps session data to payload and redirects to manage page on success', async () => {
@@ -2120,7 +2220,7 @@ describe('checkInsController', () => {
                   id: '1',
                   template: 'Have you heard back from {{thing}}?',
                   responseSpec: { placeholders: ['thing'] },
-                  policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                  policy: 'CUSTOMISABLE',
                 },
               ],
             } as any),
@@ -2140,7 +2240,7 @@ describe('checkInsController', () => {
               id: '1',
               template: 'Have you heard back from {{thing}}?',
               responseSpec: { placeholders: ['thing'] },
-              policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+              policy: 'CUSTOMISABLE',
             },
           ],
         )
@@ -2156,6 +2256,35 @@ describe('checkInsController', () => {
         )
         expect(mockRenderError).not.toHaveBeenCalled()
         checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_LIST_CHECK_IN_LIST_QUESTIONS', crn, SubjectType.CRN)
+      })
+
+      it('lists only the CUSTOMISABLE templates', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        jest.spyOn(ESupervisionClient.prototype, 'getQuestionsTemplates').mockImplementation(() =>
+          Promise.resolve({
+            templates: [
+              {
+                id: '1',
+                template: 'Have you heard back from {{thing}}?',
+                responseSpec: { placeholders: ['thing'] },
+                policy: 'CUSTOMISABLE',
+              },
+              {
+                id: '3',
+                template: 'A fixed question?',
+                responseSpec: { placeholders: [] },
+                policy: 'STANDARD',
+              },
+            ],
+          } as any),
+        )
+
+        await controllers.checkIns.getQuestionsListPage(hmppsAuthClient)(baseReq(), res)
+
+        const [, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
+        expect(context.templatesList.templates.map((t: any) => t.id)).toEqual(['1'])
       })
 
       it('redirects to add questions page if 3 or more questions are already saved', async () => {
@@ -2192,7 +2321,11 @@ describe('checkInsController', () => {
     })
 
     describe('postQuestionsListPage', () => {
-      it('redirects to add questions page when CRN and id are valid', async () => {
+      const bespokeBody = (text: string) => ({
+        esupervision: { [crn]: { [uuid]: { manageQuestions: { bespokeQuestionInput: text } } } },
+      })
+
+      it('redirects to add questions page when nothing was written', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
 
@@ -2201,11 +2334,129 @@ describe('checkInsController', () => {
 
         await controllers.checkIns.postQuestionsListPage(hmppsAuthClient)(req, res)
 
+        expect(mockSetDataValue).not.toHaveBeenCalled()
         expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
+      })
+
+      it('stores the bespoke question, adding a question mark, and returns to the add page', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({})
+        req.body = bespokeBody('  Have you managed to speak to your   landlord ')
+
+        await controllers.checkIns.postQuestionsListPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageQuestions', 'questionTemplateAndInputs', `bespoke-${uuid}`],
+          'Have you managed to speak to your landlord?',
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/questions/add`)
+      })
+
+      it('keeps a question mark the practitioner typed', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({})
+        req.body = bespokeBody('Is work going ok?')
+
+        await controllers.checkIns.postQuestionsListPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          expect.arrayContaining(['questionTemplateAndInputs']),
+          'Is work going ok?',
+        )
+      })
+
+      it('does not add a fourth question', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  questionTemplateAndInputs: {
+                    '1-f47ac10b-58cc-4372-a567-0e02b2c3d479': 'work',
+                    '2-a81bc81b-dead-4e5d-abff-90865d1e13b1': 'the housing service',
+                    'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612': 'Have you been to the gym?',
+                  },
+                },
+              },
+            },
+          },
+        })
+        req.body = bespokeBody('One more question')
+
+        await controllers.checkIns.postQuestionsListPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/questions/add`)
       })
     })
 
     describe('getEditQuestionPage', () => {
+      it('renders a bespoke question for editing without a template', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  availableTemplates: [{ id: '1', template: 'Have you heard back from {{thing}}?' }],
+                  questionTemplateAndInputs: {
+                    'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612': 'Have you managed to speak to your landlord?',
+                  },
+                },
+              },
+            },
+          },
+        })
+        req.params.questionId = 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612'
+
+        await controllers.checkIns.getEditQuestionPage(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/questions/edit-question.njk',
+          expect.objectContaining({
+            questionId: 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612',
+            isBespoke: true,
+            question: null,
+          }),
+        )
+        expect(mockRenderError).not.toHaveBeenCalled()
+      })
+
+      it('returns 404 for a bespoke question id that is not in the session', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  availableTemplates: [{ id: '1', template: 'Have you heard back from {{thing}}?' }],
+                  questionTemplateAndInputs: {},
+                },
+              },
+            },
+          },
+        })
+        req.params.questionId = 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612'
+
+        await controllers.checkIns.getEditQuestionPage(hmppsAuthClient)(req, res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+        expect(renderSpy).not.toHaveBeenCalled()
+      })
+
       it('renders edit question page when CRN, id, and question template are valid', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
@@ -2263,7 +2514,7 @@ describe('checkInsController', () => {
                 id: '1',
                 template: 'Have you heard back from {{thing}}?',
                 responseSpec: { placeholders: ['thing'] },
-                policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+                policy: 'CUSTOMISABLE',
               },
             ],
           } as any)
@@ -2310,6 +2561,69 @@ describe('checkInsController', () => {
     })
 
     describe('postEditQuestionPage', () => {
+      it('saves an edited bespoke question with a question mark added', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({
+          esupervision: {
+            [crn]: {
+              [uuid]: {
+                manageQuestions: {
+                  questionTemplateAndInputs: {
+                    'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612': 'Have you spoken to your landlord?',
+                  },
+                },
+              },
+            },
+          },
+        })
+        req.params.questionId = 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612'
+        req.body = {
+          esupervision: {
+            [crn]: {
+              [uuid]: { manageQuestions: { draftQuestionInput: 'Have you managed to speak to your landlord' } },
+            },
+          },
+        }
+
+        await controllers.checkIns.postEditQuestionPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          [
+            'esupervision',
+            crn,
+            uuid,
+            'manageQuestions',
+            'questionTemplateAndInputs',
+            'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612',
+          ],
+          'Have you managed to speak to your landlord?',
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/questions/add`)
+      })
+
+      it('saves nothing for a bespoke question id that is not in the session', async () => {
+        mockIsValidCrn.mockReturnValue(true)
+        mockIsValidUUID.mockReturnValue(true)
+
+        const req = baseReq({})
+        req.params.questionId = 'bespoke-c91350a4-37a4-4422-92e1-7d121bc1e612'
+        req.body = {
+          esupervision: {
+            [crn]: {
+              [uuid]: { manageQuestions: { draftQuestionInput: 'Have you managed to speak to your landlord' } },
+            },
+          },
+        }
+
+        await controllers.checkIns.postEditQuestionPage(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/questions/add`)
+      })
+
       it('saves answer to session and redirects to add questions page', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
@@ -2428,7 +2742,7 @@ describe('checkInsController', () => {
       })
     })
 
-    describe('getDeleteQuestion', () => {
+    describe('postDeleteQuestion', () => {
       it('removes question from session and redirects to add questions page', async () => {
         mockIsValidCrn.mockReturnValue(true)
         mockIsValidUUID.mockReturnValue(true)
@@ -2451,7 +2765,7 @@ describe('checkInsController', () => {
         const { id } = req.params as Record<string, string>
         req.params.questionId = '1-f47ac10b-58cc-4372-a567-0e02b2c3d479'
 
-        await controllers.checkIns.getDeleteQuestion(hmppsAuthClient)(req, res)
+        await controllers.checkIns.postDeleteQuestion(hmppsAuthClient)(req, res)
 
         expect(
           req.session.data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[
@@ -2464,7 +2778,7 @@ describe('checkInsController', () => {
           ],
         ).toBeDefined()
         expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${id}/questions/add`)
-        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_DELETE', crn, SubjectType.CRN)
+        checkSendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       })
     })
   })
@@ -2478,13 +2792,13 @@ describe('checkInsController', () => {
         id: 1,
         template: 'Have you been able to {{text}}?',
         responseSpec: { placeholders: ['text'] },
-        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+        policy: 'CUSTOMISABLE',
       },
       {
         id: 2,
         template: 'How has {{text}} been going recently?',
         responseSpec: { placeholders: ['text'] },
-        policy$hmpps_esupervision_api: 'CUSTOMISABLE',
+        policy: 'CUSTOMISABLE',
       },
     ]
 
@@ -2805,6 +3119,94 @@ describe('checkInsController', () => {
         )
       })
 
+      it('shows a question the practitioner wrote, restored from the assigned items', async () => {
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValueOnce({
+          upcoming: {
+            items: [
+              {
+                template: {
+                  id: 77,
+                  template: 'Have you been to the gym?',
+                  responseSpec: { placeholders: [] },
+                  policy: 'CUSTOMISABLE',
+                },
+                params: { placeholders: {} },
+              },
+            ],
+          },
+        } as any)
+        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        const draftId = 'bespoke-f1654ea3-0abb-46eb-860b-654a96edbe20'
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          { [draftId]: 'Have you been to the gym?' },
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({ addedQuestions: [{ id: draftId, fullText: 'Have you been to the gym?' }] }),
+        )
+      })
+
+      it('restores a question whose template has since been retired as a bespoke question of its text', async () => {
+        jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestionItems').mockResolvedValueOnce({
+          upcoming: {
+            items: [
+              {
+                template: {
+                  id: 7,
+                  template: 'Have you heard back from {{thing}}?',
+                  responseSpec: { placeholders: ['thing'] },
+                  policy: 'CUSTOMISABLE',
+                },
+                params: { placeholders: { thing: 'the housing team' } },
+              },
+            ],
+          },
+        } as any)
+        const req = baseReq(sessionWith({ date: '1/2/2026' }))
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        const draftId = 'bespoke-f1654ea3-0abb-46eb-860b-654a96edbe20'
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs'],
+          { [draftId]: 'Have you heard back from the housing team?' },
+        )
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [{ id: draftId, fullText: 'Have you heard back from the housing team?' }],
+          }),
+        )
+      })
+
+      it('lists a bespoke question held in the session by its whole text', async () => {
+        const req = baseReq(
+          sessionWith({
+            date: '1/2/2026',
+            availableTemplates: questionTemplates,
+            questionTemplateAndInputs: { '2-uuid': 'work', 'bespoke-uuid': ' Have you been to the gym? ' },
+          }),
+        )
+
+        await controllers.checkIns.getScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/add-questions.njk',
+          expect.objectContaining({
+            addedQuestions: [
+              { id: '2-uuid', fullText: 'How has work been going recently?' },
+              { id: 'bespoke-uuid', fullText: 'Have you been to the gym?' },
+            ],
+          }),
+        )
+      })
+
       it.each([{ status: 404 }, { status: 422, data: { developerMessage: 'Offender status is INACTIVE' } }])(
         'shows no questions for an expected no-questions response: %j',
         async error => {
@@ -2864,6 +3266,30 @@ describe('checkInsController', () => {
     })
 
     describe('postScheduleCheckInAddQuestions', () => {
+      it('sends a question the practitioner wrote as its text rather than a template', async () => {
+        const req = baseReq(
+          sessionWith({
+            date: '1/2/2026',
+            availableTemplates: questionTemplates,
+            questionTemplateAndInputs: { '2-uuid': 'work', 'bespoke-uuid': 'Have you been to the gym?' },
+          }),
+        )
+
+        await controllers.checkIns.postScheduleCheckInAddQuestions(hmppsAuthClient)(req, res)
+
+        expect(postScheduleAdHocCheckinSpy).toHaveBeenCalledWith(
+          crn,
+          expect.objectContaining({
+            questions: expect.objectContaining({
+              questions: [
+                { id: 2, params: { placeholders: { text: 'work' }, responseFormat: 'TEXT' } },
+                { text: 'Have you been to the gym?', params: { placeholders: {} } },
+              ],
+            }),
+          }),
+        )
+      })
+
       it('schedules the check-in with the selected date and formatted questions', async () => {
         const req = baseReq(
           sessionWith({
@@ -2949,7 +3375,7 @@ describe('checkInsController', () => {
           id: 3,
           template: 'A fixed question?',
           responseSpec: { placeholders: [] as string[] },
-          policy$hmpps_esupervision_api: 'STANDARD',
+          policy: 'STANDARD',
         }
         getTemplatesSpy.mockResolvedValueOnce({ templates: [...questionTemplates, nonCustomisableTemplate] } as any)
         const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
@@ -3007,14 +3433,80 @@ describe('checkInsController', () => {
     })
 
     describe('postScheduleCheckInQuestionsList', () => {
-      it('returns to the add questions page', async () => {
+      const bespokeReq = (text: string, scheduleCheckIn: Record<string, unknown> = {}) => {
+        const req = baseReq(sessionWith(scheduleCheckIn))
+        req.body = { esupervision: { [crn]: { [uuid]: { scheduleCheckIn: { bespokeQuestionInput: text } } } } }
+        return req
+      }
+
+      it('returns to the add questions page without saving when nothing was written', async () => {
         await controllers.checkIns.postScheduleCheckInQuestionsList()(baseReq({}), res)
 
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+
+      it('stores the written question under the ad hoc group, adding a question mark', async () => {
+        const req = bespokeReq('  Have you managed to speak to your   landlord ')
+
+        await controllers.checkIns.postScheduleCheckInQuestionsList()(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs', `bespoke-${uuid}`],
+          'Have you managed to speak to your landlord?',
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+
+      it('keeps a question mark the practitioner typed', async () => {
+        const req = bespokeReq('Is work going ok?')
+
+        await controllers.checkIns.postScheduleCheckInQuestionsList()(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          expect.arrayContaining(['scheduleCheckIn', 'questionTemplateAndInputs']),
+          'Is work going ok?',
+        )
+      })
+
+      it('does not add a fourth question', async () => {
+        const req = bespokeReq('One more question', {
+          questionTemplateAndInputs: { '1-a': 'work', '2-b': 'the housing service', 'bespoke-c': 'Been to the gym?' },
+        })
+
+        await controllers.checkIns.postScheduleCheckInQuestionsList()(req, res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
       })
     })
 
     describe('getScheduleCheckInEditQuestion', () => {
+      it('renders a bespoke question for editing without a template', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: { 'bespoke-uuid': 'Have you been to the gym?' } }))
+        req.params.questionId = 'bespoke-uuid'
+
+        await controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient)(req, res)
+
+        expect(renderSpy).toHaveBeenCalledWith(
+          'pages/check-in/schedule-check-in/edit-question.njk',
+          expect.objectContaining({ questionId: 'bespoke-uuid', isBespoke: true, question: null }),
+        )
+        expect(mockRenderError).not.toHaveBeenCalled()
+      })
+
+      it('returns 404 for a bespoke question id that is not in the session', async () => {
+        const req = baseReq(sessionWith({ questionTemplateAndInputs: {} }))
+        req.params.questionId = 'bespoke-uuid'
+
+        await controllers.checkIns.getScheduleCheckInEditQuestion(hmppsAuthClient)(req, res)
+
+        expect(mockRenderError).toHaveBeenCalledWith(404)
+        expect(renderSpy).not.toHaveBeenCalled()
+      })
+
       it('renders the question matching the template id embedded in the question id', async () => {
         const req = baseReq({})
         req.params.questionId = '2-uuid'
@@ -3080,6 +3572,31 @@ describe('checkInsController', () => {
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
       })
 
+      it('saves an edited bespoke question with a question mark added', async () => {
+        const req = editReq('Have you managed to speak to your landlord')
+        req.params.questionId = 'bespoke-uuid'
+        req.session.data = sessionWith({ questionTemplateAndInputs: { 'bespoke-uuid': 'Have you been to the gym?' } })
+
+        await controllers.checkIns.postScheduleCheckInEditQuestion()(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'scheduleCheckIn', 'questionTemplateAndInputs', 'bespoke-uuid'],
+          'Have you managed to speak to your landlord?',
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+
+      it('saves nothing for a bespoke question id that is not in the session', async () => {
+        const req = editReq('Have you managed to speak to your landlord')
+        req.params.questionId = 'bespoke-uuid'
+
+        await controllers.checkIns.postScheduleCheckInEditQuestion()(req, res)
+
+        expect(mockSetDataValue).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
+      })
+
       it('saves nothing when the answer is blank', async () => {
         await controllers.checkIns.postScheduleCheckInEditQuestion()(editReq('   '), res)
 
@@ -3114,30 +3631,25 @@ describe('checkInsController', () => {
       })
     })
 
-    describe('getScheduleCheckInDeleteQuestion', () => {
+    describe('postScheduleCheckInDeleteQuestion', () => {
       it('removes only the chosen question from the session', async () => {
         const req = baseReq(sessionWith({ questionTemplateAndInputs: { '1-a': 'one', '2-b': 'two' } }))
         req.params.questionId = '1-a'
 
-        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+        await controllers.checkIns.postScheduleCheckInDeleteQuestion()(req, res)
 
         const saved = req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs
         expect(saved['1-a']).toBeUndefined()
         expect(saved['2-b']).toBe('two')
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)
-        checkSendAuditMessage(
-          res,
-          'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_DELETE_QUESTION',
-          crn,
-          SubjectType.CRN,
-        )
+        checkSendAuditMessage(res, 'DELETE_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_QUESTION', crn, SubjectType.CRN)
       })
 
       it('is a no-op when the question is not in the session', async () => {
         const req = baseReq(sessionWith({ questionTemplateAndInputs: { '2-b': 'two' } }))
         req.params.questionId = '1-a'
 
-        await controllers.checkIns.getScheduleCheckInDeleteQuestion()(req, res)
+        await controllers.checkIns.postScheduleCheckInDeleteQuestion()(req, res)
 
         expect(req.session.data.esupervision[crn][uuid].scheduleCheckIn.questionTemplateAndInputs['2-b']).toBe('two')
         expect(redirectSpy).toHaveBeenCalledWith(`${scheduleUrl}/questions/add`)

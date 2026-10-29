@@ -11,6 +11,7 @@ describe('utils/parseQuestionTemplate', () => {
       id: 2,
       template: 'How was {{thing}}?',
       responseSpec: { placeholders: ['thing'] },
+      example: 'job interview, doctors appointment, landlord visit',
     },
     {
       id: 3,
@@ -40,6 +41,7 @@ describe('utils/parseQuestionTemplate', () => {
       prefix: 'How was ',
       suffix: '?',
       placeholderWord: 'thing',
+      example: 'job interview, doctors appointment, landlord visit',
     })
   })
   it('extracts the question examples ', () => {

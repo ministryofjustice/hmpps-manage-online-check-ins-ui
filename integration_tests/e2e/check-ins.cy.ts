@@ -1,7 +1,6 @@
 import ManageCheckins from '../pages/check-ins/manage-checkins'
 import AddQuestionsPage from '../pages/check-ins/questions/add-questions'
 import EditQuestionPage from '../pages/check-ins/questions/edit-question'
-import InstructionsPage from '../pages/check-ins/questions/instructions'
 import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
 import PreviewFeelingPage from '../pages/check-ins/questions/preview/feeling'
 import PreviewSupportPage from '../pages/check-ins/questions/preview/support'
@@ -1273,9 +1272,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubGetUpcomingCheckinQuestionItems')
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
     addQuestionsPage.checkOnPage()
   })
@@ -1288,9 +1285,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
 
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
     addQuestionsPage.checkOnPage()
     addQuestionsPage.getElement('.govuk-table').should('contain.text', 'How have you been feeling')
@@ -1307,7 +1302,7 @@ context('check-ins add questions pages', () => {
     supportPreview.clickBackToQuestions()
     addQuestionsPage.checkOnPage()
     addQuestionsPage.clickCancel()
-    instructionsPage.checkOnPage()
+    new ManageCheckins().checkOnPage()
   })
 
   it('should show the "Add question" button for additional custom questions', () => {
@@ -1379,10 +1374,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
 
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
 
     const addQuestionsPage = new AddQuestionsPage()
 
@@ -1416,6 +1408,49 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionNotInList('your college course')
   })
 
+  it('should allow a user to write their own question', () => {
+    cy.task('resetMocks')
+    cy.task('stubGetQuestionsTemplates')
+    cy.task('stubGetUpcomingCheckinQuestions')
+    cy.task('stubGetUpcomingCheckinQuestionItems')
+    cy.task('stubAssignQuestions')
+    cy.task('stubGetOffenderByCRN', 'X000001')
+
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
+
+    const addQuestionsPage = new AddQuestionsPage()
+    addQuestionsPage.clickAddQuestion()
+    const listQuestionsPage = new ListQuestionsPage()
+
+    // Continue with nothing written
+    listQuestionsPage.clickContinue()
+    listQuestionsPage.checkOnPage()
+    listQuestionsPage.checkErrorSummaryBox(['Enter what you want to ask the person'])
+    listQuestionsPage.checkValidationError('Enter what you want to ask the person')
+
+    // A missing question mark is added
+    listQuestionsPage.enterBespokeQuestion('Have you managed to speak to your landlord')
+    listQuestionsPage.clickContinue()
+
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionInList('Have you managed to speak to your landlord?')
+
+    // Edit the whole question
+    addQuestionsPage.clickEditForQuestion(0)
+    const editQuestionPage = new EditQuestionPage('Write your own question')
+    editQuestionPage.enterDraftQuestionInput('Have you managed to speak to your landlord about the repairs')
+    editQuestionPage.clickContinue()
+
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionInList('Have you managed to speak to your landlord about the repairs?')
+    addQuestionsPage.verifyQuestionNotInList('your landlord?')
+
+    // Delete
+    addQuestionsPage.clickDeleteForQuestion(0)
+    addQuestionsPage.checkOnPage()
+    addQuestionsPage.verifyQuestionNotInList('landlord')
+  })
+
   it('should enforce the maximum limit of 3 custom questions', () => {
     cy.task('resetMocks')
     cy.task('stubGetQuestionsTemplates')
@@ -1423,10 +1458,7 @@ context('check-ins add questions pages', () => {
     cy.task('stubGetUpcomingCheckinQuestionItems')
     cy.task('stubAssignQuestions')
     cy.task('stubGetOffenderByCRN', 'X000001')
-    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/start')
-    const instructionsPage = new InstructionsPage()
-    instructionsPage.clickContinue()
-
+    cy.visit('/case/X000001/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/questions/add')
     const addQuestionsPage = new AddQuestionsPage()
 
     // Add "How has [your apprenticeship] been going recently?"
@@ -1459,7 +1491,7 @@ context('check-ins add questions pages', () => {
     addQuestionsPage.verifyQuestionInList('your apprenticeship')
     addQuestionsPage.verifyQuestionInList('at home')
     addQuestionsPage.verifyQuestionInList('your physical health')
-    addQuestionsPage.verifyAddQuestionButtonHidden()
+    addQuestionsPage.verifyAddQuestionButtonDisabled()
   })
 })
 

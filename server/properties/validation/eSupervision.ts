@@ -5,12 +5,14 @@ import {
   contactPrefMobileCheck,
   isEmail,
   isFutureDate,
+  isNotBlank,
   isNotEmpty,
   isTodayOrLater,
   isValidDate,
   isValidDateFormat,
   isValidMobileNumber,
 } from '../../utils/validationUtils'
+import { bespokeQuestionCharsOrLess } from '../../utils/bespokeQuestions'
 
 export interface ESupervisionValidationArgs {
   crn: string
@@ -26,6 +28,18 @@ export interface ESupervisionValidationArgs {
   stopCheckIn?: string
   // schedule-check-in-date: the date page is moving a check in that is already booked
   movingBookedCheckin?: boolean
+  // edit-question: the question being edited is one the practitioner wrote, not a template
+  bespokeQuestion?: boolean
+}
+
+export const BESPOKE_QUESTION_MAX_LENGTH = 1000
+
+// The length limit on a question the practitioner writes, whether on the choose-a-question page or
+// when editing one later. The API enforces the same limit.
+const bespokeQuestionLengthCheck = {
+  validator: bespokeQuestionCharsOrLess,
+  length: BESPOKE_QUESTION_MAX_LENGTH,
+  msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
 }
 
 export const eSuperVisionValidation = (args: ESupervisionValidationArgs): ValidationSpec => {
@@ -40,6 +54,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     preferredComs = '',
     eligibilitySessionKey = 'checkins',
     change = '',
+    bespokeQuestion = false,
   } = args
   return {
     // Setup flow — eligibility through to the photo.
@@ -315,10 +330,24 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'edit-question',
       checks: [
         {
-          validator: isNotEmpty,
-          msg: 'Enter what you want to ask',
+          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
+          msg: bespokeQuestion ? 'Enter what you want to ask the person' : 'Enter what you want to ask',
           log: 'Question text not entered',
         },
+        ...(bespokeQuestion ? [bespokeQuestionLengthCheck] : []),
+      ],
+    },
+
+    // list-questions: "Write your own question" on the choose-a-question page
+    [`[esupervision][${crn}][${id}][manageQuestions][bespokeQuestionInput]`]: {
+      optional: page !== 'list-questions',
+      checks: [
+        {
+          validator: isNotBlank,
+          msg: 'Enter what you want to ask the person',
+          log: 'Bespoke question text not entered',
+        },
+        bespokeQuestionLengthCheck,
       ],
     },
 
@@ -343,10 +372,24 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'schedule-check-in-edit-question',
       checks: [
         {
-          validator: isNotEmpty,
+          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
           msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
+        ...(bespokeQuestion ? [bespokeQuestionLengthCheck] : []),
+      ],
+    },
+
+    // schedule-check-in-list-questions: "Write your own question" on the ad hoc choose-a-question page
+    [`[esupervision][${crn}][${id}][scheduleCheckIn][bespokeQuestionInput]`]: {
+      optional: page !== 'schedule-check-in-list-questions',
+      checks: [
+        {
+          validator: isNotBlank,
+          msg: 'Enter what you want to ask the person',
+          log: 'Bespoke question text not entered',
+        },
+        bespokeQuestionLengthCheck,
       ],
     },
   }
