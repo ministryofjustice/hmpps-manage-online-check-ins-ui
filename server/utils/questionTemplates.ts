@@ -32,6 +32,8 @@ export interface SavedQuestionItem {
 // whose template has since been retired is no longer offered by the API and cannot be re-assigned by
 // id, so it is carried as a bespoke question of its resolved text: the practitioner keeps the
 // question as the person last saw it, can edit or remove it, and saving re-sends it as their own.
+// The list also carries the FIXED default questions every check in asks; those are not the
+// practitioner's to edit and are left out.
 export const savedQuestionsToDrafts = (
   items: SavedQuestionItem[],
   availableTemplates: { id: number | string }[],

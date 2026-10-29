@@ -83,7 +83,7 @@ describe('savedQuestionsToDrafts', () => {
           template: {
             id: 7,
             template: 'Have you heard back from {{thing}}',
-            policy: 'SYSTEM',
+            policy: 'CUSTOMISABLE',
             responseSpec: { placeholders: ['thing'] },
           },
           params: { placeholders: { thing: 'the housing team' } },
@@ -92,6 +92,28 @@ describe('savedQuestionsToDrafts', () => {
       offered,
     )
     expect(drafts).toEqual({ 'bespoke-uuid': 'Have you heard back from the housing team?' })
+  })
+
+  it('leaves out the FIXED default questions that every check in asks', () => {
+    const drafts = savedQuestionsToDrafts(
+      [
+        {
+          template: {
+            id: 1001,
+            template: 'How have you been feeling since we last spoke?',
+            policy: 'FIXED',
+            responseSpec: { placeholders: [] },
+          },
+          params: { placeholders: {} },
+        },
+        {
+          template: { id: 1, template: 'How has {{thing}} been going?', policy: 'CUSTOMISABLE' },
+          params: { placeholders: { thing: 'work' } },
+        },
+      ],
+      offered,
+    )
+    expect(drafts).toEqual({ '1-uuid': 'work' })
   })
 
   it('returns no drafts when nothing is saved', () => {
