@@ -44,7 +44,7 @@ export const savedQuestionsToDrafts = (
       drafts[`${item.template.id}-${uuidv4()}`] = Object.values(placeholders)[0] || ''
     } else if (isBespokeTemplate(item.template)) {
       drafts[newBespokeDraftId()] = item.template.template
-    } else {
+    } else if (isCustomisableTemplate(item.template)) {
       drafts[newBespokeDraftId()] = ensureQuestionMark(resolveTemplateText(item.template.template, placeholders))
     }
   })
