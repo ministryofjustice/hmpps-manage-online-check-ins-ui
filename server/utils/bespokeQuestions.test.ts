@@ -61,7 +61,8 @@ describe('utils/bespokeQuestions', () => {
     it.each([
       ['long enough', [5, 'Hello'], true],
       ['too short', [5, 'Why?'], false],
-      ['does not count the question mark it would add', [5, 'Why '], false],
+      ['counts the question mark it will add', [5, 'Well'], true],
+      ['judges a typed question mark the same as an added one', [5, 'Well?'], true],
       ['surrounding whitespace is not counted', [5, '   abc   '], false],
       ['runs of whitespace count once', [5, 'a    b'], false],
       ['empty', [5, ''], false],

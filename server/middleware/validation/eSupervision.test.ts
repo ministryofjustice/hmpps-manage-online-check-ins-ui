@@ -719,6 +719,20 @@ describe('Test eSuperVision validation', () => {
       expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
     })
 
+    it('rejects a template question answer that is only whitespace', () => {
+      const req = makeReq({
+        url: `/case/${crn}/appointments/check-in/manage/${id}/questions/1-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
+        body: { esupervision: { [crn]: { [id]: { manageQuestions: { draftQuestionInput: '   ' } } } } },
+        session: { data: { esupervision: sessionEsupervision } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      const { errorMessages } = (res.render as jest.Mock).mock.calls[0][1]
+      expect(Object.values(errorMessages)).toEqual(['Enter what you want to ask the person'])
+    })
+
     it('rejects a bespoke question edit that is only whitespace', () => {
       const req = makeReq({
         url: `/case/${crn}/appointments/check-in/manage/${id}/questions/bespoke-f47ac10b-58cc-4372-a567-0e02b2c3d479/edit`,
@@ -933,6 +947,20 @@ describe('Test eSuperVision validation', () => {
         expect(next).not.toHaveBeenCalled()
         const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
         expect(Object.values(renderArgs.errorMessages)).toEqual(['Question must be 1000 characters or less'])
+      })
+
+      it('rejects a template question answer that is only whitespace', () => {
+        const req = makeReq({
+          url: scheduleEditQuestionUrl,
+          body: { esupervision: scheduleSession({ draftQuestionInput: '   ' }) },
+          session: { data: { esupervision: sessionEsupervision } },
+        })
+        const res = makeRes()
+        validation.eSuperVision(req, res, next)
+
+        expect(next).not.toHaveBeenCalled()
+        const [, renderArgs] = (res.render as jest.Mock).mock.calls[0]
+        expect(Object.values(renderArgs.errorMessages)).toEqual(['Enter what you want to ask the person'])
       })
 
       it('rejects a bespoke question edit that is only whitespace', () => {

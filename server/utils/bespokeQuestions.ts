@@ -20,10 +20,9 @@ export const ensureQuestionMark = (text: string): string => {
 // which may add a trailing '?', so the limit applies to that text rather than what was typed.
 export const bespokeQuestionCharsOrLess = (args: any[]): boolean => ensureQuestionMark(args[1]).length <= args[0]
 
-// Validator for the minimum length: counts what was typed once whitespace is tidied, without the
-// question mark ensureQuestionMark() may add, so a stray character or two is not enough.
-export const bespokeQuestionCharsOrMore = (args: any[]): boolean =>
-  (args[1] ?? '').replace(/\s+/g, ' ').trim().length >= args[0]
+// Validator for the minimum length. Measures the same stored text as the limit above, so 'Well'
+// and 'Well?' are judged alike: both are saved as 'Well?'.
+export const bespokeQuestionCharsOrMore = (args: any[]): boolean => ensureQuestionMark(args[1]).length >= args[0]
 
 // A template the API returns that is not one of the offered SYSTEM templates and has nothing to
 // fill in is a bespoke question saved earlier, authored by a practitioner.

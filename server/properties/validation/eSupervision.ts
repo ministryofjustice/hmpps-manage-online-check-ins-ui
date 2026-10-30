@@ -340,7 +340,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'edit-question',
       checks: [
         {
-          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
+          validator: isNotBlank,
           msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
@@ -383,7 +383,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       optional: page !== 'schedule-check-in-edit-question',
       checks: [
         {
-          validator: bespokeQuestion ? isNotBlank : isNotEmpty,
+          validator: isNotBlank,
           msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
