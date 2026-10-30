@@ -12,7 +12,7 @@ import {
   isValidDateFormat,
   isValidMobileNumber,
 } from '../../utils/validationUtils'
-import { bespokeQuestionCharsOrLess } from '../../utils/bespokeQuestions'
+import { bespokeQuestionCharsOrLess, bespokeQuestionCharsOrMore } from '../../utils/bespokeQuestions'
 
 export interface ESupervisionValidationArgs {
   crn: string
@@ -33,6 +33,7 @@ export interface ESupervisionValidationArgs {
 }
 
 export const BESPOKE_QUESTION_MAX_LENGTH = 1000
+export const BESPOKE_QUESTION_MIN_LENGTH = 5
 
 // The length limit on a question the practitioner writes, whether on the choose-a-question page or
 // when editing one later. The API enforces the same limit.
@@ -40,6 +41,15 @@ const bespokeQuestionLengthCheck = {
   validator: bespokeQuestionCharsOrLess,
   length: BESPOKE_QUESTION_MAX_LENGTH,
   msg: `Question must be ${BESPOKE_QUESTION_MAX_LENGTH} characters or less`,
+}
+
+// A question the practitioner writes must say something: a couple of characters is treated the same
+// as nothing entered, so it reuses that message.
+const bespokeQuestionMinLengthCheck = {
+  validator: bespokeQuestionCharsOrMore,
+  length: BESPOKE_QUESTION_MIN_LENGTH,
+  msg: 'Enter what you want to ask the person',
+  log: 'Bespoke question text too short',
 }
 
 export const eSuperVisionValidation = (args: ESupervisionValidationArgs): ValidationSpec => {
@@ -334,7 +344,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
           msg: bespokeQuestion ? 'Enter what you want to ask the person' : 'Enter what you want to ask',
           log: 'Question text not entered',
         },
-        ...(bespokeQuestion ? [bespokeQuestionLengthCheck] : []),
+        ...(bespokeQuestion ? [bespokeQuestionMinLengthCheck, bespokeQuestionLengthCheck] : []),
       ],
     },
 
@@ -347,6 +357,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
           msg: 'Enter what you want to ask the person',
           log: 'Bespoke question text not entered',
         },
+        bespokeQuestionMinLengthCheck,
         bespokeQuestionLengthCheck,
       ],
     },
@@ -376,7 +387,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
           msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
-        ...(bespokeQuestion ? [bespokeQuestionLengthCheck] : []),
+        ...(bespokeQuestion ? [bespokeQuestionMinLengthCheck, bespokeQuestionLengthCheck] : []),
       ],
     },
 
@@ -389,6 +400,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
           msg: 'Enter what you want to ask the person',
           log: 'Bespoke question text not entered',
         },
+        bespokeQuestionMinLengthCheck,
         bespokeQuestionLengthCheck,
       ],
     },
