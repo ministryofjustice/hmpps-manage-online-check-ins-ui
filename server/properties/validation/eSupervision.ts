@@ -341,7 +341,7 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
       checks: [
         {
           validator: bespokeQuestion ? isNotBlank : isNotEmpty,
-          msg: bespokeQuestion ? 'Enter what you want to ask the person' : 'Enter what you want to ask',
+          msg: 'Enter what you want to ask the person',
           log: 'Question text not entered',
         },
         ...(bespokeQuestion ? [bespokeQuestionMinLengthCheck, bespokeQuestionLengthCheck] : []),
