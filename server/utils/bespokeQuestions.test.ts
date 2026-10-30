@@ -1,5 +1,6 @@
 import {
   bespokeQuestionCharsOrLess,
+  bespokeQuestionCharsOrMore,
   ensureQuestionMark,
   isBespokeDraftId,
   isBespokeTemplate,
@@ -53,6 +54,21 @@ describe('utils/bespokeQuestions', () => {
       ['empty', [10, ''], true],
     ])('%s', (_: string, a: any[], expected: boolean) => {
       expect(bespokeQuestionCharsOrLess(a)).toEqual(expected)
+    })
+  })
+
+  describe('bespokeQuestionCharsOrMore', () => {
+    it.each([
+      ['long enough', [5, 'Hello'], true],
+      ['too short', [5, 'Why?'], false],
+      ['counts the question mark it will add', [5, 'Well'], true],
+      ['judges a typed question mark the same as an added one', [5, 'Well?'], true],
+      ['surrounding whitespace is not counted', [5, '   abc   '], false],
+      ['runs of whitespace count once', [5, 'a    b'], false],
+      ['empty', [5, ''], false],
+      ['undefined', [5, undefined], false],
+    ])('%s', (_: string, a: any[], expected: boolean) => {
+      expect(bespokeQuestionCharsOrMore(a)).toEqual(expected)
     })
   })
 })
