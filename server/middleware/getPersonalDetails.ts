@@ -91,6 +91,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
 export const getPersonalDetails = (
   hmppsAuthClient: HmppsAuthClient,
   arnsComponents: ArnsComponents,
+  { refresh = false }: { refresh?: boolean } = {},
 ): Route<Promise<void>> => {
   return async (req, res, next) => {
     const { crn } = req.params as Record<string, string>
@@ -98,7 +99,7 @@ export const getPersonalDetails = (
     const eSupervisionClient = new ESupervisionClient(token)
 
     const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
-    let details = readCache(req, crn)
+    let details = refresh ? undefined : readCache(req, crn)
     // A cache entry written while the flag was off never fetched practitioner details, so it
     // must be treated as stale once the flag turns on, or allocated cases render as unallocated.
     const missingPractitioner = includePractitioner && details?.practitionerDetails === undefined
