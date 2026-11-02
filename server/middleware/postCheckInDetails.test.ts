@@ -52,7 +52,8 @@ const buildRequest = () =>
                 date: '1/8/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
-                eligibilityChoice: [],
+                tierBand: 'AB',
+                eligibility: ['none'],
                 rationale: 'Stable and low risk',
               },
               setupStartedAt: startedAt,
@@ -103,6 +104,47 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(req, res)
 
     expect(mockPostOffenderSetup.mock.calls[0][0].startedAt).toBeUndefined()
+  })
+
+  it.each([
+    [['none'], { accreditedProgramme: false, deviceRestriction: false, youthSentence: false }],
+    ['accreditedProgramme', { accreditedProgramme: true, deviceRestriction: false, youthSentence: false }],
+    [
+      ['accreditedProgramme', 'youthSentence'],
+      { accreditedProgramme: true, deviceRestriction: false, youthSentence: true },
+    ],
+  ])('sends the eligibility answers for %p', async (eligibility, eligibilityAnswers) => {
+    const req = buildRequest()
+    req.session.data.esupervision[crn][id].checkins.eligibility = eligibility
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ eligibilityAnswers }))
+  })
+
+  it.each(['eligibility', 'tierBand'])('does not start setup when %s is missing', async field => {
+    const req = buildRequest()
+    delete req.session.data.esupervision[crn][id].checkins[field]
+
+    await expect(postCheckInDetails(hmppsAuthClient)(req, res)).rejects.toMatchObject({ status: 400 })
+
+    expect(mockPostOffenderSetup).not.toHaveBeenCalled()
+    expect(mockGetProfilePhotoUploadLocation).not.toHaveBeenCalled()
+  })
+
+  it.each(['C', 'DG'])('sends null for A/B-only answers for tier band %s', async tierBand => {
+    const req = buildRequest()
+    const { checkins } = req.session.data.esupervision[crn][id]
+    checkins.tierBand = tierBand
+    checkins.eligibility = ['accreditedProgramme', 'youthSentence']
+
+    await postCheckInDetails(hmppsAuthClient)(req, res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
+      }),
+    )
   })
 
   it('sends a standard interval with the scheduled mode and its first check-in date', async () => {
