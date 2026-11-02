@@ -11,9 +11,12 @@
   }) %}
 {% endif %}
 {% set showAnchorLink = true %}
-{% set formAnchorLink = "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
 {% set formAnchorText = "Cancel and go back" %}
-{% set backLink = back if back else "/case/"+  crn + "/appointments/check-in/manage/" + id + "/questions/add" %}
+{# A question already in the session is being edited from the add page; a new one was picked on the list page. #}
+{% set isEditing = data.esupervision[crn][id].manageQuestions.questionTemplateAndInputs[questionId] is defined %}
+{% set questionsBase = "/case/" + crn + "/appointments/check-in/manage/" + id + "/questions" %}
+{% set backLink = questionsBase + "/add" if isEditing else questionsBase + "/list" %}
+{% set formAnchorLink = backLink %}
 {% set buttonText = "Continue" %}
 {% set htmlId = "esupervision-" + crn + "-" + id + "-manageQuestions-draftQuestionInput" %}
 {% set inputName = "esupervision[" + crn + "][" + id + "][manageQuestions][draftQuestionInput]" %}

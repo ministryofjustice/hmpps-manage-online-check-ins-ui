@@ -410,10 +410,11 @@ describe('shared eligibility templates in reactivation', () => {
 })
 
 describe.each([
-  ['questions/edit-question', 'manageQuestions'],
-  ['schedule-check-in/edit-question', 'scheduleCheckIn'],
-])('%s', (view, group) => {
+  ['questions/edit-question', 'manageQuestions', 'questions'],
+  ['schedule-check-in/edit-question', 'scheduleCheckIn', 'schedule-check-in/questions'],
+])('%s', (view, group, questionsPath) => {
   const questionId = '1-question'
+  const questionsUrl = `/case/${crn}/appointments/check-in/manage/${id}/${questionsPath}`
   const fieldId = `esupervision-${crn}-${id}-${group}-draftQuestionInput`
   const renderWithSavedAnswer = (body?: Record<string, unknown>) =>
     render(view, {
@@ -442,6 +443,29 @@ describe.each([
     const html = await renderWithSavedAnswer()
 
     expect(html).toMatch(new RegExp(`id="${fieldId}"[^>]*value="previous answer"`))
+  })
+
+  it('links back to the add page when editing a question already in the session', async () => {
+    const html = await renderWithSavedAnswer()
+
+    expect(html).toContain(`href="${questionsUrl}/add" class="govuk-back-link"`)
+  })
+
+  it('links back to the question list when the question is new', async () => {
+    const html = await render(view, {
+      ...base,
+      question: { prefix: 'How has ', suffix: '?', questionExamples: [] },
+      questionId: '1-new',
+      data: {
+        esupervision: {
+          [crn]: {
+            [id]: { [group]: { questionTemplateAndInputs: { [questionId]: 'previous answer' } } },
+          },
+        },
+      },
+    })
+
+    expect(html).toContain(`href="${questionsUrl}/list" class="govuk-back-link"`)
   })
 })
 

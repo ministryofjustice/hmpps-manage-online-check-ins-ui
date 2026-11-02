@@ -1363,7 +1363,7 @@ context('check-ins add questions pages', () => {
     const editQuestionPage = new EditQuestionPage()
     editQuestionPage.clickContinue()
 
-    editQuestionPage.checkValidationError('Enter what you want to ask')
+    editQuestionPage.checkValidationError('Enter what you want to ask the person')
   })
 
   it('should allow a user to add, edit, and delete a custom question', () => {
