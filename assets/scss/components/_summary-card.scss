@@ -6,7 +6,7 @@
   /* Card header */
   .app-summary-card__header {
     align-items: center;
-    background-color: govuk-colour('light-grey');
+    background-color: govuk-colour('black', $variant: 'tint-95');
     padding: govuk-spacing(3);
 
     @include govuk-media-query($from: desktop) {
@@ -137,7 +137,7 @@
 .app-compliance-panel {
   padding: govuk-spacing(3);
   color: govuk-colour('white');
-  background: govuk-colour('dark-grey');
+  background: govuk-colour('black', $variant: 'tint-25');
 
   p,
   ul,
@@ -172,4 +172,3 @@
 .app-tag--dark-red {
   background: govuk-colour('red');
 }
-
