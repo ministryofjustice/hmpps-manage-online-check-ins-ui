@@ -1,10 +1,14 @@
-@use '@ministryofjustice/frontend/moj/all' as * with (
-  $moj-page-width: 1170px,
-  $govuk-global-styles: true
+@use "node_modules/govuk-frontend/dist/govuk" with (
+ $govuk-global-styles: true,
+ $govuk-page-width: 1170px
 );
 
-@use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer';
-@use '@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header';
+@forward "node_modules/@ministryofjustice/frontend/moj/all" with (
+ $moj-page-width: 1170px
+);
+
+@use "@ministryofjustice/hmpps-probation-frontend-components/dist/assets/header" as moj-header;
+@use "@ministryofjustice/hmpps-probation-frontend-components/dist/assets/footer" as moj-footer;
 
 @use './overrides/local';
 @use './components/link-button';
@@ -14,4 +18,5 @@
 @use './components/checkboxes';
 
 @import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';
-@import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/all';
+// Commenting this out for now - its not required until the new header goes live, and is causing our SCSS to not compile
+// @import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/all';

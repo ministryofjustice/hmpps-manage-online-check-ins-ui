@@ -42,7 +42,7 @@
 
   span {
     display: block;
-    background: govuk-colour('light-grey');
+    background: govuk-colour('black', $variant: 'tint-95');
     padding: 1rem;
     color: $govuk-text-colour;
     @include govuk-font($size: 19);
