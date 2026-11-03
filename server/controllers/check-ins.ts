@@ -47,6 +47,7 @@ import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } fr
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
 import {
   eligibilityViews,
+  eligibilityAnswersFromSelections,
   hasCompletedDiscussion,
   missingTierReason,
   nextAfterEligibilityCheck,
@@ -2542,6 +2543,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           currentEvent: restartDetails.currentEvent,
           reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
           pilotCheck: restartDetails.pilotCheck,
+          eligibilityAnswers: eligibilityAnswersFromSelections(restartDetails.eligibility, restartDetails.tierBand),
           checkinSchedule: {
             requestedBy: res.locals.user.username,
             // An ad-hoc restart schedules no first check in; the practitioner books them one at a time.
@@ -2840,7 +2842,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getEditQuestionPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
-      const { back } = req.query
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_ADD_CHECK_IN_QUESTIONS_EDIT', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
@@ -2878,7 +2879,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         questionId,
-        back,
         isBespoke,
         case: offenderDetails.details,
         question: questionForView,
@@ -3251,7 +3251,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   getScheduleCheckInEditQuestion: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id, questionId } = req.params as Record<string, string>
-      const { back } = req.query
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SCHEDULE_CHECK_IN_EDIT_QUESTION', crn, SubjectType.CRN)
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const offenderDetails = res.locals.offenderCheckinsByCRNResponse
@@ -3286,7 +3285,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         questionId,
-        back,
         isBespoke,
         case: offenderDetails.details,
         question: questionForView,

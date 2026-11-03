@@ -36,7 +36,6 @@ it('walks eligibility -> rationale -> check-in-frequency -> check-in-date -> con
 
   await post(ck({ eligibility: ['eligibility-none'] }))
   session.data.esupervision[crn][id].checkins.id = id // set by postFullEligibilityPage
-  await post(ck({ eligibilityChoice: 'REPLACE_F2F' }))
   await post(ck({ eligibilitySPOApproval: 'spo-approval' }))
   expect(await checkAccess(['id'])).toBe('ALLOWED') // rationale page
 
@@ -63,7 +62,6 @@ it('walks eligibility -> rationale -> check-in-frequency -> check-in-date -> con
   expect(session.data.esupervision[crn][id].checkins).toEqual({
     id,
     eligibility: ['eligibility-none'],
-    eligibilityChoice: 'REPLACE_F2F',
     eligibilitySPOApproval: 'spo-approval',
     rationale: 'Stable and low risk',
     date: '1/8/2026',

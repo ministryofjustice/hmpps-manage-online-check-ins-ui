@@ -1,4 +1,5 @@
 import { Errors } from './Errors'
+import { TierBand } from '../utils/getTierBand'
 import { NdeliusEvent } from '../data/model/personalDetails'
 import { EsupervisionQuestionTemplatesList, SupervisionPackageStatus } from '../data/model/esupervision'
 
@@ -34,8 +35,8 @@ export interface CheckinUserDetails {
   contactUpdated?: boolean
   settingsUpdated?: boolean
   eligibility?: string[]
+  tierBand?: TierBand
   pilotCheck?: string
-  eligibilityChoice?: 'REPLACE_F2F' | 'SUPPLEMENT_F2F'
   eligibilitySPOApproval?: any
   rationale?: string
 }

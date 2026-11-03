@@ -8,6 +8,7 @@ import {
   EsupervisionAssignQuestionsRequest,
   EsupervisionAssignQuestionsResponse,
   ESupervisionCheckIn,
+  OffenderSetupAnswers,
   EsupervisionUpcomingQuestionItemsResponse,
   EsupervisionUpcomingQuestionsResponse,
   OffenderByCRNResponse,
@@ -85,6 +86,26 @@ describe('ESupervisionClient', () => {
         .reply(200, response)
 
       const output = await client.getOffenderCheckIn(checkInUuid, false)
+
+      expect(output).toEqual(response)
+    })
+  })
+
+  describe('postOffenderSetupComplete', () => {
+    it('should POST the practitioner answers when completing offender setup', async () => {
+      const setupId = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
+      const answers: OffenderSetupAnswers = {
+        rationale: 'Stable and low risk',
+        eligibilityAnswers: { accreditedProgramme: true, deviceRestriction: false, youthSentence: true },
+      }
+      const response = { uuid: setupId }
+
+      fakeESupervisionApi
+        .post(`/v2/offender_setup/${setupId}/complete`, JSON.stringify(answers))
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.postOffenderSetupComplete(setupId, answers)
 
       expect(output).toEqual(response)
     })
@@ -235,6 +256,7 @@ describe('ESupervisionClient', () => {
         requestedBy: 'practitioner-1',
         reason: 'Suitable for online check ins',
         pilotCheck: 'true',
+        eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
         checkinSchedule: {
           requestedBy: 'practitioner-1',
           firstCheckin: '2026-11-01',
