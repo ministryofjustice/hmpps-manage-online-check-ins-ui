@@ -17,6 +17,16 @@
 @use './components/summary-card';
 @use './components/checkboxes';
 
+// The MPOP components library is written for the legacy global @import style: its files call
+// govuk-colour(), govuk-font() etc. without loading them. Expose GOV.UK Frontend to the importing
+// scope and @import the components one by one. risk-flag-badge is left out: it has its own @use
+// rule, which makes Sass treat it as a module that cannot see these globals, and this service
+// renders risk flags with the MoJ badge instead. Revert to a single @use of dist/all once the
+// library loads GOV.UK Frontend itself.
+@use "node_modules/govuk-frontend/dist/govuk" as *;
+@import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/mpop/components/supervision-package/supervision-package';
+@import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/mpop/components/pop-header/pop-header';
+@import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/mpop/components/supervision-final-third-progress/supervision-final-third-progress';
+@import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/mpop/components/person-header/person-header';
+
 @import '@ministryofjustice/hmpps-arns-frontend-components-lib/dist/all';
-// Commenting this out for now - its not required until the new header goes live, and is causing our SCSS to not compile
-// @import '@ministryofjustice/hmpps-mpop-frontend-components-lib/dist/all';
