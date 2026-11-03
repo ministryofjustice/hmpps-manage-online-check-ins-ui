@@ -218,7 +218,17 @@ const tierStatusReasons: Record<typeof MISSING_TIER | typeof NOT_SUPERVISED_TIER
 function requireBand(req: Request, res: Response, crn: string, id: string): TierBand | null {
   const eligibilityContext = eligibilityContextFor(res, crn, id)
   const status: TierStatus | null = getTierBand(res.locals.tierScore as string)
+  // restrictEligibilityAccess trusts a saved band, so one from an earlier pass must not outlive a rejection.
+  const clearSavedBand = () => {
+    req.session.data = req.session.data || {}
+    setDataValue(
+      req.session.data,
+      ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'],
+      undefined,
+    )
+  }
   const ruleOut = (reason: string): null => {
+    clearSavedBand()
     setNotEligibleReason(req, crn, id, reason, eligibilityContext.eligibilitySessionKey)
     res.redirect(eligibilityContext.urlForEligibilityPage('not-eligible'))
     return null
@@ -233,6 +243,7 @@ function requireBand(req: Request, res: Response, crn: string, id: string): Tier
     return ruleOut(provisionalTierReason)
   }
   if (!status) {
+    clearSavedBand()
     renderError(500)(req, res)
     return null
   }
