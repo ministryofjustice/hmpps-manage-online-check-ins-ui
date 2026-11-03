@@ -88,6 +88,27 @@ describe('check-in setup flow', () => {
       expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(events[0]?.number)
     })
 
+    it.each([
+      { journey: 'setup', events: [] },
+      { journey: 'setup', events: [event(4, '2028-01-01')] },
+      { journey: 'reactivation', events: [] },
+      { journey: 'reactivation', events: [event(4, '2028-01-01')] },
+    ])('returns skipped selection edits to the $journey summary: $events', async ({ journey, events }) => {
+      withEvents(events)
+      const req = requestFor()
+      req.query.cya = 'true'
+      const res = mockAppResponse({ checkInEligibilityJourney: journey })
+
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        journey === 'setup'
+          ? `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+          : `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`,
+      )
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
     it('preselects the previous active event during reactivation', async () => {
       withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor()
@@ -108,6 +129,25 @@ describe('check-in setup flow', () => {
       })
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
       expect(req.session.data.esupervision[crn][id].restartCheckin.currentEvent).toBeUndefined()
+    })
+
+    it('returns to selection when refresh removes the chosen event and Back opens the summary', async () => {
+      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
+      const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: { currentEvent: 7 } } } } } })
+      req.query.cya = 'true'
+      const res = mockAppResponse()
+
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+      expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBeUndefined()
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/sentence-selection.njk',
+        expect.objectContaining({ backLink: `/case/${crn}/appointments/${id}/check-in/checkin-summary` }),
+      )
+
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/sentence-selection?cya=true`)
     })
 
     it.each(['setup', 'reactivation'] as const)('retains the chosen sentence when revisiting %s', async journey => {
@@ -166,6 +206,68 @@ describe('check-in setup flow', () => {
       )
       expect(res.redirect).not.toHaveBeenCalled()
       expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(1)
+    })
+  })
+
+  describe('setup event validation', () => {
+    it.each([
+      undefined,
+      { events: undefined, currentEvent: 7 },
+      { events: null, currentEvent: undefined },
+      { events: [{ number: 7 }], currentEvent: undefined },
+      { events: [{ number: 1 }, { number: 2 }], currentEvent: undefined },
+      { events: [{ number: 1 }, { number: 2 }], currentEvent: 7 },
+      { events: [], currentEvent: 7 },
+    ])('redirects incomplete summaries and blocks submission: %j', async checkins => {
+      const req = requestFor(
+        { contentSha256: 'YWJjMTIz' },
+        { data: { esupervision: { [crn]: { [id]: { checkins } } } } },
+      )
+      const res = mockAppResponse()
+
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/sentence-selection?cya=true`)
+      expect(res.render).not.toHaveBeenCalled()
+
+      await controllers.checkIns.postCheckinSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(res.status).toHaveBeenCalledWith(409)
+      expect(res.json).toHaveBeenCalledWith({ status: 'ERROR', message: 'Select a sentence before submitting setup' })
+      expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      { events: [{ number: 7 }], currentEvent: 7 },
+      { events: [{ number: 1 }, { number: 7 }], currentEvent: 7 },
+      { events: [], currentEvent: undefined },
+    ])('renders and submits a complete selection: %j', async selection => {
+      const postOffenderSetup = jest.fn().mockResolvedValue({ uuid: id })
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ username: 'practitioner' }),
+        postOffenderSetup,
+        getProfilePhotoUploadLocation: jest.fn().mockResolvedValue({}),
+      }))
+      const req = requestFor(
+        { contentSha256: 'YWJjMTIz' },
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: { checkins: { ...selection, interval: 'AD_HOC', eligibility: ['none'], tierBand: 'DG' } },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse()
+
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/checkin-summary.njk', expect.anything())
+
+      await controllers.checkIns.postCheckinSummaryPage(hmppsAuthClient)(req, res)
+      expect(postOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ currentEvent: selection.currentEvent }))
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'SUCCESS' }))
     })
   })
 
@@ -1139,7 +1241,15 @@ describe('check-in setup flow', () => {
     it('renders the check-your-answers page for an in-progress setup', async () => {
       const req = requestFor(
         {},
-        { data: { esupervision: { [crn]: { [id]: { checkins: { photoUploadOption: 'TAKE_A_PIC' } } } } } },
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, photoUploadOption: 'TAKE_A_PIC' } },
+              },
+            },
+          },
+        },
       )
       const res = mockAppResponse()
       await controllers.checkIns.getCheckinSummaryPage()(req, res)
@@ -1151,7 +1261,18 @@ describe('check-in setup flow', () => {
     it('reverts an interval with no date to ad-hoc, since that is the answer being abandoned', async () => {
       const session = {
         data: {
-          esupervision: { [crn]: { [id]: { checkins: { interval: 'WEEKLY', photoUploadOption: 'TAKE_A_PIC' } } } },
+          esupervision: {
+            [crn]: {
+              [id]: {
+                checkins: {
+                  events: [{ number: 1 }],
+                  currentEvent: 1,
+                  interval: 'WEEKLY',
+                  photoUploadOption: 'TAKE_A_PIC',
+                },
+              },
+            },
+          },
         },
       }
       const req = requestFor({}, session)
@@ -1168,7 +1289,13 @@ describe('check-in setup flow', () => {
 
     it('keeps an interval that has its date', async () => {
       const session = {
-        data: { esupervision: { [crn]: { [id]: { checkins: { interval: 'WEEKLY', date: '1/1/2030' } } } } },
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, interval: 'WEEKLY', date: '1/1/2030' } },
+            },
+          },
+        },
       }
       const req = requestFor({}, session)
       const res = mockAppResponse()

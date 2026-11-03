@@ -65,6 +65,12 @@ const checkinIntervals: { id: string; label: string }[] = [
   { id: 'AD_HOC', label: "I'll schedule them one at a time" },
 ]
 
+const hasValidEventSelection = (details?: Pick<CheckinUserDetails, 'events' | 'currentEvent'>): boolean => {
+  if (!Array.isArray(details?.events)) return false
+  const { events, currentEvent } = details
+  return events.length === 0 ? currentEvent == null : events.some(event => event.number === currentEvent)
+}
+
 // getPersonalDetails middleware already fetches practitioner details when the new header flag is
 // on, so reuse res.locals.practitioner instead of making the same request again here.
 const getAllocationPractitioner = async (
@@ -979,12 +985,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         events.find(event => String(event.number) === String(selected))?.number ??
         (context.journey === 'reactivation' ? events.find(event => event.number === previous)?.number : undefined)
       setDataValue(req.session.data, [...path, 'currentEvent'], events.length === 1 ? events[0].number : currentEvent)
-      if (events.length < 2) return res.redirect(context.urlForEligibilityPage('check-in-frequency'))
       const cya = req.query.cya === 'true'
       const summary =
         context.journey === 'reactivation'
           ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
           : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      if (events.length < 2) return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
       const accreditedProgramme = getDataValue(req.session.data, [...path, 'accreditedProgramme'])
       return res.render('pages/check-in/sentence-selection.njk', {
         crn,
@@ -1552,6 +1558,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/check-in/manage`,
         )
       }
+      if (!hasValidEventSelection(savedUserDetails)) {
+        return res.redirect(`/case/${crn}/appointments/${id}/check-in/sentence-selection?cya=true`)
+      }
       // A "change" link into edit-contact-preference can be abandoned with the back link
       // before a missing mobile/email is actually entered - re-check here so setup can't be
       // confirmed with no way to reach the person on their chosen contact method.
@@ -1587,6 +1596,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // presigned S3 location so the browser can PUT the photo before confirming.
   postCheckinSummaryPage: hmppsAuthClient => {
     return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
+      if (!hasValidEventSelection(savedUserDetails)) {
+        res.status(409).json({ status: 'ERROR', message: 'Select a sentence before submitting setup' })
+        return
+      }
       try {
         const { setup, uploadLocation } = await postCheckInDetails(hmppsAuthClient)(req, res)
         res.json({ status: 'SUCCESS', message: 'Registration complete', setup, uploadLocation })
@@ -2530,6 +2545,10 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       // schedule with no interval, so send the practitioner back to supply them.
       const incomplete = !restartDetails?.interval || (restartDetails.interval !== 'AD_HOC' && !restartDetails.date)
       if (incomplete) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
+
+      if (!hasValidEventSelection(restartDetails)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-sentence-selection?cya=true`)
+      }
 
       try {
         const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)

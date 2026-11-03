@@ -1494,6 +1494,26 @@ describe('checkInsController', () => {
   })
 
   describe('postRestartSummaryPage', () => {
+    it.each([
+      { events: undefined, currentEvent: 7 },
+      { events: null, currentEvent: undefined },
+      { events: [{ number: 7 }], currentEvent: undefined },
+      { events: [{ number: 1 }, { number: 2 }], currentEvent: undefined },
+      { events: [{ number: 1 }, { number: 2 }], currentEvent: 7 },
+      { events: [], currentEvent: 7 },
+    ])('returns incomplete event selections to sentence selection: %j', async selection => {
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', ...selection } } } },
+      })
+
+      await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(postReactivateOffenderSpy).not.toHaveBeenCalled()
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${uuid}/restart-sentence-selection?cya=true`,
+      )
+    })
+
     it('sends an incomplete scheduled restart back to the frequency page instead of submitting', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
@@ -1515,6 +1535,7 @@ describe('checkInsController', () => {
             [uuid]: {
               restartCheckin: {
                 currentEvent: 7,
+                events: [{ number: 7 }],
                 date: '19/2/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
@@ -1563,7 +1584,13 @@ describe('checkInsController', () => {
         esupervision: {
           [crn]: {
             [uuid]: {
-              restartCheckin: { interval: 'AD_HOC', preferredComs: 'EMAIL', eligibility: ['none'], tierBand: 'DG' },
+              restartCheckin: {
+                events: [] as { number: number }[],
+                interval: 'AD_HOC',
+                preferredComs: 'EMAIL',
+                eligibility: ['none'],
+                tierBand: 'DG',
+              },
             },
           },
         },
@@ -1599,7 +1626,13 @@ describe('checkInsController', () => {
         esupervision: {
           [crn]: {
             [uuid]: {
-              restartCheckin: { date: '19/2/2026', interval: 'WEEKLY', eligibility: ['none'], tierBand: 'DG' },
+              restartCheckin: {
+                events: [] as { number: number }[],
+                date: '19/2/2026',
+                interval: 'WEEKLY',
+                eligibility: ['none'],
+                tierBand: 'DG',
+              },
             },
           },
         },
@@ -1618,7 +1651,9 @@ describe('checkInsController', () => {
       'does not reactivate with incomplete eligibility data %p',
       async eligibilityData => {
         const req = baseReq({
-          esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', ...eligibilityData } } } },
+          esupervision: {
+            [crn]: { [uuid]: { restartCheckin: { events: [], interval: 'AD_HOC', ...eligibilityData } } },
+          },
         })
 
         await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
