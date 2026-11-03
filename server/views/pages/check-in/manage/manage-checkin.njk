@@ -213,5 +213,36 @@
         html: photoText
     }) }}
 
+        {% for event in offenderCheckinsByCRNResponse.details.events.events %}
+            {% if event.number == offenderCheckinsByCRNResponse.currentEvent %}
+        {% set sentenceValue %}
+            <span data-qa="sentenceDescription">{{ event.sentence.description if event.sentence else event.mainOffence.description }}</span><br>
+            <span class="govuk-hint" data-qa="sentenceEndDate">Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}</span>
+        {% endset %}
+        {% set sentenceText %}
+            {{ govukSummaryList({
+                rows: [{
+                    key: { text: 'Sentence' },
+                    value: { html: sentenceValue }
+                }]
+            }) }}
+        {% endset %}
+        {{ appSummaryCard({
+            titleText: 'Sentence',
+            headingLevel: 3,
+            classes: ['govuk-!-margin-bottom-6 app-summary-card--large-title'],
+            attributes: {'data-qa': 'sentenceCard'},
+            html: sentenceText,
+            actions: {
+                items: [{
+                    text: 'Change',
+                    href: '/case/' + crn + '/appointments/check-in/manage/' + id + '/sentence',
+                    visuallyHiddenText: 'sentence',
+                    attributes: { 'data-qa': 'changeSentenceAction' }
+                }]
+            } if showChange
+        }) }}
+      {% endif %}
+    {% endfor %}
 
 {% endblock %}

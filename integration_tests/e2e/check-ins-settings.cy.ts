@@ -11,6 +11,7 @@ import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-chec
 import RestartConfirmationPage from '../pages/check-ins/restart/restart-confirmation.page'
 import AddQuestionsPage from '../pages/check-ins/questions/add-questions'
 import ListQuestionsPage from '../pages/check-ins/questions/list-questions'
+import SentenceSelectionPage from '../pages/check-ins/sentence-selection'
 
 // X778160 is the WireMock fixture for a person already set up: VERIFIED, weekly, with an upcoming
 // check in 5 days out. See wiremock/mappings/eSupervisionAPI.json.
@@ -24,6 +25,31 @@ const wiremockAdmin = 'http://localhost:9091/__admin'
 const WEEKLY = 0
 const TWO_WEEKS = 1
 const AD_HOC = 4
+
+const sentenceEvents = [
+  {
+    number: 1,
+    mainOffence: { code: '001', description: 'Theft' },
+    sentence: {
+      date: '2026-01-01',
+      description: 'Adult Custody < 12m',
+      expectedEndDate: '2028-01-01',
+      length: 12,
+      lengthUnit: 'months',
+    },
+  },
+  {
+    number: 2,
+    mainOffence: { code: '002', description: 'Burglary' },
+    sentence: {
+      date: '2026-07-01',
+      description: 'CJA - Community Order',
+      expectedEndDate: '2027-07-01',
+      length: 12,
+      lengthUnit: 'months',
+    },
+  },
+]
 
 // What the UI sent to the API is the point of these journeys, and the browser never sees that
 // request, so read it back from WireMock's request journal.
@@ -58,6 +84,75 @@ context('check in settings for a scheduled person', () => {
   beforeEach(() => {
     cy.task('resetMocks')
     clearApiRequests()
+  })
+
+  it('shows and changes the saved sentence from the overview', () => {
+    cy.task('stubSentenceEvents', {
+      crn,
+      currentEvent: 2,
+      events: sentenceEvents,
+    })
+    cy.task('stubSentenceUpdate', { crn, uuid, currentEvent: 1, events: sentenceEvents })
+
+    const manageCheckins = openManagePage()
+    manageCheckins
+      .getElementData('sentenceCard')
+      .should('be.visible')
+      .within(() => {
+        cy.get('[data-qa="sentenceDescription"]').should('have.text', 'CJA - Community Order')
+        cy.get('[data-qa="sentenceEndDate"]').should('have.text', 'Sentence end date: 1 July 2027')
+        cy.contains('Adult Custody < 12m').should('not.exist')
+        cy.get('[data-qa="changeSentenceAction"]')
+          .should('be.visible')
+          .and('contain.text', 'Change')
+          .and('have.attr', 'href', `${manageById}/sentence`)
+      })
+
+    manageCheckins.getElementData('changeSentenceAction').click()
+    const sentencePage = new SentenceSelectionPage()
+    sentencePage.checkOnPage()
+    sentencePage.getSelectedSentence().should('have.value', '2')
+    sentencePage.getBackLink().should('have.attr', 'href', manageById)
+    sentencePage.getElementData('formAnchorLink').should('have.attr', 'href', manageById)
+
+    sentencePage.getSelectedSentence().invoke('prop', 'checked', false)
+    sentencePage.getSubmitBtn().click()
+    sentencePage.checkErrorSummaryBox(['Select which sentence you want to add online check ins to'])
+
+    sentencePage.selectSentence(1)
+    sentencePage.getSubmitBtn().click()
+
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getUpdateBanner().should('contain.text', 'Check in settings saved')
+    manageCheckins.getElementData('sentenceDescription').should('have.text', 'Adult Custody < 12m')
+    manageCheckins.getElementData('sentenceEndDate').should('have.text', 'Sentence end date: 1 January 2028')
+    lastApiRequestBody(`/v2/offenders/${uuid}/update_details`).then(sent => {
+      expect(sent).to.deep.equal({ currentEvent: 1 })
+    })
+  })
+
+  it('cancels a sentence change without saving', () => {
+    cy.task('stubSentenceEvents', { crn, currentEvent: 2, events: sentenceEvents })
+    openManagePage().getElementData('changeSentenceAction').click()
+    const sentencePage = new SentenceSelectionPage()
+    sentencePage.checkOnPage()
+    sentencePage.selectSentence(1)
+    sentencePage.getElementData('formAnchorLink').click()
+
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    cy.get('[data-qa="sentenceDescription"]').should('have.text', 'CJA - Community Order')
+    cy.request('POST', `${wiremockAdmin}/requests/find`, {
+      method: 'POST',
+      urlPath: `/v2/offenders/${uuid}/update_details`,
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length(0)
+    })
+  })
+
+  it('omits the sentence box when no sentence is saved', () => {
+    openManagePage().getElementData('sentenceCard').should('not.exist')
   })
 
   it('does not offer ad-hoc scheduling and redirects a direct visit to manage', () => {

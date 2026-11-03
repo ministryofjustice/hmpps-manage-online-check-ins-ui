@@ -889,6 +889,64 @@ describe('a scheduled restart confirmation', () => {
   })
 })
 
+describe('the manage page sentence card', () => {
+  const offender = {
+    status: 'VERIFIED',
+    currentEvent: 2,
+    details: {
+      events: {
+        events: [
+          { number: 1, sentence: { description: 'Adult Custody < 12m', expectedEndDate: '2028-01-01' } },
+          { number: 2, sentence: { description: 'CJA - Community Order', expectedEndDate: '2027-07-01' } },
+        ],
+      },
+    },
+  }
+
+  it('shows the saved sentence, hint-styled end date, and Change link', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: offender,
+      showChange: true,
+    })
+
+    expect(html).toContain('data-qa="sentenceCard"')
+    expect(html).toMatch(
+      new RegExp(`href="/case/${crn}/appointments/check-in/manage/${id}/sentence"\\s+data-qa="changeSentenceAction"`),
+    )
+    expect(html).toContain('class="govuk-hint" data-qa="sentenceEndDate"')
+    expect(html).toContain('CJA - Community Order')
+    expect(html).toContain('Sentence end date: 1 July 2027')
+    expect(html).not.toContain('Adult Custody < 12m')
+    expect(html).not.toContain('sentence-selection')
+  })
+
+  it.each([undefined, null, 99])('omits the card when no saved event matches: %s', async currentEvent => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: { ...offender, currentEvent },
+    })
+
+    expect(html).not.toContain('data-qa="sentenceCard"')
+  })
+
+  it('handles a selected event with no sentence details', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: {
+        ...offender,
+        details: {
+          events: { events: [{ number: 2, mainOffence: { description: 'Theft' }, sentence: null }] },
+        },
+      },
+    })
+
+    expect(html).toContain('data-qa="sentenceCard"')
+    expect(html).toContain('Theft')
+    expect(html).toContain('Sentence end date: Not available')
+  })
+})
+
 describe('the manage page settings card', () => {
   const managePage = `/case/${crn}/appointments/check-in/manage/${id}`
   const scheduled = {

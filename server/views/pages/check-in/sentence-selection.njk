@@ -18,7 +18,7 @@
     {% for event in events %}
         {% set _ = sentenceItems.push({
             value: event.number | string,
-            text: event.sentence.description,
+            text: event.sentence.description if event.sentence else event.mainOffence.description,
             checked: event.number == currentEvent,
             hint: { text: event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }
         }) %}

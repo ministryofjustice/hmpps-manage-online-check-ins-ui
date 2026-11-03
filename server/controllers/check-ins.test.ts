@@ -131,6 +131,81 @@ describe('checkInsController', () => {
     res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
   })
 
+  describe('manageSentenceSelection', () => {
+    const events: NonNullable<PersonalDetails['events']>['events'] = [
+      {
+        number: 1,
+        mainOffence: { code: '001', description: 'Theft' },
+        sentence: {
+          date: '2026-01-01',
+          description: 'Community order',
+          expectedEndDate: '2028-01-01',
+          length: 12,
+          lengthUnit: 'months',
+        },
+      },
+      { number: 2, mainOffence: { code: '002', description: 'Burglary' }, sentence: null },
+    ]
+    const overview = `/case/${crn}/appointments/check-in/manage/${uuid}`
+
+    beforeEach(() => {
+      res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, currentEvent: 2 }
+    })
+
+    it('reuses sentence selection with the saved event checked and overview Back and Cancel links', async () => {
+      getPersonalDetailsSpy.mockResolvedValueOnce({
+        crn,
+        name: { forename: 'Joe', surname: 'Bloggs' },
+        events: { events },
+      })
+      const req = baseReq()
+
+      await controllers.checkIns.getManageSentenceSelection(hmppsAuthClient)(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith(
+        'pages/check-in/sentence-selection.njk',
+        expect.objectContaining({
+          events,
+          currentEvent: 2,
+          eligibilitySessionKey: 'manageCheckin',
+          backLink: overview,
+          formAnchorLink: overview,
+          formAnchorText: 'Cancel',
+        }),
+      )
+      expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+    })
+
+    it('saves only currentEvent and returns to the overview', async () => {
+      const req = baseReq()
+      req.method = 'POST'
+      req.body = { esupervision: { [crn]: { [uuid]: { manageCheckin: { currentEvent: '1' } } } } }
+
+      await controllers.checkIns.postManageSentenceSelection(hmppsAuthClient)(req, res)
+
+      expect(postUpdateOffenderDetailsSpy).toHaveBeenCalledWith(uuid, { currentEvent: 1 })
+      expect(mockSetDataValue).toHaveBeenCalledWith(
+        req.session.data,
+        ['esupervision', crn, uuid, 'manageCheckin', 'settingsUpdated'],
+        true,
+      )
+      expect(redirectSpy).toHaveBeenCalledWith(overview)
+    })
+
+    it.each(['getManageSentenceSelection', 'postManageSentenceSelection'] as const)(
+      '%s does not allow changes for stopped check ins',
+      async method => {
+        res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, status: 'INACTIVE' }
+
+        await controllers.checkIns[method](hmppsAuthClient)(baseReq(), res)
+
+        expect(redirectSpy).toHaveBeenCalledWith(overview)
+        expect(getPersonalDetailsSpy).not.toHaveBeenCalled()
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+      },
+    )
+  })
+
   describe('postDatePage', () => {
     const withInterval = (interval: string) =>
       baseReq({ esupervision: { [crn]: { [uuid]: { checkins: { interval, date: '1/8/2026' } } } } })

@@ -288,6 +288,31 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  const validateManageSentence = () => {
+    if (!baseUrl.endsWith(manage('sentence'))) return
+    const overview = `/case/${crn}/appointments/check-in/manage/${id}`
+    const offender = res.locals.offenderCheckinsByCRNResponse
+    const events = [...(offender?.details?.events?.events ?? [])].sort((first, second) =>
+      (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
+    )
+    if (offender?.status !== 'VERIFIED' || !events.length) {
+      redirectTo = overview
+      return
+    }
+    render = 'pages/check-in/sentence-selection'
+    localParams.events = events
+    localParams.eligibilitySessionKey = 'manageCheckin'
+    localParams.backLink = overview
+    localParams.buttonText = 'Save changes'
+    localParams.showAnchorLink = true
+    localParams.formAnchorLink = overview
+    localParams.formAnchorText = 'Cancel'
+    errorMessages = validateWithSpec(
+      req,
+      eSuperVisionValidation({ crn, id, page: 'manage-sentence', eventNumbers: events.map(event => event.number) }),
+    )
+  }
+
   const validateManageEditContact = () => {
     if (baseUrl.includes(manage('edit-contact'))) {
       render = `pages/check-in/manage/manage-edit-contact`
@@ -489,6 +514,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
   validateStopCheckins()
   validateCheckinSettings()
   validateManageContact()
+  validateManageSentence()
   validateManageEditContact()
   validateRestartCheckin()
   validateRestartContact()
