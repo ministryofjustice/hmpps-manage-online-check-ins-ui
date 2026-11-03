@@ -7,6 +7,8 @@
   "scripts": {
     "prepare": "hmpps-precommit-hooks-prepare",
     "build": "node esbuild/esbuild.config.js --build",
+    "build:scss": "sass --quiet-deps --load-path=. --load-path=node_modules --embed-source-map assets/scss/application.scss dist/assets/css/app.css",
+    "build:scss:watch": "npm run build:scss -- --watch",
     "start": "node $NODE_OPTIONS dist/server.js | bunyan -o short",
     "start:dev": "concurrently -k -p \"[{name}]\" -n \"Build,Node\" -c \"green.bold,blue.bold\" \"node esbuild/esbuild.config.js --build --watch\" \"node esbuild/esbuild.config.js --dev-server\"",
     "start-feature": "npm run start-node-feature",
@@ -131,7 +133,7 @@
     "@ministryofjustice/hmpps-auth-clients": "3.0.0",
     "@ministryofjustice/hmpps-azure-telemetry": "1.1.0",
     "@ministryofjustice/hmpps-monitoring": "^2.1.0",
-    "@ministryofjustice/hmpps-mpop-frontend-components-lib": "0.0.48",
+    "@ministryofjustice/hmpps-mpop-frontend-components-lib": "0.0.49",
     "@ministryofjustice/hmpps-probation-frontend-components": "1.2.2",
     "@ministryofjustice/hmpps-rest-client": "^2.2.0",
     "@types/cypress__code-coverage": "^3.10.2",
@@ -217,6 +219,7 @@
     "nyc": "^18.0.0",
     "postcss": "^8.5.16",
     "postcss-preset-env": "11.3.2",
+    "sass": "1.104.1",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.11",
     "typescript": "^6.0.3"
