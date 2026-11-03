@@ -80,6 +80,34 @@ describe('check-in setup flow', () => {
     })
   })
 
+  describe('starting a restart', () => {
+    it('clears answers left by an abandoned restart and opens the eligibility check', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  restartCheckin: { id, eligibility: ['none'], discussion: ['discussed'], interval: 'WEEKLY' },
+                  manageQuestions: { kept: true },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.getStartRestart()(req, res)
+
+      expect(req.session.data.esupervision[crn][id].restartCheckin).toBeUndefined()
+      expect(req.session.data.esupervision[crn][id].manageQuestions).toEqual({ kept: true })
+      expect(res.redirect).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+      )
+    })
+  })
+
   describe('reactivation eligibility', () => {
     it('uses the eligibility screen, seeds the previous contact choice, and keeps answers under restartCheckin', async () => {
       const req = requestFor()

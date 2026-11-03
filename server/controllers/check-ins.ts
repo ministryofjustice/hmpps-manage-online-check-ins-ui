@@ -318,6 +318,7 @@ const postBespokeQuestion = (group: QuestionSessionGroup, addPagePath: string): 
 
 type CheckInRouteName =
   | 'getStartSetup'
+  | 'getStartRestart'
   | 'getEligibilityPage'
   | 'postEligibilityPage'
   | 'getInstructionsPage'
@@ -428,6 +429,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'setupStartedAt'], new Date().toISOString())
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+  },
+
+  // Restart reuses the person's id, so unlike setup it can't start fresh under a new one - answers
+  // left by an abandoned restart are cleared instead, so the eligibility confirmations are made again.
+  getStartRestart: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      req.session.data = req.session.data || {}
+      setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin'], undefined)
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`)
     }
   },
 

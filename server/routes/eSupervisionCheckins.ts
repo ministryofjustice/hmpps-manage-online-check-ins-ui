@@ -401,6 +401,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   // Reactivation runs shared eligibility before the existing restart schedule/contact/summary
   // journey below. These routes use restartCheckin session data and do not enter setup's photo steps.
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart', [
+    validateCrnAndId,
+    controllers.checkIns.getStartRestart(),
+  ])
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-eligibility-check', [
     validateCrnAndId,
     setCheckInEligibilityJourney('reactivation'),
