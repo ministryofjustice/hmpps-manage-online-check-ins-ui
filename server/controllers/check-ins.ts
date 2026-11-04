@@ -2159,7 +2159,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { crn, id } = req.params as Record<string, string>
       const overview = `/case/${crn}/appointments/check-in/manage/${id}`
       const offender = res.locals.offenderCheckinsByCRNResponse
-      if (offender?.status !== 'VERIFIED') return res.redirect(overview)
+      if (res.locals.flags?.enableSentenceSelection !== true || offender?.status !== 'VERIFIED') {
+        return res.redirect(overview)
+      }
 
       const events = [...(offender.details?.events ?? [])].sort((first, second) =>
         (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
@@ -2188,7 +2190,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const overview = `/case/${crn}/appointments/check-in/manage/${id}`
-      if (res.locals.offenderCheckinsByCRNResponse?.status !== 'VERIFIED') return res.redirect(overview)
+      if (
+        res.locals.flags?.enableSentenceSelection !== true ||
+        res.locals.offenderCheckinsByCRNResponse?.status !== 'VERIFIED'
+      ) {
+        return res.redirect(overview)
+      }
 
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const client = new ESupervisionClient(token)

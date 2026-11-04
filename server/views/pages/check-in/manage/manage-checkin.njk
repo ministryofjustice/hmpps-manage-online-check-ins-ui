@@ -220,7 +220,7 @@
         {% endif %}
     {% endfor %}
     {% set event = selectedEvents[0] %}
-    {% if event %}
+    {% if flags.enableSentenceSelection === true and event %}
         {% set sentenceValue %}
             <span data-qa="sentenceDescription">{{ event.sentence.description if event.sentence else event.mainOffence.description }}</span>
             {% if event.sentence.expectedEndDate %}

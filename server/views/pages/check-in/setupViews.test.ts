@@ -12,6 +12,7 @@ nunjucksSetup(app)
 const base: Record<string, unknown> = {
   crn,
   id,
+  flags: { enableSentenceSelection: true },
   case: { name: { forename: 'Bob', surname: 'Smith' }, mobileNumber: '07700900000', email: 'bob@example.com' },
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
@@ -900,6 +901,19 @@ describe('the manage page sentence card', () => {
       ],
     },
   }
+
+  it.each([false, undefined])('hides the sentence card and Change link when the flag is %s', async enabled => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      flags: { enableSentenceSelection: enabled },
+      offenderCheckinsByCRNResponse: offender,
+      showChange: true,
+    })
+
+    expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('data-qa="changeSentenceAction"')
+    expect(html).not.toContain('CJA - Community Order')
+  })
 
   it('shows the saved sentence, hint-styled end date, and Change link', async () => {
     const html = await render('manage/manage-checkin', {

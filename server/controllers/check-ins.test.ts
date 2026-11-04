@@ -128,10 +128,25 @@ describe('checkInsController', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.useRealTimers()
+    res.locals.flags = { enableSentenceSelection: true }
     res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
   })
 
   describe('manageSentenceSelection', () => {
+    it.each([false, undefined])('blocks GET and POST when the flag is %s', async enabled => {
+      res.locals.flags = { enableSentenceSelection: enabled }
+      const req = baseReq()
+
+      await controllers.checkIns.getManageSentenceSelection()(req, res)
+      expect(redirectSpy).toHaveBeenLastCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+
+      await controllers.checkIns.postManageSentenceSelection(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenLastCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}`)
+      expect(renderSpy).not.toHaveBeenCalled()
+      expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+      expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
+    })
+
     const events: NonNullable<PersonalDetails['events']>['events'] = [
       {
         number: 1,

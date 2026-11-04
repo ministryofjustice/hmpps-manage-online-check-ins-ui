@@ -17,6 +17,31 @@ describe('setup validation re-render', () => {
       { number: 2, sentence: { expectedEndDate: '2028-01-01' } },
     ]
 
+    it.each([false, undefined])('redirects without validating or continuing when the flag is %s', enabled => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent: '2' } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          flags: { enableSentenceSelection: enabled },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+        },
+        render: jest.fn(),
+        redirect: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(overview)
+      expect(res.render).not.toHaveBeenCalled()
+      expect(next).not.toHaveBeenCalled()
+    })
+
     it.each([undefined, '999', ['1', '2']])('re-renders an invalid sentence choice: %j', currentEvent => {
       const req = httpMocks.createRequest({
         method: 'POST',
@@ -26,7 +51,10 @@ describe('setup validation re-render', () => {
         session: { data: {} },
       })
       const res: any = {
-        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } } },
+        locals: {
+          flags: { enableSentenceSelection: true },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+        },
         render: jest.fn(),
       }
       const next = jest.fn()
@@ -61,6 +89,7 @@ describe('setup validation re-render', () => {
       })
       const res: any = {
         locals: {
+          flags: { enableSentenceSelection: true },
           offenderCheckinsByCRNResponse: {
             status: 'VERIFIED',
             details: { events: events.slice(0, eventCount) },
@@ -87,7 +116,10 @@ describe('setup validation re-render', () => {
         session: { data: {} },
       })
       const res: any = {
-        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } } },
+        locals: {
+          flags: { enableSentenceSelection: true },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+        },
         render: jest.fn(),
       }
       const next = jest.fn()
@@ -131,7 +163,10 @@ describe('setup validation re-render', () => {
           },
         },
       })
-      const res: any = { locals: { checkInEligibilityJourney: journey }, render: jest.fn() }
+      const res: any = {
+        locals: { checkInEligibilityJourney: journey, flags: { enableSentenceSelection: true } },
+        render: jest.fn(),
+      }
       const next = jest.fn()
 
       validate(req, res, next)
