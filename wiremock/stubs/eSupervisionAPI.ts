@@ -168,6 +168,7 @@ export const stubGetOffenderByCRN = (crn: string) => {
 const stubGetVerifiedOffenderByCRN = (
   crn: string,
   schedule: { mode: 'SCHEDULED' | 'AD_HOC'; checkinInterval: string | null; firstCheckin: string | null },
+  status: 'VERIFIED' | 'INACTIVE' = 'VERIFIED',
   sentenceDetails: { currentEvent?: number; events?: NdeliusEvent[] } = {},
 ) => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -188,7 +189,7 @@ const stubGetVerifiedOffenderByCRN = (
       jsonBody: {
         uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
         crn,
-        status: 'VERIFIED',
+        status,
         ...schedule,
         currentEvent: sentenceDetails.currentEvent,
         contactPreference: 'PHONE',
@@ -210,14 +211,23 @@ const stubGetVerifiedOffenderByCRN = (
 export const stubGetScheduledOffenderByCRN = (crn: string) =>
   stubGetVerifiedOffenderByCRN(crn, { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' })
 
+export const stubGetStoppedOffenderByCRN = (crn: string) =>
+  stubGetVerifiedOffenderByCRN(
+    crn,
+    { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' },
+    'INACTIVE',
+  )
+
 const stubSentenceEvents = async ({
   crn,
   events,
   currentEvent,
+  status = 'VERIFIED',
 }: {
   crn: string
   events: NdeliusEvent[]
   currentEvent?: number
+  status?: 'VERIFIED' | 'INACTIVE'
 }): Promise<null> => {
   await superagent.post('http://localhost:9091/__admin/mappings').send({
     priority: 1,
@@ -238,6 +248,7 @@ const stubSentenceEvents = async ({
     await stubGetVerifiedOffenderByCRN(
       crn,
       { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' },
+      status,
       { currentEvent, events },
     )
   }
@@ -507,6 +518,7 @@ export default {
   stubGetOffenderHeaderByCRN,
   stubGetAdHocOffenderByCRN,
   stubGetScheduledOffenderByCRN,
+  stubGetStoppedOffenderByCRN,
   stubSentenceEvents,
   stubSentenceUpdate,
   stubGetUpcomingCheckinQuestionItems,

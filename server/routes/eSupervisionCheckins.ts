@@ -15,6 +15,7 @@ import postRedirectWizard from '../middleware/checkinCyaRedirect'
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
+import restrictRestartToStoppedCheckins from '../middleware/restrictRestartToStoppedCheckins'
 import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 import { getSupervisionPackageStatus } from '../middleware/getSupervisionPackageStatus'
 import setCheckInEligibilityJourney from '../middleware/setCheckInEligibilityJourney'
@@ -57,8 +58,9 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   // The eligibility pages are one route each rather than one per tier - the controller picks
   // the template for the person's tier band, so the URLs stay stable across tiers and back
   // links, ?cya= links and restrictPageAccess don't need to know about bands.
+  // Eligibility keys off the tier, so it must not come from a header cached earlier in the session.
   router.get('/case/:crn/appointments/:id/check-in/eligibility-check', [
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true }),
     getSupervisionPackageStatus(hmppsAuthClient),
     controllers.checkIns.getEligibilityPage(hmppsAuthClient),
   ])
@@ -429,12 +431,17 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   // Reactivation runs shared eligibility before the existing restart schedule/contact/summary
   // journey below. These routes use restartCheckin session data and do not enter setup's photo steps.
+  router.get('/case/:crn/appointments/check-in/manage/:id/restart', [
+    validateCrnAndId,
+    controllers.checkIns.getStartRestart(),
+  ])
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-eligibility-check', [
     validateCrnAndId,
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    restrictRestartToStoppedCheckins,
+    getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true }),
     getSupervisionPackageStatus(hmppsAuthClient),
     controllers.checkIns.getEligibilityPage(hmppsAuthClient),
   ])
@@ -444,6 +451,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     getSupervisionPackageStatus(hmppsAuthClient),
     validate.eSuperVision,
@@ -564,6 +572,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -575,6 +584,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -590,6 +600,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -601,6 +612,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -616,6 +628,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -627,6 +640,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -640,6 +654,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -651,6 +666,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -664,6 +680,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc, 'preferredComs'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
@@ -675,6 +692,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['interval', dateUnlessAdHoc, 'preferredComs'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
