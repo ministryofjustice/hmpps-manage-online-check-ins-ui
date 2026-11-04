@@ -4,6 +4,7 @@ import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { SupervisionPackageStatus } from '../data/model/esupervision'
+import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'f1654ea3-0abb-46eb-860b-654a96edbe20'),
@@ -77,6 +78,34 @@ describe('check-in setup flow', () => {
       expect(Date.parse(setupStartedAt)).toBeLessThanOrEqual(Date.now())
       // restrictPageAccess reads any `checkins` data as answers given, so starting must not create it
       expect(checkins).toBeUndefined()
+    })
+  })
+
+  describe('starting a restart', () => {
+    it('clears answers left by an abandoned restart and opens the eligibility check', async () => {
+      const req = requestFor(
+        {},
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  restartCheckin: { id, eligibility: ['none'], discussion: ['discussed'], interval: 'WEEKLY' },
+                  manageQuestions: { kept: true },
+                },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse()
+      await controllers.checkIns.getStartRestart()(req, res)
+
+      expect(req.session.data.esupervision[crn][id].restartCheckin).toBeUndefined()
+      expect(req.session.data.esupervision[crn][id].manageQuestions).toEqual({ kept: true })
+      expect(res.redirect).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`,
+      )
     })
   })
 
@@ -217,6 +246,45 @@ describe('check-in setup flow', () => {
       )
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
+    })
+
+    // A tab left open on a later page must not be able to submit once a fresh tier has ruled the person out.
+    describe.each([
+      ['setup', 'checkins', `/case/${crn}/appointments/${id}/check-in/eligibility-check`],
+      ['reactivation', 'restartCheckin', `/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`],
+    ] as const)('with %s answers already completed', (journey, sessionKey, eligibilityUrl) => {
+      const completedSession = () => ({
+        data: {
+          esupervision: {
+            [crn]: {
+              [id]: {
+                supervisionPackageStatus: ON_PACKAGE,
+                [sessionKey]: { id, tierBand: 'DG', eligibility: ['none'], discussion: ['discussed'] },
+              },
+            },
+          },
+        },
+      })
+
+      it.each(['NOT_SUPERVISED', 'MISSING', 'Z1'])(
+        'clears the saved band when the tier is %s so later pages send the person back',
+        async tierScore => {
+          const req = requestFor({}, completedSession())
+          const res = responseForTier(tierScore, {
+            checkInEligibilityJourney: journey,
+            supervisionPackageStatus: ON_PACKAGE,
+            offenderCheckinsByCRNResponse: { uuid: id },
+          })
+          await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+          expect(req.session.data.esupervision[crn][id][sessionKey].tierBand).toBeUndefined()
+
+          const laterRes = mockAppResponse({ checkInEligibilityJourney: journey })
+          const next = jest.fn()
+          await restrictEligibilityAccess('setup')(requestFor({}, req.session), laterRes, next)
+          expect(next).not.toHaveBeenCalled()
+          expect(laterRes.redirect).toHaveBeenCalledWith(eligibilityUrl)
+        },
+      )
     })
 
     // A provisional tier is a readable score, so the rules would happily apply to it - but it is not

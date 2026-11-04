@@ -351,8 +351,8 @@ context('check in settings for an ad-hoc person', () => {
 context('restarting check ins as ad-hoc', () => {
   beforeEach(() => {
     cy.task('resetMocks')
-    // A weekly person with a mobile number on file, so contact can be confirmed as it stands.
-    cy.task('stubGetScheduledOffenderByCRN', crn)
+    // A stopped weekly person with a mobile number on file, so contact can be confirmed as it stands.
+    cy.task('stubGetStoppedOffenderByCRN', crn)
     cy.task('stubGetOffenderHeaderByCRN', crn)
     clearApiRequests()
   })
@@ -384,5 +384,19 @@ context('restarting check ins as ad-hoc', () => {
       expect(sent.checkinSchedule).not.to.have.property('checkinInterval')
       expect(sent.checkinSchedule).not.to.have.property('firstCheckin')
     })
+  })
+
+  it('sends Back from the confirmation page to the manage page once check ins are running again', () => {
+    startRestartJourney()
+    const frequencyPage = new RestartCheckinFrequencyPage()
+    frequencyPage.selectFrequency(AD_HOC)
+    frequencyPage.getSubmitBtn().click()
+    new RestartContactPreferencePage().getSubmitBtn().click()
+    new RestartCheckYourAnswersPage().getSubmitBtn().click()
+    new RestartConfirmationPage().checkOnPage()
+
+    cy.task('stubGetScheduledOffenderByCRN', crn)
+    cy.go('back')
+    cy.location('pathname').should('eq', manageById)
   })
 })

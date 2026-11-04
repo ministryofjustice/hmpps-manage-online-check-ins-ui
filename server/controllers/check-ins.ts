@@ -219,7 +219,17 @@ const tierStatusReasons: Record<typeof MISSING_TIER | typeof NOT_SUPERVISED_TIER
 function requireBand(req: Request, res: Response, crn: string, id: string): TierBand | null {
   const eligibilityContext = eligibilityContextFor(res, crn, id)
   const status: TierStatus | null = getTierBand(res.locals.tierScore as string)
+  // restrictEligibilityAccess trusts a saved band, so one from an earlier pass must not outlive a rejection.
+  const clearSavedBand = () => {
+    req.session.data = req.session.data || {}
+    setDataValue(
+      req.session.data,
+      ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'],
+      undefined,
+    )
+  }
   const ruleOut = (reason: string): null => {
+    clearSavedBand()
     setNotEligibleReason(req, crn, id, reason, eligibilityContext.eligibilitySessionKey)
     res.redirect(eligibilityContext.urlForEligibilityPage('not-eligible'))
     return null
@@ -234,6 +244,7 @@ function requireBand(req: Request, res: Response, crn: string, id: string): Tier
     return ruleOut(provisionalTierReason)
   }
   if (!status) {
+    clearSavedBand()
     renderError(500)(req, res)
     return null
   }
@@ -319,6 +330,7 @@ const postBespokeQuestion = (group: QuestionSessionGroup, addPagePath: string): 
 
 type CheckInRouteName =
   | 'getStartSetup'
+  | 'getStartRestart'
   | 'getEligibilityPage'
   | 'postEligibilityPage'
   | 'getInstructionsPage'
@@ -429,6 +441,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       req.session.data = req.session.data || {}
       setDataValue(req.session.data, ['esupervision', crn, id, 'setupStartedAt'], new Date().toISOString())
       return res.redirect(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+    }
+  },
+
+  // Restart reuses the person's id, so unlike setup it can't start fresh under a new one - answers
+  // left by an abandoned restart are cleared instead, so the eligibility confirmations are made again.
+  getStartRestart: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      req.session.data = req.session.data || {}
+      setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin'], undefined)
+      return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-eligibility-check`)
     }
   },
 
