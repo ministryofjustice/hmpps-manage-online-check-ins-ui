@@ -151,8 +151,37 @@ context('check in settings for a scheduled person', () => {
     })
   })
 
+  it('blocks sentence changes when only one eligible event remains', () => {
+    cy.task('stubSentenceEvents', { crn, currentEvent: 2, events: sentenceEvents })
+    openManagePage().getElementData('changeSentenceAction').click()
+    const sentencePage = new SentenceSelectionPage()
+    sentencePage.checkOnPage()
+
+    cy.task('stubSentenceEvents', { crn, currentEvent: 2, events: [sentenceEvents[1]] })
+    sentencePage.getSubmitBtn().click()
+
+    const manageCheckins = new ManageCheckins()
+    manageCheckins.checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    manageCheckins.getElementData('sentenceDescription').should('have.text', 'CJA - Community Order')
+    manageCheckins.getElementData('changeSentenceAction').should('not.exist')
+
+    cy.visit(`${manageById}/sentence`)
+
+    manageCheckins.checkOnPage()
+    cy.location('pathname').should('equal', manageById)
+    cy.request('POST', `${wiremockAdmin}/requests/find`, {
+      method: 'POST',
+      urlPath: `/v2/offenders/${uuid}/update_details`,
+    }).then(({ body }) => {
+      expect(body.requests).to.have.length(0)
+    })
+  })
+
   it('omits the sentence box when no sentence is saved', () => {
-    openManagePage().getElementData('sentenceCard').should('not.exist')
+    const manageCheckins = openManagePage()
+    manageCheckins.getElementData('sentenceCard').should('not.exist')
+    manageCheckins.getElementData('changeSentenceAction').should('not.exist')
   })
 
   it('does not offer ad-hoc scheduling and redirects a direct visit to manage', () => {

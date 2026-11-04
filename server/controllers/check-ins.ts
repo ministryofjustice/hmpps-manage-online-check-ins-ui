@@ -2154,21 +2154,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getManageSentenceSelection: hmppsAuthClient => {
+  getManageSentenceSelection: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const overview = `/case/${crn}/appointments/check-in/manage/${id}`
       const offender = res.locals.offenderCheckinsByCRNResponse
       if (offender?.status !== 'VERIFIED') return res.redirect(overview)
 
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const client = new ESupervisionClient(token)
-      const personalDetails = await client.getPersonalDetails(crn)
-      if (!personalDetails) return renderError(404)(req, res)
-      const events = [...(personalDetails.events?.events ?? [])].sort((first, second) =>
+      const events = [...(offender.details?.events ?? [])].sort((first, second) =>
         (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
       )
-      if (!events.length) return res.redirect(overview)
+      if (events.length < 2) return res.redirect(overview)
 
       const currentEvent = events.find(event => event.number === offender.currentEvent)?.number
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SENTENCE_SELECTION', crn, SubjectType.CRN)

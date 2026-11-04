@@ -149,18 +149,17 @@ describe('checkInsController', () => {
     const overview = `/case/${crn}/appointments/check-in/manage/${uuid}`
 
     beforeEach(() => {
-      res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, currentEvent: 2 }
+      res.locals.offenderCheckinsByCRNResponse = {
+        ...offenderCheckinsByCRNResponse,
+        currentEvent: 2,
+        details: { ...offenderCheckinsByCRNResponse.details, events },
+      }
     })
 
     it('reuses sentence selection with the saved event checked and overview Back and Cancel links', async () => {
-      getPersonalDetailsSpy.mockResolvedValueOnce({
-        crn,
-        name: { forename: 'Joe', surname: 'Bloggs' },
-        events: { events },
-      })
       const req = baseReq()
 
-      await controllers.checkIns.getManageSentenceSelection(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getManageSentenceSelection()(req, res)
 
       expect(renderSpy).toHaveBeenCalledWith(
         'pages/check-in/sentence-selection.njk',
@@ -173,6 +172,17 @@ describe('checkInsController', () => {
           formAnchorText: 'Cancel',
         }),
       )
+      expect(getPersonalDetailsSpy).not.toHaveBeenCalled()
+      expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+    })
+
+    it.each([0, 1])('redirects direct visits when only %s eligible events remain', async eventCount => {
+      res.locals.offenderCheckinsByCRNResponse.details.events = events.slice(0, eventCount)
+
+      await controllers.checkIns.getManageSentenceSelection()(baseReq(), res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(overview)
+      expect(renderSpy).not.toHaveBeenCalled()
       expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
     })
 

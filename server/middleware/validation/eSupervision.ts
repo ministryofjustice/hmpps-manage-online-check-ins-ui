@@ -292,10 +292,10 @@ const eSuperVision: Route<void> = (req, res, next) => {
     if (!baseUrl.endsWith(manage('sentence'))) return
     const overview = `/case/${crn}/appointments/check-in/manage/${id}`
     const offender = res.locals.offenderCheckinsByCRNResponse
-    const events = [...(offender?.details?.events?.events ?? [])].sort((first, second) =>
+    const events = [...(offender?.details?.events ?? [])].sort((first, second) =>
       (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
     )
-    if (offender?.status !== 'VERIFIED' || !events.length) {
+    if (offender?.status !== 'VERIFIED' || events.length < 2) {
       redirectTo = overview
       return
     }

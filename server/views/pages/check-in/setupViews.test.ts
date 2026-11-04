@@ -894,12 +894,10 @@ describe('the manage page sentence card', () => {
     status: 'VERIFIED',
     currentEvent: 2,
     details: {
-      events: {
-        events: [
-          { number: 1, sentence: { description: 'Adult Custody < 12m', expectedEndDate: '2028-01-01' } },
-          { number: 2, sentence: { description: 'CJA - Community Order', expectedEndDate: '2027-07-01' } },
-        ],
-      },
+      events: [
+        { number: 1, sentence: { description: 'Adult Custody < 12m', expectedEndDate: '2028-01-01' } },
+        { number: 2, sentence: { description: 'CJA - Community Order', expectedEndDate: '2027-07-01' } },
+      ],
     },
   }
 
@@ -921,6 +919,21 @@ describe('the manage page sentence card', () => {
     expect(html).not.toContain('sentence-selection')
   })
 
+  it('shows the sole sentence without offering Change', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: {
+        ...offender,
+        details: { events: [offender.details.events[1]] },
+      },
+      showChange: true,
+    })
+
+    expect(html).toContain('data-qa="sentenceCard"')
+    expect(html).toContain('CJA - Community Order')
+    expect(html).not.toContain('data-qa="changeSentenceAction"')
+  })
+
   it.each([undefined, null, 99])('omits the card when no saved event matches: %s', async currentEvent => {
     const html = await render('manage/manage-checkin', {
       ...base,
@@ -928,6 +941,10 @@ describe('the manage page sentence card', () => {
     })
 
     expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('data-qa="sentenceDescription"')
+    expect(html).not.toContain('data-qa="sentenceEndDate"')
+    expect(html).not.toContain('CJA - Community Order')
+    expect(html).not.toContain('Adult Custody &lt; 12m')
   })
 
   it('handles a selected event with no sentence details', async () => {
@@ -936,14 +953,14 @@ describe('the manage page sentence card', () => {
       offenderCheckinsByCRNResponse: {
         ...offender,
         details: {
-          events: { events: [{ number: 2, mainOffence: { description: 'Theft' }, sentence: null }] },
+          events: [{ number: 2, mainOffence: { description: 'Theft' }, sentence: null }],
         },
       },
     })
 
     expect(html).toContain('data-qa="sentenceCard"')
     expect(html).toContain('Theft')
-    expect(html).toContain('Sentence end date: Not available')
+    expect(html).not.toContain('data-qa="sentenceEndDate"')
   })
 })
 

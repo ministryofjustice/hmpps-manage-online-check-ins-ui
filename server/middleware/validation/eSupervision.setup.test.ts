@@ -26,7 +26,7 @@ describe('setup validation re-render', () => {
         session: { data: {} },
       })
       const res: any = {
-        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events: { events } } } },
+        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } } },
         render: jest.fn(),
       }
       const next = jest.fn()
@@ -51,6 +51,33 @@ describe('setup validation re-render', () => {
       )
     })
 
+    it.each([0, 1])('blocks submission when only %s eligible events remain', eventCount => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent: '1' } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          offenderCheckinsByCRNResponse: {
+            status: 'VERIFIED',
+            details: { events: events.slice(0, eventCount) },
+          },
+        },
+        render: jest.fn(),
+        redirect: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(overview)
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
     it('passes a choice that belongs to the freshly loaded event list', () => {
       const req = httpMocks.createRequest({
         method: 'POST',
@@ -60,7 +87,7 @@ describe('setup validation re-render', () => {
         session: { data: {} },
       })
       const res: any = {
-        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events: { events } } } },
+        locals: { offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } } },
         render: jest.fn(),
       }
       const next = jest.fn()

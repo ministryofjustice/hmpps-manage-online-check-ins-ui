@@ -1,4 +1,4 @@
-import type { NdeliusEvents } from './personalDetails'
+import type { NdeliusEvent } from './personalDetails'
 
 type Match = 'MATCH' | 'NO_MATCH' | 'NO_FACE_DETECTED' | 'ERROR'
 type LivenessResult = 'LIVE' | 'NOT_LIVE' | 'ERROR'
@@ -177,7 +177,7 @@ export interface OffenderByCRNResponse {
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
   details?: {
-    events?: NdeliusEvents
+    events?: NdeliusEvent[]
     name?: {
       forename?: string
       surname?: string
