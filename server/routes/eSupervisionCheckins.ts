@@ -15,6 +15,7 @@ import postRedirectWizard from '../middleware/checkinCyaRedirect'
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
 import getCancellableCheckin from '../middleware/getCancellableCheckin'
+import requireShownCheckin from '../middleware/requireShownCheckin'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 import restrictRestartToStoppedCheckins from '../middleware/restrictRestartToStoppedCheckins'
 import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
@@ -311,8 +312,8 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     controllers.checkIns.getManageCheckinPage(hmppsAuthClient),
   ])
 
-  // Cancelling the person's open check-in. Both routes look the check-in up again, so a submission
-  // from a stale page can't cancel one that no longer exists.
+  // Cancelling the person's open check-in. Both routes look the check-in up again, and the post
+  // cancels only the one the page showed (requireShownCheckin), so a stale page can't cancel another.
   router.get('/case/:crn/appointments/check-in/manage/:id/cancel-checkin', [
     validateCrnAndId,
     getCheckinOffenderDetails(hmppsAuthClient),
@@ -329,6 +330,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
     getCancellableCheckin(hmppsAuthClient),
+    requireShownCheckin,
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     validate.eSuperVision,
     controllers.checkIns.postCancelCheckin(hmppsAuthClient),

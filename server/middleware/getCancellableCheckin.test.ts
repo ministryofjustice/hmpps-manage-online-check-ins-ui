@@ -94,6 +94,8 @@ describe('getCancellableCheckin', () => {
   describe('when the API fails', () => {
     const failures = [
       ['a server error', Object.assign(new Error('Server error'), { status: 500 })],
+      ['an auth failure', Object.assign(new Error('Forbidden'), { status: 403 })],
+      ['rate limiting', Object.assign(new Error('Too many requests'), { status: 429 })],
       ['a network error', new Error('ECONNRESET')],
     ] as const
 

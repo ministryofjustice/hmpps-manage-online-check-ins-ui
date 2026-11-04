@@ -1312,7 +1312,7 @@ context('check-ins overview and manage pages', () => {
       manageCheckins
         .getWarningBanner()
         .should('contain.text', 'The online check in for Joe could not be cancelled')
-        .and('contain.text', 'already been submitted or missed')
+        .and('contain.text', 'already been submitted, missed or cancelled, or online check ins have stopped')
       manageCheckins.getUpdateBanner().should('not.exist')
     })
   })

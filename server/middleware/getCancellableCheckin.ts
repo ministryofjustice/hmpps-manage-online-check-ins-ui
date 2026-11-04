@@ -26,8 +26,9 @@ const getCancellableCheckin = (hmppsAuthClient: HmppsAuthClient): Route<Promise<
       res.locals.upcomingCheckin = (await eSupervisionClient.getUpcomingCheckinQuestions(crn)) ?? null
     } catch (error) {
       const status = (error as { status?: number })?.status
-      if (status >= 400 && status < 500) {
-        // The API answers 4xx when the person has nothing upcoming, which is a normal state.
+      if (status === 404 || status === 422) {
+        // The API's answers when the person has nothing upcoming (404) or is not on check ins (422),
+        // which are normal states. Anything else, auth and rate limiting included, is a failure.
         logger.info(`No upcoming check in questions found for CRN ${crn}`)
       } else if (req.method === 'POST') {
         // Any other failure means we don't know which check-in is upcoming, so don't act on it.

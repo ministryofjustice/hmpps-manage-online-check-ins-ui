@@ -501,7 +501,9 @@ describe('checkInsController', () => {
         await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
 
         expect(rendered().warningMessageHtml).toContain('The online check in for Joe could not be cancelled')
-        expect(rendered().warningMessageHtml).toContain('already been submitted or missed')
+        expect(rendered().warningMessageHtml).toContain(
+          'already been submitted, missed or cancelled, or online check ins have stopped',
+        )
         expect(mockSetDataValue).toHaveBeenCalledWith(
           req.session.data,
           ['esupervision', crn, uuid, 'checkInCancelRefused'],
@@ -606,7 +608,8 @@ describe('checkInsController', () => {
         })
       })
 
-      it('escapes double quotes in the reason', async () => {
+      // Escaping would lengthen it past the limit the page validated against.
+      it('sends the reason exactly as entered', async () => {
         await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(
           postReq(answers('Reason with "quotes"', 'false')),
           res,
@@ -614,7 +617,7 @@ describe('checkInsController', () => {
 
         expect(postCancelCheckinSpy).toHaveBeenCalledWith(
           upcomingCheckin.uuid,
-          expect.objectContaining({ reason: 'Reason with \\"quotes\\"' }),
+          expect.objectContaining({ reason: 'Reason with "quotes"' }),
         )
       })
 
@@ -646,48 +649,6 @@ describe('checkInsController', () => {
           controllers.checkIns.postCancelCheckin(hmppsAuthClient)(postReq(answers('Reason', 'false')), res),
         ).rejects.toBe(failure)
         expect(redirectSpy).not.toHaveBeenCalled()
-      })
-
-      it('cancels nothing, and explains, when the check in has gone since the page was opened', async () => {
-        res.locals.cancellableCheckin = null
-        const req = postReq(answers('Reason', 'false'))
-
-        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(req, res)
-
-        expect(postCancelCheckinSpy).not.toHaveBeenCalled()
-        expect(mockSetDataValue).toHaveBeenCalledWith(
-          req.session.data,
-          ['esupervision', crn, uuid, 'checkInCancelRefused'],
-          true,
-        )
-        expect(mockSetDataValue).toHaveBeenCalledWith(
-          req.session.data,
-          ['esupervision', crn, uuid, 'manageCheckin'],
-          null,
-        )
-        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
-      })
-
-      // The check in the page showed was submitted or missed, and the next one is now upcoming.
-      it('does not cancel a different check in from the one the page showed', async () => {
-        const req = postReq(answers('Reason', 'false'), '3fa85f64-5717-4562-b3fc-000000000000')
-
-        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(req, res)
-
-        expect(postCancelCheckinSpy).not.toHaveBeenCalled()
-        expect(mockSetDataValue).toHaveBeenCalledWith(
-          req.session.data,
-          ['esupervision', crn, uuid, 'checkInCancelRefused'],
-          true,
-        )
-        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
-      })
-
-      it('does not cancel anything when the page did not say which check in', async () => {
-        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(manageReq(answers('Reason', 'false')), res)
-
-        expect(postCancelCheckinSpy).not.toHaveBeenCalled()
-        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
       })
     })
   })

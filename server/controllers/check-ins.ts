@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 import {
   CancelCheckinRequest,
+  CancellableCheckin,
   CheckinScheduleRequest,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
@@ -22,7 +23,6 @@ import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/mod
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import escapeHtml from '../utils/escapeHtml'
-import escapeForLog from '../utils/escapeForLog'
 import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
@@ -1666,8 +1666,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'], undefined)
       }
 
-      // The cancel page records that it cancelled the check in, or that the API refused because the
-      // check in had been submitted or missed in the meantime.
+      // The cancel page records that it cancelled the check in, or that it could not: the check in
+      // was submitted, missed or cancelled in the meantime, or check ins stopped.
       const cancelled = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'])
       if (cancelled) {
         res.locals.success = true
@@ -1685,7 +1685,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         warningMessageHtml = `
           <strong>The online check in for ${forename} could not be cancelled</strong>
           <br>
-          It has already been submitted or missed.
+          It has already been submitted, missed or cancelled, or online check ins have stopped.
         `
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], undefined)
       }
@@ -1789,8 +1789,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (offenderDetails.status !== 'VERIFIED' || !res.locals.cancellableCheckin) {
         return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
       }
-      // The page reads the check-in's due date from res.locals.cancellableCheckin, which is still
-      // there when the validator re-renders it with errors.
+      // The page's hidden checkinUuid comes from res.locals.cancellableCheckin.
       return res.render('pages/check-in/manage/cancel-checkin.njk', {
         crn: offenderDetails.crn,
         id: offenderDetails.uuid,
@@ -1803,16 +1802,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const overviewPage = `/case/${crn}/appointments/check-in/manage/${id}`
-      const checkIn = res.locals.cancellableCheckin
-      // The page posts the uuid of the check-in it showed. Cancel only that one: if it has been
-      // submitted or missed since, the person's upcoming check-in may now be a different one.
-      const shownUuid = typeof req.body?.checkinUuid === 'string' ? req.body.checkinUuid : undefined
-      if (!checkIn || checkIn.uuid !== shownUuid) {
-        logger.info(`Not cancelling check in ${escapeForLog(shownUuid)} for ${crn}: it is no longer the upcoming one`)
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], true)
-        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
-        return res.redirect(303, overviewPage)
-      }
+      // requireShownCheckin has checked this is the check-in the page showed.
+      const checkIn = res.locals.cancellableCheckin as CancellableCheckin
 
       const reason = getDataValue<string>(req.session.data, [
         'esupervision',
@@ -1828,7 +1819,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const eSupervisionClient = new ESupervisionClient(token)
       const body: CancelCheckinRequest = {
         cancelledBy: res.locals.user.username,
-        reason: handleQuotes(reason ?? ''),
+        // Sent as entered: the API's length limit is the one the page validates against.
+        reason: reason ?? '',
         sensitive,
       }
       try {
