@@ -103,11 +103,10 @@ describe('sentence selection and summaries', () => {
       eligibilitySessionKey: 'checkins',
     })
     expect(html).toContain('Community order')
-    expect(html).toContain('2 January 2028')
+    expect(html).toContain('Sentence end date: 2 January 2028')
     expect(html).toContain('Not available')
     expect(html).not.toContain('Theft')
     expect(html).not.toContain('12 months')
-    expect(html).not.toContain('Sentence end date:')
     expect(html).toMatch(/value="1"[^>]*checked/)
   })
 
@@ -122,7 +121,10 @@ describe('sentence selection and summaries', () => {
       ...base,
       userDetails: { ...(base.userDetails as object), events, currentEvent: 1 },
     })
-    expect(html).toContain('Theft - Community order (12 months)')
+    expect(html).toContain('Which sentence do you want to add online check ins to?')
+    expect(html).toContain('Community order')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('12 months')
     expect(html).toContain('Sentence end date: 2 January 2028')
     expect(html).toContain(`href="${changeUrl}"`)
     expect(html).not.toContain('Burglary')
@@ -133,7 +135,9 @@ describe('sentence selection and summaries', () => {
       ...base,
       userDetails: { ...(base.userDetails as object), events: [events[0]], currentEvent: 1 },
     })
-    expect(html).toContain('Theft - Community order (12 months)')
+    expect(html).toContain('Community order')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('12 months')
     expect(html).not.toContain('data-qa="sentenceAction"')
   })
 })

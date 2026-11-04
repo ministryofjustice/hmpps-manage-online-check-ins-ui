@@ -241,7 +241,7 @@ const stubSentenceEvents = async ({
         name: { forename: 'Joe', surname: 'Bloggs' },
         mobile: '071838893',
         email: 'address1@gmail.com',
-        events: { events },
+        events,
       },
     },
   })

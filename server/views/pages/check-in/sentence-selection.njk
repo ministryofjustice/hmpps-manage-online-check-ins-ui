@@ -20,7 +20,7 @@
             value: event.number | string,
             text: event.sentence.description,
             checked: event.number == currentEvent,
-            hint: { text: event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }
+            hint: { text: 'Sentence end date: ' + (event.sentence.expectedEndDate | dateWithYear) if event.sentence.expectedEndDate else 'Not available' }
         }) %}
     {% endfor %}
     {{ govukRadios({

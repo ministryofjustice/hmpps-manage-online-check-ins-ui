@@ -997,7 +997,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const personalDetails = await new ESupervisionClient(token).getPersonalDetails(crn)
       if (!personalDetails) return renderError(404)(req, res)
-      const events = [...(personalDetails.events?.events ?? [])].sort((first, second) =>
+      const events = [...(personalDetails.events ?? [])].sort((first, second) =>
         (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
       )
       const path = ['esupervision', crn, id, context.eligibilitySessionKey]

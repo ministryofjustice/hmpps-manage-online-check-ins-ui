@@ -62,7 +62,7 @@ describe('check-in setup flow', () => {
 
     const withEvents = (events: ReturnType<typeof event>[]) => {
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
-        getPersonalDetails: jest.fn().mockResolvedValue({ crn, events: { events } }),
+        getPersonalDetails: jest.fn().mockResolvedValue({ crn, events }),
       }))
     }
 
