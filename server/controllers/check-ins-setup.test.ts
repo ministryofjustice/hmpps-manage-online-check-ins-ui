@@ -1,6 +1,6 @@
 import httpMocks from 'node-mocks-http'
 import controllers from '.'
-import mockAppResponse from './mocks/appResponse'
+import baseAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { SupervisionPackageStatus } from '../data/model/esupervision'
@@ -22,6 +22,9 @@ jest.mock('../data/hmppsAuthClient', () => {
 const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 const hmppsAuthClient = new HmppsAuthClient(null) as jest.Mocked<HmppsAuthClient>
+
+const mockAppResponse = (locals: Record<string, unknown> = {}) =>
+  baseAppResponse({ flags: { enableSentenceSelection: true }, ...locals })
 
 const requestFor = (body: Record<string, unknown> = {}, session: Record<string, unknown> = {}, url?: string) =>
   httpMocks.createRequest({
@@ -54,6 +57,38 @@ describe('check-in setup flow', () => {
   })
 
   describe('sentence selection', () => {
+    describe.each(['setup', 'reactivation'] as const)('disabled flag for %s', journey => {
+      it.each([
+        { enabled: false, cya: false },
+        { enabled: undefined, cya: false },
+        { enabled: false, cya: true },
+        { enabled: undefined, cya: true },
+      ])('skips GET and POST without loading or saving events: %j', async ({ enabled, cya }) => {
+        const req = requestFor()
+        req.query.cya = String(cya)
+        const res = mockAppResponse({
+          checkInEligibilityJourney: journey,
+          flags: { enableSentenceSelection: enabled },
+        })
+        const root =
+          journey === 'setup'
+            ? `/case/${crn}/appointments/${id}/check-in/`
+            : `/case/${crn}/appointments/check-in/manage/${id}/restart-`
+        const expected = cya
+          ? `${root}${journey === 'setup' ? 'checkin-summary' : 'summary'}`
+          : `${root}${journey === 'setup' ? 'check-in-frequency' : 'checkin'}`
+
+        await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+        expect(res.redirect).toHaveBeenLastCalledWith(expected)
+
+        await controllers.checkIns.postSentenceSelectionPage()(req, res)
+        expect(res.redirect).toHaveBeenLastCalledWith(expected)
+        expect(res.render).not.toHaveBeenCalled()
+        expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
+        expect(req.session.data).toBeUndefined()
+      })
+    })
+
     const event = (number: number, expectedEndDate: string | null) => ({
       number,
       mainOffence: { code: '001', description: 'Offence' },
@@ -211,6 +246,36 @@ describe('check-in setup flow', () => {
   })
 
   describe('setup event validation', () => {
+    it.each([false, undefined])('ignores stale event data when the flag is %s', async enabled => {
+      const postOffenderSetup = jest.fn().mockResolvedValue({ uuid: id })
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ username: 'practitioner' }),
+        postOffenderSetup,
+        getProfilePhotoUploadLocation: jest.fn().mockResolvedValue({}),
+      }))
+      const req = requestFor(
+        { contentSha256: 'YWJjMTIz' },
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: { checkins: { currentEvent: 99, interval: 'AD_HOC', eligibility: ['none'], tierBand: 'DG' } },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse({ flags: { enableSentenceSelection: enabled } })
+
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/checkin-summary.njk', expect.anything())
+
+      await controllers.checkIns.postCheckinSummaryPage(hmppsAuthClient)(req, res)
+      expect(postOffenderSetup).toHaveBeenCalled()
+      expect(postOffenderSetup.mock.calls[0][0]).not.toHaveProperty('currentEvent')
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'SUCCESS' }))
+    })
+
     it.each([
       undefined,
       { events: undefined, currentEvent: 7 },

@@ -117,6 +117,7 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
+    {% if flags.enableSentenceSelection === true %}
     {% for event in userDetails.events %}
     {% if event.number == userDetails.currentEvent %}
     {% set sentenceValue %}
@@ -143,6 +144,7 @@
     }) %}
     {% endif %}
     {% endfor %}
+    {% endif %}
 
     {# Only the Tier A/B accredited-programme cohort is asked for a rationale. #}
     {% if userDetails.accreditedProgramme %}

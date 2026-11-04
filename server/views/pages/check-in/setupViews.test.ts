@@ -12,6 +12,7 @@ nunjucksSetup(app)
 const base: Record<string, unknown> = {
   crn,
   id,
+  flags: { enableSentenceSelection: true },
   case: { name: { forename: 'Bob', surname: 'Smith' }, mobileNumber: '07700900000', email: 'bob@example.com' },
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
@@ -129,6 +130,21 @@ describe('sentence selection and summaries', () => {
     expect(html).toContain(`href="${changeUrl}"`)
     expect(html).not.toContain('Burglary')
   })
+
+  it.each(['checkin-summary', 'manage/restart-checkin-summary'])(
+    'hides saved sentence data and Change links when disabled on %s',
+    async view => {
+      const html = await render(view, {
+        ...base,
+        flags: { enableSentenceSelection: false },
+        userDetails: { ...(base.userDetails as object), events, currentEvent: 1 },
+      })
+
+      expect(html).not.toContain('Which sentence do you want to add online check ins to?')
+      expect(html).not.toContain('Community order')
+      expect(html).not.toContain('data-qa="sentenceAction"')
+    },
+  )
 
   it('shows the sole sentence without a change link', async () => {
     const html = await render('checkin-summary', {

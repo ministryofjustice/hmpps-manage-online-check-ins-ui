@@ -128,6 +128,7 @@ describe('checkInsController', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     jest.useRealTimers()
+    res.locals.flags = { enableSentenceSelection: true }
     res.locals.offenderCheckinsByCRNResponse = offenderCheckinsByCRNResponse
   })
 
@@ -1494,6 +1495,25 @@ describe('checkInsController', () => {
   })
 
   describe('postRestartSummaryPage', () => {
+    it.each([false, undefined])('omits stale event data when the flag is %s', async enabled => {
+      res.locals.flags = { enableSentenceSelection: enabled }
+      const req = baseReq({
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: { currentEvent: 99, interval: 'AD_HOC', eligibility: ['none'], tierBand: 'DG' },
+            },
+          },
+        },
+      })
+
+      await controllers.checkIns.postRestartSummaryPage(hmppsAuthClient)(req, res)
+
+      expect(postReactivateOffenderSpy).toHaveBeenCalled()
+      expect(postReactivateOffenderSpy.mock.calls[0][1]).not.toHaveProperty('currentEvent')
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${uuid}/restart-confirmation`)
+    })
+
     it.each([
       { events: undefined, currentEvent: 7 },
       { events: null, currentEvent: undefined },

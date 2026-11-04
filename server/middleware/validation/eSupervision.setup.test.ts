@@ -42,7 +42,10 @@ describe('setup validation re-render', () => {
           },
         },
       })
-      const res: any = { locals: { checkInEligibilityJourney: journey }, render: jest.fn() }
+      const res: any = {
+        locals: { checkInEligibilityJourney: journey, flags: { enableSentenceSelection: true } },
+        render: jest.fn(),
+      }
       const next = jest.fn()
 
       validate(req, res, next)

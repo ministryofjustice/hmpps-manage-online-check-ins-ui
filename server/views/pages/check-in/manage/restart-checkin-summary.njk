@@ -100,6 +100,7 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
+    {% if flags.enableSentenceSelection === true %}
     {% for event in userDetails.events %}
     {% if event.number == userDetails.currentEvent %}
     {% set sentenceValue %}
@@ -120,6 +121,7 @@
     }) %}
     {% endif %}
     {% endfor %}
+    {% endif %}
 
     {# An ad-hoc restart schedules no first check in, so there is no date to show or change. #}
     {% if not userDetails.isAdHoc %}

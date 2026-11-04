@@ -57,6 +57,8 @@ describe('evaluateFeatureFlags', () => {
 
     expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('newDesignPopHeader', 'global')
     expect(res.locals.flags.newDesignPopHeader).toBe(true)
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('enableSentenceSelection', 'global')
+    expect(res.locals.flags.enableSentenceSelection).toBe(true)
     expect(nextSpy).toHaveBeenCalled()
   })
 })

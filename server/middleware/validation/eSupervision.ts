@@ -123,7 +123,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
         // Only the accredited-programme cohort passes through rationale on the way here.
         localParams.backLink = sessionVal('checkins', 'accreditedProgramme') ? setup('rationale') : setup('is-eligible')
         const events = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'events'])
-        if (events?.length > 1) localParams.backLink = setup('sentence-selection')
+        if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
+          localParams.backLink = setup('sentence-selection')
+        }
       }
     }
 
@@ -344,7 +346,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
           ? `/${manage('restart-rationale')}`
           : `/${manage('restart-is-eligible')}`
         const events = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'events'])
-        if (events?.length > 1) localParams.backLink = `/${manage('restart-sentence-selection')}`
+        if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
+          localParams.backLink = `/${manage('restart-sentence-selection')}`
+        }
       }
     } else if (baseUrl.endsWith(manage('restart-checkin-date'))) {
       render = `pages/check-in/manage/restart-checkin-date`

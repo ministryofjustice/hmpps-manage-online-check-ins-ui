@@ -993,6 +993,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const context = eligibilityContextFor(res, crn, id)
+      const cya = req.query.cya === 'true'
+      const summary =
+        context.journey === 'reactivation'
+          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
+          : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      if (res.locals.flags?.enableSentenceSelection !== true) {
+        return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+      }
       req.session.data ??= {}
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const personalDetails = await new ESupervisionClient(token).getPersonalDetails(crn)
@@ -1008,11 +1016,6 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         events.find(event => String(event.number) === String(selected))?.number ??
         (context.journey === 'reactivation' ? events.find(event => event.number === previous)?.number : undefined)
       setDataValue(req.session.data, [...path, 'currentEvent'], events.length === 1 ? events[0].number : currentEvent)
-      const cya = req.query.cya === 'true'
-      const summary =
-        context.journey === 'reactivation'
-          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
-          : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
       if (events.length < 2) return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
       const accreditedProgramme = getDataValue(req.session.data, [...path, 'accreditedProgramme'])
       return res.render('pages/check-in/sentence-selection.njk', {
@@ -1043,6 +1046,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         context.journey === 'reactivation'
           ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
           : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
+      if (res.locals.flags?.enableSentenceSelection !== true) {
+        return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+      }
       if (!event) {
         const accreditedProgramme = getDataValue(req.session.data, [...path, 'accreditedProgramme'])
         res.locals.errorMessages = {
@@ -1088,7 +1094,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           ? `/case/${crn}/appointments/${id}/check-in/rationale`
           : `/case/${crn}/appointments/${id}/check-in/is-eligible`
         const events = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'events'])
-        if (events?.length > 1) backLink = `/case/${crn}/appointments/${id}/check-in/sentence-selection`
+        if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
+          backLink = `/case/${crn}/appointments/${id}/check-in/sentence-selection`
+        }
       }
       return res.render('pages/check-in/check-in-frequency.njk', {
         crn,
@@ -1581,7 +1589,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
             : `/case/${crn}/appointments/check-in/manage`,
         )
       }
-      if (!hasValidEventSelection(savedUserDetails)) {
+      if (res.locals.flags?.enableSentenceSelection === true && !hasValidEventSelection(savedUserDetails)) {
         return res.redirect(`/case/${crn}/appointments/${id}/check-in/sentence-selection?cya=true`)
       }
       // A "change" link into edit-contact-preference can be abandoned with the back link
@@ -1621,7 +1629,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const savedUserDetails = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins'])
-      if (!hasValidEventSelection(savedUserDetails)) {
+      if (res.locals.flags?.enableSentenceSelection === true && !hasValidEventSelection(savedUserDetails)) {
         res.status(409).json({ status: 'ERROR', message: 'Select a sentence before submitting setup' })
         return
       }
@@ -2279,7 +2287,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'accreditedProgramme'])
       let backLink = accreditedProgramme ? `${manage}/restart-rationale` : `${manage}/restart-is-eligible`
       const events = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'events'])
-      if (events?.length > 1) backLink = `${manage}/restart-sentence-selection`
+      if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
+        backLink = `${manage}/restart-sentence-selection`
+      }
       if (cya) backLink = `${manage}/restart-summary`
       return res.render('pages/check-in/manage/restart-checkin-frequency.njk', {
         crn,
@@ -2569,7 +2579,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const incomplete = !restartDetails?.interval || (restartDetails.interval !== 'AD_HOC' && !restartDetails.date)
       if (incomplete) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
 
-      if (!hasValidEventSelection(restartDetails)) {
+      if (res.locals.flags?.enableSentenceSelection === true && !hasValidEventSelection(restartDetails)) {
         return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-sentence-selection?cya=true`)
       }
 
@@ -2582,7 +2592,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
         const body: ReactivateOffenderRequest = {
           requestedBy: res.locals.user.username,
-          currentEvent: restartDetails.currentEvent,
+          ...(res.locals.flags?.enableSentenceSelection === true ? { currentEvent: restartDetails.currentEvent } : {}),
           reason: restartDetails.rationale || restartDetails.reason || 'Reactivated via UI',
           pilotCheck: restartDetails.pilotCheck,
           eligibilityAnswers: eligibilityAnswersFromSelections(restartDetails.eligibility, restartDetails.tierBand),
