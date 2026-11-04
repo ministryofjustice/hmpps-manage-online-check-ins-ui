@@ -910,7 +910,7 @@ context('Appointment check-ins', () => {
     contactPreferencePage.getSubmitBtn().click()
     const checkYourAnswersPage = new RestartCheckYourAnswersPage()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getElement('.govuk-summary-list').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getElement('.govuk-summary-list').should('contain.text', 'Suspended sentence order')
     checkYourAnswersPage.getElementData('sentenceAction').should('not.exist')
     cy.request('DELETE', 'http://localhost:9091/__admin/requests')
     checkYourAnswersPage.getSubmitBtn().click()
