@@ -1,5 +1,6 @@
 {% extends "../../_form.njk" %}
-{% set overviewLink = managePeopleOnProbationUrl + '/case/' + crn + '/appointments/check-in/manage/' + id %}
+{# This service's own overview page, not MPoP's. #}
+{% set overviewLink = '/case/' + crn + '/appointments/check-in/manage/' + id %}
 {% set backLink = overviewLink %}
 {% set buttonText = "Cancel online check in" %}
 {% set title = "Cancel upcoming online check in for " + case.name.forename %}

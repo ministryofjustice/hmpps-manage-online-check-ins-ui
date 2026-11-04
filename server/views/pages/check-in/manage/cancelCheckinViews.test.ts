@@ -23,7 +23,8 @@ const base: Record<string, unknown> = {
   case: { name: { forename: 'Joe', surname: 'Bloggs' } },
   csrfToken: 'token',
   paths: { current: `${overview}/cancel-checkin` },
-  managePeopleOnProbationUrl: '',
+  // Set so the tests show the page links to this service's overview, not MPoP's.
+  managePeopleOnProbationUrl: 'https://mpop.example',
   data: { esupervision: {} },
   cancellableCheckin: { uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
 }
@@ -40,6 +41,8 @@ describe('cancel-checkin', () => {
     expect(html).toContain('Does the reason for cancelling include sensitive information?')
     expect(html).toMatch(/id="submit-btn">\s*Cancel online check in\s*<\/button>/)
     expect(html).toMatch(new RegExp(`href="${overview}" data-qa="formAnchorLink">\\s*Go back to online check ins`))
+    expect(html).toContain(`href="${overview}"`)
+    expect(html).not.toContain('https://mpop.example/case/')
   })
 
   it('posts the uuid of the check in it shows', async () => {
