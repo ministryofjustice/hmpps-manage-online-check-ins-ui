@@ -167,6 +167,7 @@ export const stubGetOffenderByCRN = (crn: string) => {
 const stubGetVerifiedOffenderByCRN = (
   crn: string,
   schedule: { mode: 'SCHEDULED' | 'AD_HOC'; checkinInterval: string | null; firstCheckin: string | null },
+  status: 'VERIFIED' | 'INACTIVE' = 'VERIFIED',
 ) => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
@@ -186,7 +187,7 @@ const stubGetVerifiedOffenderByCRN = (
       jsonBody: {
         uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
         crn,
-        status: 'VERIFIED',
+        status,
         ...schedule,
         contactPreference: 'PHONE',
         photoUrl: '/assets/images/placeholder.png',
@@ -205,6 +206,14 @@ const stubGetVerifiedOffenderByCRN = (
 
 export const stubGetScheduledOffenderByCRN = (crn: string) =>
   stubGetVerifiedOffenderByCRN(crn, { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' })
+
+// A weekly person whose check ins have been stopped, so the restart journey is open to them.
+export const stubGetStoppedOffenderByCRN = (crn: string) =>
+  stubGetVerifiedOffenderByCRN(
+    crn,
+    { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' },
+    'INACTIVE',
+  )
 
 export const stubGetOffenderHeaderByCRN = (crn: string, tierScore: string = 'D') =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -466,6 +475,7 @@ export default {
   stubGetOffenderHeaderByCRN,
   stubGetAdHocOffenderByCRN,
   stubGetScheduledOffenderByCRN,
+  stubGetStoppedOffenderByCRN,
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubNoUpcomingCheckin,

@@ -1319,6 +1319,7 @@ context('check-ins overview and manage pages', () => {
 
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
+    cy.task('stubGetStoppedOffenderByCRN', 'X778160')
     cy.task('stubGetOffenderHeaderByCRN', 'X778160')
     cy.visit(
       `/case/X778160/appointments/check-in/manage/3fa85f64-5717-4562-b3fc-2c963f66afa7/restart-eligibility-check`,
