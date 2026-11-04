@@ -3,7 +3,8 @@ type LivenessResult = 'LIVE' | 'NOT_LIVE' | 'ERROR'
 
 export interface ESupervisionCheckIn {
   uuid: string
-  status: 'SUBMITTED' | 'REVIEWED' | 'EXPIRED'
+  // SCHEDULED is an upcoming check-in the person can't act on yet; CREATED is open (link issued).
+  status: 'SCHEDULED' | 'CREATED' | 'SUBMITTED' | 'REVIEWED' | 'EXPIRED' | 'CANCELLED'
   dueDate: string
   personalDetails: PersonalDetails
   submittedAt?: string
@@ -27,6 +28,21 @@ export interface ESupervisionCheckIn {
   checkinLogs: ESupervisionCheckInLogs
   reviewDueDate?: string
   sensitive?: boolean
+  // Set when a practitioner cancelled the check-in.
+  cancelledAt?: string
+  cancelledBy?: string
+}
+
+// The upcoming check-in the overview offers to cancel, taken from the upcoming-questions response.
+export interface CancellableCheckin {
+  uuid: string
+}
+
+// POST /v2/offender_checkins/{uuid}/cancel
+export interface CancelCheckinRequest {
+  cancelledBy: ExternalUserId
+  reason: string
+  sensitive: boolean
 }
 
 export interface ESupervisionLog {
@@ -306,6 +322,8 @@ export interface EsupervisionUpcomingQuestionItem {
 // GET /v2/questions/upcoming/{crn}/offender-questions
 export interface EsupervisionUpcomingQuestionsResponse {
   expectedCheckinDate: string
+  // The SCHEDULED or CREATED check-in for that date, once it exists. Absent until then.
+  checkinUuid?: string
   questions: {
     question: string
     format: string

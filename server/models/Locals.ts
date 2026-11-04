@@ -1,6 +1,11 @@
 import type { Response } from 'express'
 import { Errors } from './Errors'
-import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/esupervision'
+import {
+  CancellableCheckin,
+  EsupervisionUpcomingQuestionsResponse,
+  OffenderByCRNResponse,
+  SupervisionPackageStatus,
+} from '../data/model/esupervision'
 import type { CheckInEligibilityJourney } from '../utils/checkInEligibilityContext'
 
 export interface LocalsUser {
@@ -55,6 +60,10 @@ export interface AppLocals extends Record<string, unknown> {
   uploadError?: string
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
+  // The person's open check-in, if they have one; set by middleware/getCancellableCheckin.
+  cancellableCheckin?: CancellableCheckin | null
+  // The upcoming-questions response, fetched by getCancellableCheckin for the overview to reuse.
+  upcomingCheckin?: EsupervisionUpcomingQuestionsResponse | null
   supervisionPackageStatus?: SupervisionPackageStatus | null
   checkInEligibilityJourney?: CheckInEligibilityJourney
   flags?: FeatureFlags

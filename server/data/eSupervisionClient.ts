@@ -1,6 +1,7 @@
 import config from '../config'
 
 import {
+  CancelCheckinRequest,
   CheckinScheduleRequest,
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
@@ -112,6 +113,16 @@ export default class ESupervisionClient extends RestClient {
     return this.post({
       path: `/v2/offender_checkins/${uuid}/annotate`,
       data: notes,
+    })
+  }
+
+  // POST /v2/offender_checkins/{uuid}/cancel — a practitioner cancels an upcoming or open check-in.
+  // The API answers 409 when it can no longer be cancelled (submitted, reviewed, expired or already
+  // cancelled), which the caller handles.
+  async postCancelCheckin(uuid: string, request: CancelCheckinRequest): Promise<ESupervisionCheckIn> {
+    return this.post({
+      path: `/v2/offender_checkins/${uuid}/cancel`,
+      data: request,
     })
   }
 

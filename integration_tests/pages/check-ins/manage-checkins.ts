@@ -9,6 +9,10 @@ export default class ManageCheckins extends Page {
 
   getUpdateBanner = (): PageElement => cy.get('[data-qa="updateBanner"]')
 
+  getWarningBanner = (): PageElement => cy.get('[data-qa="warningBanner"]')
+
+  getCancelCheckinLink = (): PageElement => this.getElementData('cancel-checkin-link')
+
   getNextCheckInValue = (): PageElement => cy.get('[data-qa="nextCheckInValue"]')
 
   getFrequencyValue = (): PageElement => cy.get('[data-qa="frequencyValue"]')

@@ -33,6 +33,8 @@ export interface ESupervisionValidationArgs {
 }
 
 export const BESPOKE_QUESTION_MAX_LENGTH = 1000
+// Matches CANCELLATION_REASON_MAX_LENGTH in the API.
+export const CANCELLATION_REASON_MAX_LENGTH = 4000
 export const BESPOKE_QUESTION_MIN_LENGTH = 5
 
 // The length limit on a question the practitioner writes, whether on the choose-a-question page or
@@ -214,6 +216,34 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
           validator: isNotEmpty,
           msg: 'Select yes if the reason for stopping includes sensitive information',
           log: 'Stop checkin sensitive selection not completed',
+        },
+      ],
+    },
+
+    // cancel-checkin — cancel the person's open check-in. The API holds the reason to the same limit.
+    [`[esupervision][${crn}][${id}][manageCheckin][cancelCheckinReason]`]: {
+      optional: page !== 'cancel-checkin',
+      checks: [
+        {
+          validator: isNotBlank,
+          msg: 'Enter reason for cancelling',
+          log: 'Cancel check in, reason not provided',
+        },
+        {
+          validator: charsOrLess,
+          length: CANCELLATION_REASON_MAX_LENGTH,
+          msg: `Reason for cancelling must be ${CANCELLATION_REASON_MAX_LENGTH} characters or less`,
+          log: 'Cancel check in, reason too long',
+        },
+      ],
+    },
+    [`[esupervision][${crn}][${id}][manageCheckin][cancelCheckinSensitive]`]: {
+      optional: page !== 'cancel-checkin',
+      checks: [
+        {
+          validator: isNotEmpty,
+          msg: 'Select if the reason for cancelling includes sensitive information',
+          log: 'Cancel check in sensitive selection not completed',
         },
       ],
     },

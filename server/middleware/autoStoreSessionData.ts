@@ -7,7 +7,13 @@ import setDataValue from '../utils/setDataValue'
 // Values the controllers record themselves (see models/Esupervision). Wizard pages post into the
 // same session entry, so without this a crafted post could overwrite them - fabricating how long a
 // setup took, or claiming questions were added.
-const SERVER_OWNED_KEYS = ['setupStartedAt', 'questionsAdded', 'supervisionPackageStatus']
+const SERVER_OWNED_KEYS = [
+  'setupStartedAt',
+  'questionsAdded',
+  'supervisionPackageStatus',
+  'checkInCancelled',
+  'checkInCancelRefused',
+]
 
 // Derived by the eligibility rules inside a wizard group (`checkins`, `restartCheckin`); trusting a
 // posted value would let a crafted post skip the accredited-programme approval and rationale.

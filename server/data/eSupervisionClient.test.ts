@@ -4,6 +4,7 @@ import { isValidHost } from '../utils/isValidHost'
 import { isValidPath } from '../utils/isValidPath'
 
 import {
+  CancelCheckinRequest,
   DeactivateOffenderRequest,
   EsupervisionAssignQuestionsRequest,
   EsupervisionAssignQuestionsResponse,
@@ -246,6 +247,37 @@ describe('ESupervisionClient', () => {
 
       const output = await client.postDeactivateOffender(checkInUuid, body)
       expect(output).toEqual(response)
+    })
+  })
+
+  describe('postCancelCheckin', () => {
+    const checkInUuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
+    const body: CancelCheckinRequest = {
+      cancelledBy: 'practitioner-1',
+      reason: 'Attending in person instead',
+      sensitive: false,
+    }
+
+    it('POSTs the cancellation and returns the cancelled check-in', async () => {
+      const response = { uuid: checkInUuid, status: 'CANCELLED', cancelledBy: 'practitioner-1' }
+
+      fakeESupervisionApi
+        .post(`/v2/offender_checkins/${checkInUuid}/cancel`, { ...body })
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      const output = await client.postCancelCheckin(checkInUuid, body)
+      expect(output).toEqual(response)
+    })
+
+    // The API refuses once the check-in is submitted, expired or already cancelled; the caller
+    // tells them apart by the status on the error.
+    it('surfaces a 409 with its status when the check-in can no longer be cancelled', async () => {
+      fakeESupervisionApi
+        .post(`/v2/offender_checkins/${checkInUuid}/cancel`)
+        .reply(409, { status: 409, userMessage: 'Checkin cannot be cancelled. Current status: SUBMITTED' })
+
+      await expect(client.postCancelCheckin(checkInUuid, body)).rejects.toMatchObject({ status: 409 })
     })
   })
 

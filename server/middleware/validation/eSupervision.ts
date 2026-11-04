@@ -224,6 +224,14 @@ const eSuperVision: Route<void> = (req, res, next) => {
     }
   }
 
+  const validateCancelCheckin = () => {
+    if (baseUrl.includes(manage('cancel-checkin'))) {
+      render = `pages/check-in/manage/cancel-checkin`
+      localParams.id = id
+      errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'cancel-checkin' }))
+    }
+  }
+
   const validateCheckinSettings = () => {
     if (baseUrl.endsWith(manage('settings'))) {
       render = `pages/check-in/manage/checkin-settings-frequency`
@@ -483,6 +491,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
   validateSetupFlow()
   validateRestartEligibilityFlow()
   validateStopCheckins()
+  validateCancelCheckin()
   validateCheckinSettings()
   validateManageContact()
   validateManageEditContact()

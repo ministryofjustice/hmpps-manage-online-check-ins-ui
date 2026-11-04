@@ -15,6 +15,10 @@ export interface ESupervisionSession {
   // middleware/autoStoreSessionData.
   questionsAdded?: boolean
   setupStartedAt?: string
+  // Server-owned: the cancel page records that it cancelled the upcoming check-in, or that the
+  // API refused because the check-in was no longer open, for the overview page's banner.
+  checkInCancelled?: boolean
+  checkInCancelRefused?: boolean
 }
 
 export interface CheckinUserDetails {

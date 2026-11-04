@@ -14,6 +14,7 @@ import postRedirectWizard from '../middleware/checkinCyaRedirect'
 
 import { getCheckInQuestionsRedirect } from '../middleware/getCheckInQuestionsRedirect'
 import getCheckinOffenderDetails from '../middleware/getCheckinOffenderDetails'
+import getCancellableCheckin from '../middleware/getCancellableCheckin'
 import validateOffenderCheckin from '../middleware/validateOffenderCheckin'
 import restrictEligibilityAccess from '../middleware/restrictEligibilityAccess'
 import { getSupervisionPackageStatus } from '../middleware/getSupervisionPackageStatus'
@@ -294,6 +295,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
 
   router.get('/case/:crn/appointments/check-in/manage', [
     getCheckinOffenderDetails(hmppsAuthClient),
+    getCancellableCheckin(hmppsAuthClient),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getManageCheckinPage(hmppsAuthClient),
   ])
@@ -302,9 +304,33 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     validateCrnAndId,
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    getCancellableCheckin(hmppsAuthClient),
     getPersonalDetails(hmppsAuthClient, arnsComponents),
     controllers.checkIns.getManageCheckinPage(hmppsAuthClient),
   ])
+
+  // Cancelling the person's open check-in. Both routes look the check-in up again, so a submission
+  // from a stale page can't cancel one that no longer exists.
+  router.get('/case/:crn/appointments/check-in/manage/:id/cancel-checkin', [
+    validateCrnAndId,
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getCancellableCheckin(hmppsAuthClient),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    controllers.checkIns.getCancelCheckinPage(),
+  ])
+
+  router.post(
+    '/case/:crn/appointments/check-in/manage/:id/cancel-checkin',
+    validateCrnAndId,
+    autoStoreSessionData(hmppsAuthClient),
+    getCheckinOffenderDetails(hmppsAuthClient),
+    validateOffenderCheckin,
+    getCancellableCheckin(hmppsAuthClient),
+    getPersonalDetails(hmppsAuthClient, arnsComponents),
+    validate.eSuperVision,
+    controllers.checkIns.postCancelCheckin(hmppsAuthClient),
+  )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/stop-checkin', [
     validateCrnAndId,
