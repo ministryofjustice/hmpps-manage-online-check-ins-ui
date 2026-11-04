@@ -42,6 +42,11 @@ describe('cancel-checkin', () => {
     expect(html).toMatch(new RegExp(`href="${overview}" data-qa="formAnchorLink">\\s*Go back to online check ins`))
   })
 
+  it('posts the uuid of the check in it shows', async () => {
+    const html = await render('cancel-checkin', base)
+    expect(html).toMatch(/<input type="hidden" name="checkinUuid" value="3fa85f64-5717-4562-b3fc-2c963f66afa6"/)
+  })
+
   it('re-renders with the errors', async () => {
     const html = await render('cancel-checkin', {
       ...base,

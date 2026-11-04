@@ -21,6 +21,8 @@ import {
 import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
+import escapeHtml from '../utils/escapeHtml'
+import escapeForLog from '../utils/escapeForLog'
 import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
@@ -1647,10 +1649,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
 
       let successMessageHtml: string | undefined
       let warningMessageHtml: string | undefined
+      // The banners output their html unescaped, and the name comes from NDelius.
+      const rawForename = checkinRes?.details?.name?.forename
+      const forenameHtml = rawForename ? escapeHtml(rawForename) : undefined
 
       if (questionsAdded) {
         res.locals.success = true
-        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const forename = forenameHtml || 'the person'
         const rawCheckinDate = upcomingCheckin?.expectedCheckinDate
         const nextCheckinLongDate = dateWithYear(rawCheckinDate)
         successMessageHtml = `
@@ -1666,7 +1671,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const cancelled = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'])
       if (cancelled) {
         res.locals.success = true
-        const forename = checkinRes?.details?.name?.forename || 'The person'
+        const forename = forenameHtml || 'The person'
         successMessageHtml = `
           <strong>Upcoming online check in cancelled.</strong>
           <br>
@@ -1676,7 +1681,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const cancelRefused = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'])
       if (cancelRefused) {
-        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const forename = forenameHtml || 'the person'
         warningMessageHtml = `
           <strong>The online check in for ${forename} could not be cancelled</strong>
           <br>
@@ -1694,7 +1699,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         const bookedDate = getDataValue(req.session.data, ['esupervision', crn, id, flag])
         if (!bookedDate) return
         res.locals.success = true
-        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const forename = forenameHtml || 'the person'
         const adHocDate = dateToLongDate(bookedDate)
         successMessageHtml = `
           <strong>Single online check in for ${forename} has been ${verb} ${adHocDate}</strong>
@@ -1799,8 +1804,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { crn, id } = req.params as Record<string, string>
       const overviewPage = `/case/${crn}/appointments/check-in/manage/${id}`
       const checkIn = res.locals.cancellableCheckin
-      if (!checkIn) {
-        // Submitted from a stale page: the check-in has gone since the page was opened.
+      // The page posts the uuid of the check-in it showed. Cancel only that one: if it has been
+      // submitted or missed since, the person's upcoming check-in may now be a different one.
+      const shownUuid = typeof req.body?.checkinUuid === 'string' ? req.body.checkinUuid : undefined
+      if (!checkIn || checkIn.uuid !== shownUuid) {
+        logger.info(`Not cancelling check in ${escapeForLog(shownUuid)} for ${crn}: it is no longer the upcoming one`)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], true)
         setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
         return res.redirect(303, overviewPage)
       }

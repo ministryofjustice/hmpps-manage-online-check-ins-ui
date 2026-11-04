@@ -19,6 +19,9 @@
 
 {% block form %}
 
+        {# The check-in this page shows; the post cancels only this one. #}
+        <input type="hidden" name="checkinUuid" value="{{ cancellableCheckin.uuid }}" data-qa="cancel-checkin-uuid">
+
         <p class="govuk-body" data-qa="cancel-checkin-intro">
             <a href="https://probation-check-in.hmpps.service.justice.gov.uk/practitioner-guidance/stopping-cancelling-and-restarting-check-ins" class="govuk-link" rel="nofollow" target="_blank">Learn more about cancelling an online check in (opens in new tab).</a>
         </p>

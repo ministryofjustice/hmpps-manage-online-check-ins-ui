@@ -82,6 +82,41 @@ describe('getCancellableCheckin', () => {
     expect(next).toHaveBeenCalled()
   })
 
+  it('attaches null when the API says the person is not on check ins', async () => {
+    getUpcomingCheckinQuestions.mockRejectedValue(Object.assign(new Error('Unprocessable'), { status: 422 }))
+
+    await getCancellableCheckin(hmppsAuthClient)(req, res, next)
+
+    expect(res.locals.cancellableCheckin).toBeNull()
+    expect(next).toHaveBeenCalled()
+  })
+
+  describe('when the API fails', () => {
+    const failures = [
+      ['a server error', Object.assign(new Error('Server error'), { status: 500 })],
+      ['a network error', new Error('ECONNRESET')],
+    ] as const
+
+    it.each(failures)('still shows the page, without the cancel option, on %s', async (_, failure) => {
+      getUpcomingCheckinQuestions.mockRejectedValue(failure)
+
+      await getCancellableCheckin(hmppsAuthClient)(req, res, next)
+
+      expect(res.locals.cancellableCheckin).toBeNull()
+      expect(res.locals.upcomingCheckin).toBeNull()
+      expect(next).toHaveBeenCalled()
+    })
+
+    // Not knowing the upcoming check-in must not read as there being none to cancel.
+    it.each(failures)('lets %s propagate when cancelling', async (_, failure) => {
+      getUpcomingCheckinQuestions.mockRejectedValue(failure)
+      const post = httpMocks.createRequest({ method: 'POST', params: { crn, id: offenderUuid } })
+
+      await expect(getCancellableCheckin(hmppsAuthClient)(post, res, next)).rejects.toBe(failure)
+      expect(next).not.toHaveBeenCalled()
+    })
+  })
+
   it('does not look for a check-in when the person is not verified', async () => {
     res.locals.offenderCheckinsByCRNResponse = { ...offender, status: 'INACTIVE' }
 

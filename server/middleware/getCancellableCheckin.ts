@@ -24,9 +24,18 @@ const getCancellableCheckin = (hmppsAuthClient: HmppsAuthClient): Route<Promise<
     const eSupervisionClient = new ESupervisionClient(token)
     try {
       res.locals.upcomingCheckin = (await eSupervisionClient.getUpcomingCheckinQuestions(crn)) ?? null
-    } catch {
-      // The API answers 4xx when the person has nothing upcoming, which is a normal state.
-      logger.info(`No upcoming check in questions found for CRN ${crn}`)
+    } catch (error) {
+      const status = (error as { status?: number })?.status
+      if (status >= 400 && status < 500) {
+        // The API answers 4xx when the person has nothing upcoming, which is a normal state.
+        logger.info(`No upcoming check in questions found for CRN ${crn}`)
+      } else if (req.method === 'POST') {
+        // Any other failure means we don't know which check-in is upcoming, so don't act on it.
+        throw error
+      } else {
+        // Pages still load without it; they just don't offer to cancel.
+        logger.error(`Failed to look up the upcoming check in for CRN ${crn}`, error)
+      }
       res.locals.upcomingCheckin = null
     }
     const upcoming = res.locals.upcomingCheckin
