@@ -3,6 +3,8 @@
 {% set overviewLink = '/case/' + crn + '/appointments/check-in/manage/' + id %}
 {% set backLink = overviewLink %}
 {% set buttonText = "Cancel online check in" %}
+{# A second click would post again after the first had cancelled it. #}
+{% set preventDoubleClick = true %}
 {% set title = "Cancel upcoming online check in for " + case.name.forename %}
 {% set pageTitleText = "Cancel upcoming online check in for the person" %}
 {% if errorMessages and errorMessages | length %}
@@ -24,7 +26,7 @@
         <input type="hidden" name="checkinUuid" value="{{ cancellableCheckin.uuid }}" data-qa="cancel-checkin-uuid">
 
         <p class="govuk-body" data-qa="cancel-checkin-intro">
-            <a href="https://probation-check-in.hmpps.service.justice.gov.uk/practitioner-guidance/stopping-cancelling-and-restarting-check-ins" class="govuk-link" rel="nofollow" target="_blank">Learn more about cancelling an online check in (opens in new tab).</a>
+            <a href="{{ guidanceUrl }}/practitioner-guidance/stopping-cancelling-and-restarting-check-ins" class="govuk-link" rel="noreferrer noopener" target="_blank">Learn more about cancelling an online check in (opens in new tab).</a>
         </p>
 
         {{ govukTextarea({

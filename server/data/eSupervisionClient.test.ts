@@ -279,6 +279,12 @@ describe('ESupervisionClient', () => {
 
       await expect(client.postCancelCheckin(checkInUuid, body)).rejects.toMatchObject({ status: 409 })
     })
+
+    it('surfaces a 400 with its status when the API rejects the request', async () => {
+      fakeESupervisionApi.post(`/v2/offender_checkins/${checkInUuid}/cancel`).reply(400, { status: 400 })
+
+      await expect(client.postCancelCheckin(checkInUuid, body)).rejects.toMatchObject({ status: 400 })
+    })
   })
 
   describe('postReactivateOffender', () => {

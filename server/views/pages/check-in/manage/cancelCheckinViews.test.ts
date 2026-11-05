@@ -25,6 +25,7 @@ const base: Record<string, unknown> = {
   paths: { current: `${overview}/cancel-checkin` },
   // Set so the tests show the page links to this service's overview, not MPoP's.
   managePeopleOnProbationUrl: 'https://mpop.example',
+  guidanceUrl: 'https://guidance.example',
   data: { esupervision: {} },
   cancellableCheckin: { uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa6' },
 }
@@ -43,6 +44,19 @@ describe('cancel-checkin', () => {
     expect(html).toMatch(new RegExp(`href="${overview}" data-qa="formAnchorLink">\\s*Go back to online check ins`))
     expect(html).toContain(`href="${overview}"`)
     expect(html).not.toContain('https://mpop.example/case/')
+  })
+
+  it('links to the configured guidance in a new tab that cannot reach back to this page', async () => {
+    const html = await render('cancel-checkin', base)
+    expect(html).toContain(
+      '<a href="https://guidance.example/practitioner-guidance/stopping-cancelling-and-restarting-check-ins" class="govuk-link" rel="noreferrer noopener" target="_blank">',
+    )
+  })
+
+  // A second click would post again after the first had cancelled it.
+  it('stops the button being submitted twice', async () => {
+    const html = await render('cancel-checkin', base)
+    expect(html).toMatch(/<button[^>]*data-prevent-double-click="true"[^>]*id="submit-btn"/)
   })
 
   it('posts the uuid of the check in it shows', async () => {
@@ -83,6 +97,20 @@ describe('manage-checkin', () => {
     const html = await render('manage-checkin', overviewLocals({ canCancelCheckin: true }))
     expect(html).toMatch(new RegExp(`href="${overview}/cancel-checkin"[^>]*data-qa="cancel-checkin-link"`))
     expect(html).toContain('Cancel check in')
+  })
+
+  it("shows the upcoming check in's questions as text", async () => {
+    const html = await render(
+      'manage-checkin',
+      overviewLocals({
+        upcomingCheckin: {
+          expectedCheckinDate: '2026-11-04',
+          questions: [{ question: '<img src=x onerror=alert(1)> How are you?' }],
+        },
+      }),
+    )
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt; How are you?')
+    expect(html).not.toContain('<img src=x')
   })
 
   it('offers nothing to cancel otherwise', async () => {

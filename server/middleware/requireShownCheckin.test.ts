@@ -16,13 +16,21 @@ describe('requireShownCheckin', () => {
       method: 'POST',
       params: { crn, id },
       body,
-      session: { data: { esupervision: { [crn]: { [id]: { manageCheckin: { cancelCheckinReason: 'Reason' } } } } } },
+      session: {
+        data: {
+          esupervision: {
+            [crn]: { [id]: { manageCheckin: { cancelCheckinReason: 'Reason', settingsUpdated: true } } },
+          },
+        },
+      },
     })
 
   const expectRefused = (req: ReturnType<typeof post>) => {
     expect(next).not.toHaveBeenCalled()
     expect(req.session.data.esupervision[crn][id].checkInCancelRefused).toBe(true)
-    expect(req.session.data.esupervision[crn][id].manageCheckin).toBeNull()
+    expect(req.session.data.esupervision[crn][id].manageCheckin.cancelCheckinReason).toBeUndefined()
+    // Anything else in progress under manageCheckin stays.
+    expect(req.session.data.esupervision[crn][id].manageCheckin.settingsUpdated).toBe(true)
     expect(res.redirect).toHaveBeenCalledWith(303, overviewPage)
   }
 

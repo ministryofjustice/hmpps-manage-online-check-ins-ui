@@ -190,7 +190,8 @@ export default class RestClient {
       const sanitisedErrorMessage = sanitisedError.message
 
       if (sanitisedError.status === 400) {
-        throw new Error(`http 400: ${sanitisedErrorMessage}`)
+        // Keep the status, so callers can tell a rejected request from other failures.
+        throw Object.assign(new Error(`http 400: ${sanitisedErrorMessage}`), { status: 400 })
       }
       if (handle404 && sanitisedError.status === 404) return null
       if (handle415 && sanitisedError.status === 415) {

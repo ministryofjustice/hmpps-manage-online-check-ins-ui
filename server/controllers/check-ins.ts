@@ -23,6 +23,7 @@ import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/mod
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import escapeHtml from '../utils/escapeHtml'
+import clearCancelCheckinAnswers from '../utils/clearCancelCheckinAnswers'
 import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
@@ -427,6 +428,21 @@ type CheckInRouteName =
   | 'postScheduleCheckInDeleteQuestion'
   | 'getScheduleCheckInPreviewFeeling'
   | 'getScheduleCheckInPreviewSupport'
+
+const CANCEL_REASON_REJECTED = 'Reason for cancelling could not be saved. Check it and try again'
+
+// The cancel page, for its GET and for a post the API rejected. Its hidden checkinUuid comes from
+// res.locals.cancellableCheckin.
+const renderCancelCheckinPage = (res: Response, errorMessages?: Record<string, string>) => {
+  const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+  return res.render('pages/check-in/manage/cancel-checkin.njk', {
+    crn: offenderDetails.crn,
+    id: offenderDetails.uuid,
+    case: offenderDetails.details,
+    guidanceUrl: config.guidance.link,
+    errorMessages,
+  })
+}
 
 const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // The setup flow keys its session data on a uuid minted here, before the person exists in
@@ -1679,16 +1695,17 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         `
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'], undefined)
       }
+      // A double submit can record both: the first post cancelled it, so the second was refused.
       const cancelRefused = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'])
-      if (cancelRefused) {
+      if (cancelRefused && !cancelled) {
         const forename = forenameHtml || 'the person'
         warningMessageHtml = `
           <strong>The online check in for ${forename} could not be cancelled</strong>
           <br>
           It has already been submitted, missed or cancelled, or online check ins have stopped.
         `
-        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], undefined)
       }
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], undefined)
 
       // An ad-hoc check in is booked from the schedule page, and moved by booking it again.
       const adHocBanners = [
@@ -1789,12 +1806,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (offenderDetails.status !== 'VERIFIED' || !res.locals.cancellableCheckin) {
         return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
       }
-      // The page's hidden checkinUuid comes from res.locals.cancellableCheckin.
-      return res.render('pages/check-in/manage/cancel-checkin.njk', {
-        crn: offenderDetails.crn,
-        id: offenderDetails.uuid,
-        case: offenderDetails.details,
-      })
+      return renderCancelCheckinPage(res)
     }
   },
 
@@ -1827,15 +1839,23 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         await eSupervisionClient.postCancelCheckin(checkIn.uuid, body)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'], true)
       } catch (error) {
+        const { status } = (error ?? {}) as { status?: number }
+        if (status === 400) {
+          // The API rejected the reason the page accepted. Keep the answers and let them try again.
+          logger.warn(`Cancelling check in ${checkIn.uuid} was rejected by the API: ${(error as Error).message}`)
+          return renderCancelCheckinPage(res, {
+            [`esupervision[${crn}][${id}][manageCheckin][cancelCheckinReason]`]: CANCEL_REASON_REJECTED,
+          })
+        }
         // 409: the person submitted it, or it expired, between the page opening and this post.
         // The overview explains; anything else is a failure to report as usual.
-        if ((error as { status?: number })?.status !== 409) {
+        if (status !== 409) {
           throw error
         }
         logger.info(`Check in ${checkIn.uuid} could not be cancelled: it is no longer open`)
         setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], true)
       }
-      setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
+      clearCancelCheckinAnswers(req.session.data, crn, id)
 
       return res.redirect(303, overviewPage)
     }

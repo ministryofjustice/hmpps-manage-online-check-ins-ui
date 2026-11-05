@@ -2,6 +2,7 @@ import { Route } from '../@types'
 import logger from '../../logger'
 import escapeForLog from '../utils/escapeForLog'
 import setDataValue from '../utils/setDataValue'
+import clearCancelCheckinAnswers from '../utils/clearCancelCheckinAnswers'
 
 // The cancel page posts the uuid of the check-in it showed. Only that one may be cancelled: if it was
 // submitted, missed or cancelled since, or check-ins stopped, the person's upcoming check-in may now
@@ -18,7 +19,7 @@ const requireShownCheckin: Route<void> = (req, res, next) => {
   }
   logger.info(`Not cancelling check in ${escapeForLog(shownUuid)} for ${crn}: it is no longer the upcoming one`)
   setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], true)
-  setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
+  clearCancelCheckinAnswers(req.session.data, crn, id)
   return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
 }
 
