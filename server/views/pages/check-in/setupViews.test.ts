@@ -94,6 +94,7 @@ describe('sentence selection and summaries', () => {
       sentence: { description: 'Community order', expectedEndDate: '2028-01-02', length: 12, lengthUnit: 'months' },
     },
     { number: 2, mainOffence: { description: 'Burglary' }, sentence: null },
+    { number: 3, sentence: { description: 'Undated sentence', expectedEndDate: null as string | null } },
   ]
 
   it('renders only the sentence description, end-date hint, and saved selection', async () => {
@@ -105,7 +106,9 @@ describe('sentence selection and summaries', () => {
     })
     expect(html).toContain('Community order')
     expect(html).toContain('Sentence end date: 2 January 2028')
-    expect(html).toContain('Not available')
+    expect(html).toContain('Sentence end date: Not available')
+    expect(html).not.toContain('Burglary')
+    expect(html).not.toContain('value="2"')
     expect(html).not.toContain('Theft')
     expect(html).not.toContain('12 months')
     expect(html).toMatch(/value="1"[^>]*checked/)
@@ -143,6 +146,21 @@ describe('sentence selection and summaries', () => {
       expect(html).not.toContain('Which sentence do you want to add online check ins to?')
       expect(html).not.toContain('Community order')
       expect(html).not.toContain('data-qa="sentenceAction"')
+    },
+  )
+
+  it.each(['checkin-summary', 'manage/restart-checkin-summary'])(
+    'does not display a selected event without a sentence on %s',
+    async view => {
+      const html = await render(view, {
+        ...base,
+        userDetails: { ...(base.userDetails as object), events, currentEvent: 2 },
+      })
+
+      expect(html).not.toContain('Burglary')
+      expect(html).not.toContain('Sentence end date:')
+      expect(html).not.toContain('data-qa="sentenceAction"')
+      expect(html).not.toContain('Community order')
     },
   )
 

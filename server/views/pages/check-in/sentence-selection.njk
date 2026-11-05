@@ -16,12 +16,14 @@
 {% block form %}
     {% set sentenceItems = [] %}
     {% for event in events %}
+      {% if event.sentence %}
         {% set _ = sentenceItems.push({
             value: event.number | string,
             text: event.sentence.description,
             checked: event.number == currentEvent,
-            hint: { text: 'Sentence end date: ' + (event.sentence.expectedEndDate | dateWithYear) if event.sentence.expectedEndDate else 'Not available' }
+            hint: { text: 'Sentence end date: ' + ((event.sentence.expectedEndDate | dateWithYear) if event.sentence.expectedEndDate else 'Not available') }
         }) %}
+            {% endif %}
     {% endfor %}
     {{ govukRadios({
         fieldset: {

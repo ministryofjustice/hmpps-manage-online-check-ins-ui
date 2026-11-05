@@ -89,10 +89,10 @@ describe('check-in setup flow', () => {
       })
     })
 
-    const event = (number: number, expectedEndDate: string | null) => ({
+    const event = (number: number, expectedEndDate: string | null, hasSentence = true) => ({
       number,
       mainOffence: { code: '001', description: 'Offence' },
-      sentence: { description: 'Community order', expectedEndDate },
+      sentence: hasSentence ? { description: 'Community order', expectedEndDate } : null,
     })
 
     const withEvents = (events: ReturnType<typeof event>[]) => {
@@ -100,6 +100,67 @@ describe('check-in setup flow', () => {
         getPersonalDetails: jest.fn().mockResolvedValue({ crn, events }),
       }))
     }
+
+    it.each(['setup', 'reactivation'] as const)(
+      'excludes null sentences and clears their saved selection in %s',
+      async journey => {
+        const eligibleEvents = [event(2, '2028-01-01'), event(3, '2027-01-01')]
+        withEvents([event(1, null, false), ...eligibleEvents])
+        const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+        const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 1 } } } } } })
+        const res = mockAppResponse({
+          checkInEligibilityJourney: journey,
+          offenderCheckinsByCRNResponse: { currentEvent: 1 },
+        })
+
+        await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+        expect(req.session.data.esupervision[crn][id][group].events).toEqual(eligibleEvents)
+        expect(req.session.data.esupervision[crn][id][group].currentEvent).toBeUndefined()
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/sentence-selection.njk',
+          expect.objectContaining({ events: eligibleEvents }),
+        )
+      },
+    )
+
+    it('skips selection and selects the sole event with a sentence', async () => {
+      const eligibleEvent = event(2, '2028-01-01')
+      withEvents([event(1, null, false), eligibleEvent])
+      const req = requestFor()
+      const res = mockAppResponse()
+
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+      expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(2)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+    })
+
+    it.each(['setup', 'reactivation'] as const)(
+      'rejects a null-sentence event posted from a stale %s session',
+      async journey => {
+        const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+        const eligibleEvent = event(2, '2028-01-01')
+        const req = requestFor(
+          { esupervision: { [crn]: { [id]: { [group]: { currentEvent: '1' } } } } },
+          {
+            data: {
+              esupervision: { [crn]: { [id]: { [group]: { events: [event(1, null, false), eligibleEvent] } } } },
+            },
+          },
+        )
+        const res = mockAppResponse({ checkInEligibilityJourney: journey })
+
+        await controllers.checkIns.postSentenceSelectionPage()(req, res)
+
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/sentence-selection.njk',
+          expect.objectContaining({ events: [eligibleEvent], errorMessages: expect.anything() }),
+        )
+        expect(req.session.data.esupervision[crn][id][group].currentEvent).toBeUndefined()
+        expect(res.redirect).not.toHaveBeenCalled()
+      },
+    )
 
     it('orders sentences by furthest end date, with undated sentences last', async () => {
       const events = [event(1, '2027-01-01'), event(2, null), event(3, '2028-01-01')]
@@ -284,6 +345,7 @@ describe('check-in setup flow', () => {
       { events: [{ number: 1 }, { number: 2 }], currentEvent: undefined },
       { events: [{ number: 1 }, { number: 2 }], currentEvent: 7 },
       { events: [], currentEvent: 7 },
+      { events: [{ number: 7, sentence: null }], currentEvent: 7 },
     ])('redirects incomplete summaries and blocks submission: %j', async checkins => {
       const req = requestFor(
         { contentSha256: 'YWJjMTIz' },
@@ -304,8 +366,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([
-      { events: [{ number: 7 }], currentEvent: 7 },
-      { events: [{ number: 1 }, { number: 7 }], currentEvent: 7 },
+      { events: [{ number: 7, sentence: { description: 'Community order' } }], currentEvent: 7 },
+      { events: [{ number: 1 }, { number: 7, sentence: { description: 'Community order' } }], currentEvent: 7 },
       { events: [], currentEvent: undefined },
     ])('renders and submits a complete selection: %j', async selection => {
       const postOffenderSetup = jest.fn().mockResolvedValue({ uuid: id })
@@ -1378,7 +1440,13 @@ describe('check-in setup flow', () => {
           data: {
             esupervision: {
               [crn]: {
-                [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, photoUploadOption: 'TAKE_A_PIC' } },
+                [id]: {
+                  checkins: {
+                    events: [{ number: 1, sentence: { description: 'Community order' } }],
+                    currentEvent: 1,
+                    photoUploadOption: 'TAKE_A_PIC',
+                  },
+                },
               },
             },
           },
@@ -1398,7 +1466,7 @@ describe('check-in setup flow', () => {
             [crn]: {
               [id]: {
                 checkins: {
-                  events: [{ number: 1 }],
+                  events: [{ number: 1, sentence: { description: 'Community order' } }],
                   currentEvent: 1,
                   interval: 'WEEKLY',
                   photoUploadOption: 'TAKE_A_PIC',
@@ -1425,7 +1493,14 @@ describe('check-in setup flow', () => {
         data: {
           esupervision: {
             [crn]: {
-              [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, interval: 'WEEKLY', date: '1/1/2030' } },
+              [id]: {
+                checkins: {
+                  events: [{ number: 1, sentence: { description: 'Community order' } }],
+                  currentEvent: 1,
+                  interval: 'WEEKLY',
+                  date: '1/1/2030',
+                },
+              },
             },
           },
         },

@@ -102,7 +102,7 @@
 
     {% if flags.enableSentenceSelection === true %}
     {% for event in userDetails.events %}
-    {% if event.number == userDetails.currentEvent %}
+    {% if event.number == userDetails.currentEvent and event.sentence %}
     {% set sentenceValue %}
         {{ event.sentence.description }}
         <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}

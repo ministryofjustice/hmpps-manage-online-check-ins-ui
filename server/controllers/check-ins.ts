@@ -17,7 +17,7 @@ import {
   ScheduleAdHocCheckinRequest,
   SupervisionPackageStatus,
 } from '../data/model/esupervision'
-import { PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
+import { NdeliusEvent, PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
 import setDataValue from '../utils/setDataValue'
@@ -68,7 +68,9 @@ const checkinIntervals: { id: string; label: string }[] = [
 const hasValidEventSelection = (details?: Pick<CheckinUserDetails, 'events' | 'currentEvent'>): boolean => {
   if (!Array.isArray(details?.events)) return false
   const { events, currentEvent } = details
-  return events.length === 0 ? currentEvent == null : events.some(event => event.number === currentEvent)
+  return events.length === 0
+    ? currentEvent == null
+    : events.some(event => event.number === currentEvent && event.sentence != null)
 }
 
 // getPersonalDetails middleware already fetches practitioner details when the new header flag is
@@ -1005,9 +1007,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
       const personalDetails = await new ESupervisionClient(token).getPersonalDetails(crn)
       if (!personalDetails) return renderError(404)(req, res)
-      const events = [...(personalDetails.events ?? [])].sort((first, second) =>
-        (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
-      )
+      const events = (personalDetails.events ?? [])
+        .filter(event => event.sentence)
+        .sort((first, second) =>
+          (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
+        )
       const path = ['esupervision', crn, id, context.eligibilitySessionKey]
       setDataValue(req.session.data, [...path, 'events'], events)
       const selected = getDataValue(req.session.data, [...path, 'currentEvent'])
@@ -1038,9 +1042,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const context = eligibilityContextFor(res, crn, id)
       const path = ['esupervision', crn, id, context.eligibilitySessionKey]
-      const events = getDataValue(req.session.data, [...path, 'events']) ?? []
+      const events = (getDataValue<NdeliusEvent[]>(req.session.data, [...path, 'events']) ?? []).filter(
+        event => event.sentence,
+      )
       const selected = req.body?.esupervision?.[crn]?.[id]?.[context.eligibilitySessionKey]?.currentEvent
-      const event = events.find((choice: { number: number }) => String(choice.number) === selected)
+      const event = events.find(choice => String(choice.number) === selected)
       const cya = req.query.cya === 'true'
       const summary =
         context.journey === 'reactivation'
@@ -2545,6 +2551,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const restartDetails = getDataValue(data, ['esupervision', crn, id, 'restartCheckin'])
       if (!restartDetails) return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-checkin`)
+      if (res.locals.flags?.enableSentenceSelection === true && !hasValidEventSelection(restartDetails)) {
+        return res.redirect(`/case/${crn}/appointments/check-in/manage/${id}/restart-sentence-selection?cya=true`)
+      }
       // See getRestartContactPage: use the live offender record already fetched by
       // getCheckinOffenderDetails rather than the pre-setup personal-details endpoint.
       const caseData = res.locals.offenderCheckinsByCRNResponse?.details

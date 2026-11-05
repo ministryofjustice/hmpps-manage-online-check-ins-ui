@@ -201,7 +201,7 @@ const stubGetVerifiedOffenderByCRN = (
           },
           mobile: '071838893',
           email: 'address1@gmail.com',
-          events: { events: sentenceDetails.events ?? [] },
+          events: sentenceDetails.events ?? [],
         },
       },
     },

@@ -1399,13 +1399,65 @@ describe('checkInsController', () => {
   })
 
   describe('getRestartSummaryPage', () => {
+    it.each([
+      { currentEvent: 1 },
+      { events: [{ number: 1 }, { number: 2 }] },
+      { events: [{ number: 1 }, { number: 2 }], currentEvent: 99 },
+      { events: [{ number: 1, sentence: null }], currentEvent: 1 },
+    ])('redirects an incomplete sentence selection before rendering: %j', async selection => {
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', ...selection } } } },
+      })
+
+      await controllers.checkIns.getRestartSummaryPage()(req, res)
+
+      expect(redirectSpy).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${uuid}/restart-sentence-selection?cya=true`,
+      )
+      expect(renderSpy).not.toHaveBeenCalled()
+    })
+
+    it.each([false, undefined])('does not require a sentence when the flag is %s', async enabled => {
+      res.locals.flags = { enableSentenceSelection: enabled }
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC' } } } },
+      })
+
+      await controllers.checkIns.getRestartSummaryPage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith('pages/check-in/manage/restart-checkin-summary.njk', expect.anything())
+      expect(redirectSpy).not.toHaveBeenCalled()
+    })
+
+    it('allows a confirmed empty event list without a selection', async () => {
+      const req = baseReq({
+        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', events: [] } } } },
+      })
+
+      await controllers.checkIns.getRestartSummaryPage()(req, res)
+
+      expect(renderSpy).toHaveBeenCalledWith('pages/check-in/manage/restart-checkin-summary.njk', expect.anything())
+      expect(redirectSpy).not.toHaveBeenCalled()
+    })
+
     // Reached from the summary's change link: ad-hoc was changed to an interval, then the date
     // page was backed out of, so the interval was never given a date.
     it('reverts an interval with no date to ad-hoc, since that is the answer being abandoned', async () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       const req = baseReq({
-        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', preferredComs: 'EMAIL' } } } },
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                events: [{ number: 1, sentence: { description: 'Community order' } }],
+                currentEvent: 1,
+                interval: 'WEEKLY',
+                preferredComs: 'EMAIL',
+              },
+            },
+          },
+        },
       })
       await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
       expect(mockSetDataValue).toHaveBeenCalledWith(
@@ -1429,6 +1481,8 @@ describe('checkInsController', () => {
           [crn]: {
             [uuid]: {
               restartCheckin: {
+                events: [{ number: 1, sentence: { description: 'Community order' } }],
+                currentEvent: 1,
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
                 checkInEmail: 'test@example.com',
@@ -1460,6 +1514,8 @@ describe('checkInsController', () => {
           [crn]: {
             [uuid]: {
               restartCheckin: {
+                events: [{ number: 1, sentence: { description: 'Community order' } }],
+                currentEvent: 1,
                 interval: 'AD_HOC',
                 preferredComs: 'EMAIL',
                 checkInEmail: 'test@example.com',
@@ -1483,7 +1539,18 @@ describe('checkInsController', () => {
       mockIsValidCrn.mockReturnValue(true)
       mockIsValidUUID.mockReturnValue(true)
       const data = {
-        esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'WEEKLY', date: '19/2/2026' } } } },
+        esupervision: {
+          [crn]: {
+            [uuid]: {
+              restartCheckin: {
+                events: [{ number: 1, sentence: { description: 'Community order' } }],
+                currentEvent: 1,
+                interval: 'WEEKLY',
+                date: '19/2/2026',
+              },
+            },
+          },
+        },
       }
       const req = baseReq(data)
       await controllers.checkIns.getRestartSummaryPage(hmppsAuthClient)(req, res)
@@ -1521,6 +1588,7 @@ describe('checkInsController', () => {
       { events: [{ number: 1 }, { number: 2 }], currentEvent: undefined },
       { events: [{ number: 1 }, { number: 2 }], currentEvent: 7 },
       { events: [], currentEvent: 7 },
+      { events: [{ number: 7, sentence: null }], currentEvent: 7 },
     ])('returns incomplete event selections to sentence selection: %j', async selection => {
       const req = baseReq({
         esupervision: { [crn]: { [uuid]: { restartCheckin: { interval: 'AD_HOC', ...selection } } } },
@@ -1555,7 +1623,7 @@ describe('checkInsController', () => {
             [uuid]: {
               restartCheckin: {
                 currentEvent: 7,
-                events: [{ number: 7 }],
+                events: [{ number: 7, sentence: { description: 'Community order' } }],
                 date: '19/2/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'EMAIL',
