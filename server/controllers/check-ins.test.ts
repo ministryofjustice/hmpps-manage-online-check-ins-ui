@@ -683,10 +683,14 @@ describe('checkInsController', () => {
 
         const [template, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
         expect(template).toBe('pages/check-in/manage/cancel-checkin.njk')
-        expect(context.errorMessages).toEqual({
-          [`esupervision[${crn}][${uuid}][manageCheckin][cancelCheckinReason]`]:
+        // Keyed as the validator keys field errors, and on res.locals, where decorateFormAttributes
+        // looks for the field's own message.
+        const expected = {
+          [`esupervision-${crn}-${uuid}-manageCheckin-cancelCheckinReason`]:
             'Reason for cancelling could not be saved. Check it and try again',
-        })
+        }
+        expect(context.errorMessages).toEqual(expected)
+        expect(res.locals.errorMessages).toEqual(expected)
         expect(redirectSpy).not.toHaveBeenCalled()
         expect(mockSetDataValue).not.toHaveBeenCalledWith(
           req.session.data,

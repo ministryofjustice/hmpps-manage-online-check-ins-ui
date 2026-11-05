@@ -68,7 +68,7 @@ describe('cancel-checkin', () => {
     const html = await render('cancel-checkin', {
       ...base,
       errorMessages: {
-        [`esupervision[${crn}][${id}][manageCheckin][cancelCheckinSensitive]`]:
+        [`esupervision-${crn}-${id}-manageCheckin-cancelCheckinSensitive`]:
           'Select if the reason for cancelling includes sensitive information',
       },
     })
