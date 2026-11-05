@@ -68,7 +68,13 @@ export interface LocalParams {
   hasContactDetails?: boolean
   isAdHoc?: boolean
   tierBand?: string
-  eligibilitySessionKey?: 'checkins' | 'restartCheckin'
+  eligibilitySessionKey?: 'checkins' | 'restartCheckin' | 'manageCheckin'
+  events?: NdeliusEvent[]
+  currentEvent?: number
+  buttonText?: string
+  showAnchorLink?: boolean
+  formAnchorLink?: string
+  formAnchorText?: string
   eligibilityUrlPrefix?: string
   questionId?: string
   question?: {

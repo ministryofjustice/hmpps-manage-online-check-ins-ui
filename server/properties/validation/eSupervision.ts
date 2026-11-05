@@ -23,6 +23,7 @@ export interface ESupervisionValidationArgs {
   editCheckInEmail?: string
   editCheckInMobile?: string
   preferredComs?: string
+  eventNumbers?: number[]
   eligibilitySessionKey?: 'checkins' | 'restartCheckin'
   change?: string
   stopCheckIn?: string
@@ -62,11 +63,21 @@ export const eSuperVisionValidation = (args: ESupervisionValidationArgs): Valida
     editCheckInEmail = '',
     editCheckInMobile = '',
     preferredComs = '',
+    eventNumbers = [],
     eligibilitySessionKey = 'checkins',
     change = '',
     bespokeQuestion = false,
   } = args
   return {
+    [`[esupervision][${crn}][${id}][manageCheckin][currentEvent]`]: {
+      optional: page !== 'manage-sentence',
+      checks: [
+        {
+          validator: ([value]) => typeof value === 'string' && eventNumbers.some(number => String(number) === value),
+          msg: 'Select which sentence you want to add online check ins to',
+        },
+      ],
+    },
     // Setup flow — eligibility through to the photo.
     //
     [`[esupervision][${crn}][${id}][${eligibilitySessionKey}][eligibility]`]: {

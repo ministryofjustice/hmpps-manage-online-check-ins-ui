@@ -10,6 +10,128 @@ const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 
 describe('setup validation re-render', () => {
+  describe('manage sentence validation', () => {
+    const overview = `/case/${crn}/appointments/check-in/manage/${id}`
+    const events = [
+      { number: 1, sentence: { expectedEndDate: '2027-01-01' } },
+      { number: 2, sentence: { expectedEndDate: '2028-01-01' } },
+    ]
+    const sentenceLessEvent: { number: number; sentence: null } = { number: 99, sentence: null }
+
+    it.each([false, undefined])('redirects without validating or continuing when the flag is %s', enabled => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent: '2' } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          flags: { enableSentenceSelection: enabled },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+        },
+        render: jest.fn(),
+        redirect: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(overview)
+      expect(res.render).not.toHaveBeenCalled()
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it.each([undefined, '999', '99', ['1', '2']])('re-renders an invalid sentence choice: %j', currentEvent => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          flags: { enableSentenceSelection: true },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events: [...events, sentenceLessEvent] } },
+        },
+        render: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith(
+        'pages/check-in/sentence-selection',
+        expect.objectContaining({
+          events: [events[1], events[0]],
+          eligibilitySessionKey: 'manageCheckin',
+          backLink: overview,
+          buttonText: 'Save changes',
+          formAnchorLink: overview,
+          formAnchorText: 'Cancel and go back',
+          errorMessages: {
+            [`esupervision-${crn}-${id}-manageCheckin-currentEvent`]:
+              'Select which sentence you want to add online check ins to',
+          },
+        }),
+      )
+    })
+
+    it.each([0, 1])('blocks submission with %s sentences even when a sentence-less event exists', eventCount => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent: '1' } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          flags: { enableSentenceSelection: true },
+          offenderCheckinsByCRNResponse: {
+            status: 'VERIFIED',
+            details: { events: [...events.slice(0, eventCount), sentenceLessEvent] },
+          },
+        },
+        render: jest.fn(),
+        redirect: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(overview)
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
+    it('passes a choice that belongs to the freshly loaded event list', () => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${overview}/sentence`,
+        params: { crn, id },
+        body: { esupervision: { [crn]: { [id]: { manageCheckin: { currentEvent: '2' } } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: {
+          flags: { enableSentenceSelection: true },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+        },
+        render: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(next).toHaveBeenCalled()
+      expect(res.render).not.toHaveBeenCalled()
+    })
+  })
+
   describe.each(['setup', 'reactivation'] as const)('%s frequency errors', journey => {
     it.each([
       { eventCount: 2, cya: false, expectedPage: 'sentence-selection' },

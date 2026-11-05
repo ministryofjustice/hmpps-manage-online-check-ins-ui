@@ -211,7 +211,6 @@ const stubGetVerifiedOffenderByCRN = (
 export const stubGetScheduledOffenderByCRN = (crn: string) =>
   stubGetVerifiedOffenderByCRN(crn, { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' })
 
-// A weekly person whose check ins have been stopped, so the restart journey is open to them.
 export const stubGetStoppedOffenderByCRN = (crn: string) =>
   stubGetVerifiedOffenderByCRN(
     crn,
@@ -253,6 +252,68 @@ const stubSentenceEvents = async ({
       { currentEvent, events },
     )
   }
+  return null
+}
+
+const stubSentenceUpdate = async ({
+  crn,
+  uuid,
+  currentEvent,
+  events,
+}: {
+  crn: string
+  uuid: string
+  currentEvent: number
+  events: NdeliusEvent[]
+}): Promise<null> => {
+  const scenarioName = `sentence-update-${crn}`
+  await superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    scenarioName,
+    requiredScenarioState: 'Started',
+    newScenarioState: 'Sentence updated',
+    request: {
+      method: 'POST',
+      urlPath: `/v2/offenders/${uuid}/update_details`,
+      bodyPatterns: [{ equalToJson: JSON.stringify({ currentEvent }) }],
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      jsonBody: { crn, currentEvent },
+    },
+  })
+  await superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    scenarioName,
+    requiredScenarioState: 'Sentence updated',
+    request: {
+      method: 'GET',
+      urlPath: `/v2/offenders/crn/${crn}`,
+      queryParameters: { 'include-personal-details': { equalTo: 'true' } },
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      jsonBody: {
+        uuid,
+        crn,
+        currentEvent,
+        status: 'VERIFIED',
+        mode: 'SCHEDULED',
+        checkinInterval: 'WEEKLY',
+        firstCheckin: '2025-11-03',
+        contactPreference: 'PHONE',
+        photoUrl: '/assets/images/placeholder.png',
+        details: {
+          name: { forename: 'Joe', surname: 'Bloggs' },
+          mobile: '071838893',
+          email: 'address1@gmail.com',
+          events,
+        },
+      },
+    },
+  })
   return null
 }
 
@@ -459,6 +520,7 @@ export default {
   stubGetScheduledOffenderByCRN,
   stubGetStoppedOffenderByCRN,
   stubSentenceEvents,
+  stubSentenceUpdate,
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubNoUpcomingCheckin,

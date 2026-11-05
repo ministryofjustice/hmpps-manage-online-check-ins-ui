@@ -396,6 +396,8 @@ type CheckInRouteName =
   | 'getSettingsDatePage'
   | 'postSettingsDatePage'
   | 'getManageContactPage'
+  | 'getManageSentenceSelection'
+  | 'postManageSentenceSelection'
   | 'postManageContactPage'
   | 'getManageEditContactPage'
   | 'postManageEditContactPage'
@@ -2148,6 +2150,67 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const parsedFirstCheckin = DateTime.fromFormat(date ?? '', 'd/M/yyyy')
       const firstCheckin = parsedFirstCheckin.isValid ? parsedFirstCheckin.toFormat('yyyy/M/dd') : date
       return submitCheckinSettings(hmppsAuthClient, req, res, frequency, firstCheckin)
+    }
+  },
+
+  getManageSentenceSelection: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const overview = `/case/${crn}/appointments/check-in/manage/${id}`
+      const offender = (res.locals as AppLocals).offenderCheckinsByCRNResponse
+      if (res.locals.flags?.enableSentenceSelection !== true || offender?.status !== 'VERIFIED') {
+        return res.redirect(overview)
+      }
+
+      const events = (offender.details?.events ?? [])
+        .filter(event => event.sentence)
+        .sort((first, second) =>
+          (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
+        )
+      if (events.length < 2) return res.redirect(overview)
+
+      const currentEvent = events.find(event => event.number === offender.currentEvent)?.number
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SENTENCE_SELECTION', crn, SubjectType.CRN)
+
+      return res.render('pages/check-in/sentence-selection.njk', {
+        crn,
+        id,
+        events,
+        currentEvent,
+        eligibilitySessionKey: 'manageCheckin',
+        backLink: overview,
+        buttonText: 'Save changes',
+        showAnchorLink: true,
+        formAnchorLink: overview,
+        formAnchorText: 'Cancel and go back',
+      })
+    }
+  },
+
+  postManageSentenceSelection: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const overview = `/case/${crn}/appointments/check-in/manage/${id}`
+      if (
+        res.locals.flags?.enableSentenceSelection !== true ||
+        res.locals.offenderCheckinsByCRNResponse?.status !== 'VERIFIED'
+      ) {
+        return res.redirect(overview)
+      }
+
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const client = new ESupervisionClient(token)
+      const currentEvent = Number(req.body?.esupervision?.[crn]?.[id]?.manageCheckin?.currentEvent)
+
+      try {
+        await client.postUpdateOffenderDetails(id, { currentEvent })
+        req.session.data ??= {}
+        setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'settingsUpdated'], true)
+        return res.redirect(overview)
+      } catch (error) {
+        logger.error(`Sentence update failed: ${error.message}`)
+        return renderError(500)(req, res)
+      }
     }
   },
 

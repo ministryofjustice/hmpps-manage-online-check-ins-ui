@@ -1,6 +1,8 @@
 {% macro addSentenceSummaryRow(rows, userDetails, changeUrl) %}
-    {% for event in userDetails.events %}
-        {% if event.number == userDetails.currentEvent and event.sentence %}
+    {% set events = (userDetails.events or []) | selectattr('sentence') %}
+    {% if events | length > 1 %}
+    {% for event in events %}
+        {% if event.number == userDetails.currentEvent %}
             {% set sentenceValue %}
                 {{ event.sentence.description }}
                 <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
@@ -15,8 +17,9 @@
                         visuallyHiddenText: 'sentence associated with online check ins',
                         attributes: { 'data-qa': 'sentenceAction' }
                     }]
-                } if userDetails.events.length > 1 else undefined
+                }
             }) %}
         {% endif %}
     {% endfor %}
+    {% endif %}
 {% endmacro %}

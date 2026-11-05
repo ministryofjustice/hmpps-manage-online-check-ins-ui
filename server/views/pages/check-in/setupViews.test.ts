@@ -164,14 +164,19 @@ describe('sentence selection and summaries', () => {
     },
   )
 
-  it('shows the sole sentence without a change link', async () => {
-    const html = await render('checkin-summary', {
+  it.each([
+    { view: 'checkin-summary', choices: [events[0]] },
+    { view: 'manage/restart-checkin-summary', choices: [events[0]] },
+    { view: 'checkin-summary', choices: [events[0], events[1]] },
+    { view: 'manage/restart-checkin-summary', choices: [events[0], events[1]] },
+  ])('hides the row when only one eligible sentence exists on $view', async ({ view, choices }) => {
+    const html = await render(view, {
       ...base,
-      userDetails: { ...(base.userDetails as object), events: [events[0]], currentEvent: 1 },
+      userDetails: { ...(base.userDetails as object), events: choices, currentEvent: 1 },
     })
-    expect(html).toContain('Community order')
-    expect(html).not.toContain('Theft')
-    expect(html).not.toContain('12 months')
+    expect(html).not.toContain('Which sentence do you want to add online check ins to?')
+    expect(html).not.toContain('Community order')
+    expect(html).not.toContain('Sentence end date:')
     expect(html).not.toContain('data-qa="sentenceAction"')
   })
 })
@@ -924,6 +929,98 @@ describe('a scheduled restart confirmation', () => {
     const html = await render('manage/restart-confirmation', { ...base, managePeopleOnProbationUrl: mpop })
     expect(html).toContain(`href="${mpop}/case/" data-qa="returnToAllCases"`)
     expect(html).toContain(`href="${mpop}/case/${crn}" class="govuk-button" data-qa="submit-btn"`)
+  })
+})
+
+describe('the manage page sentence card', () => {
+  const offender = {
+    status: 'VERIFIED',
+    currentEvent: 2,
+    details: {
+      events: [
+        { number: 1, sentence: { description: 'Adult Custody < 12m', expectedEndDate: '2028-01-01' } },
+        { number: 2, sentence: { description: 'CJA - Community Order', expectedEndDate: '2027-07-01' } },
+        { number: 99, sentence: null },
+      ],
+    },
+  }
+
+  it.each([false, undefined])('hides the sentence card and Change link when the flag is %s', async enabled => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      flags: { enableSentenceSelection: enabled },
+      offenderCheckinsByCRNResponse: offender,
+      showChange: true,
+    })
+
+    expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('data-qa="changeSentenceAction"')
+    expect(html).not.toContain('CJA - Community Order')
+  })
+
+  it('shows the saved sentence, hint-styled end date, and Change link', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: offender,
+      showChange: true,
+    })
+
+    expect(html).toContain('data-qa="sentenceCard"')
+    expect(html).toMatch(
+      new RegExp(`href="/case/${crn}/appointments/check-in/manage/${id}/sentence"\\s+data-qa="changeSentenceAction"`),
+    )
+    expect(html).toContain('class="govuk-hint" data-qa="sentenceEndDate"')
+    expect(html).toContain('CJA - Community Order')
+    expect(html).toContain('Sentence end date: 1 July 2027')
+    expect(html).not.toContain('Adult Custody < 12m')
+    expect(html).not.toContain('sentence-selection')
+  })
+
+  it.each([
+    { choices: [offender.details.events[1]] },
+    { choices: [offender.details.events[1], offender.details.events[2]] },
+  ])('shows the sole eligible sentence without offering Change: %j', async ({ choices }) => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: {
+        ...offender,
+        details: { events: choices },
+      },
+      showChange: true,
+    })
+
+    expect(html).toContain('data-qa="sentenceCard"')
+    expect(html).toContain('CJA - Community Order')
+    expect(html).not.toContain('data-qa="changeSentenceAction"')
+  })
+
+  it.each([undefined, null, 99])('omits the card when no saved event matches: %s', async currentEvent => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: { ...offender, currentEvent },
+    })
+
+    expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('data-qa="sentenceDescription"')
+    expect(html).not.toContain('data-qa="sentenceEndDate"')
+    expect(html).not.toContain('CJA - Community Order')
+    expect(html).not.toContain('Adult Custody &lt; 12m')
+  })
+
+  it('hides a selected event with no sentence details', async () => {
+    const html = await render('manage/manage-checkin', {
+      ...base,
+      offenderCheckinsByCRNResponse: {
+        ...offender,
+        details: {
+          events: [{ number: 2, mainOffence: { description: 'Theft' }, sentence: null }],
+        },
+      },
+    })
+
+    expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('data-qa="sentenceEndDate"')
   })
 })
 
