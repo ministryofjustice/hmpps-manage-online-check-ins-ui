@@ -288,7 +288,7 @@ const eSuperVision: Route<void> = (req, res, next) => {
   }
 
   const validateManageSentence = () => {
-    if (!baseUrl.endsWith(manage('sentence'))) return
+    if (!baseUrl.replace(/\/+$/, '').toLowerCase().endsWith(manage('sentence').toLowerCase())) return
     const overview = `/case/${crn}/appointments/check-in/manage/${id}`
     if (res.locals.flags?.enableSentenceSelection !== true) {
       redirectTo = overview
