@@ -117,12 +117,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
 
     validateSetupPage('check-in-frequency', 'check-in-frequency', 'check-in-frequency')
     if (baseUrl.includes(setup('check-in-frequency'))) {
-      if (cya === 'true') {
-        localParams.backLink = setup('checkin-summary')
-      } else {
-        // Only the accredited-programme cohort passes through rationale on the way here.
-        localParams.backLink = sessionVal('checkins', 'accreditedProgramme') ? setup('rationale') : setup('is-eligible')
-      }
+      const events = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'events'])
+      localParams.backLink = getCheckInEligibilityContext('setup', crn, id).frequencyBackLink({
+        cya: cya === 'true',
+        accreditedProgramme: Boolean(sessionVal('checkins', 'accreditedProgramme')),
+        sentenceSelectionEnabled: res.locals.flags?.enableSentenceSelection === true,
+        eventCount: events?.length ?? 0,
+      })
     }
 
     validateSetupPage('check-in-date', 'check-in-date', 'check-in-date')
@@ -334,14 +335,13 @@ const eSuperVision: Route<void> = (req, res, next) => {
       render = `pages/check-in/manage/restart-checkin-frequency`
       localParams.id = id
       errorMessages = validateWithSpec(req, eSuperVisionValidation({ crn, id, page: 'restart-checkin' }))
-      // Mirrors getRestartCheckinPage's backLink.
-      if (cya === 'true') {
-        localParams.backLink = `/${manage('restart-summary')}`
-      } else {
-        localParams.backLink = sessionVal('restartCheckin', 'accreditedProgramme')
-          ? `/${manage('restart-rationale')}`
-          : `/${manage('restart-is-eligible')}`
-      }
+      const events = getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'events'])
+      localParams.backLink = getCheckInEligibilityContext('reactivation', crn, id).frequencyBackLink({
+        cya: cya === 'true',
+        accreditedProgramme: Boolean(sessionVal('restartCheckin', 'accreditedProgramme')),
+        sentenceSelectionEnabled: res.locals.flags?.enableSentenceSelection === true,
+        eventCount: events?.length ?? 0,
+      })
     } else if (baseUrl.endsWith(manage('restart-checkin-date'))) {
       render = `pages/check-in/manage/restart-checkin-date`
       localParams.id = id

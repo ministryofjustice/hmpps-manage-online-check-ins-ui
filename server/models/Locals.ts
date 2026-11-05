@@ -1,6 +1,7 @@
 import type { Response } from 'express'
 import { Errors } from './Errors'
 import { OffenderByCRNResponse, SupervisionPackageStatus } from '../data/model/esupervision'
+import type { NdeliusEvent } from '../data/model/personalDetails'
 import type { CheckInEligibilityJourney } from '../utils/checkInEligibilityContext'
 
 export interface LocalsUser {
@@ -27,6 +28,7 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'eligibilityFeatureToggle', type: 'boolean' },
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'newDesignPopHeader', type: 'boolean' },
+  { key: 'enableSentenceSelection', type: 'boolean' },
   { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
 ]
 
@@ -55,6 +57,7 @@ export interface AppLocals extends Record<string, unknown> {
   uploadError?: string
   renderPath?: string
   offenderCheckinsByCRNResponse?: OffenderByCRNResponse
+  sentenceEvents?: NdeliusEvent[]
   supervisionPackageStatus?: SupervisionPackageStatus | null
   checkInEligibilityJourney?: CheckInEligibilityJourney
   flags?: FeatureFlags

@@ -1,6 +1,7 @@
 import superagent, { SuperAgentRequest } from 'superagent'
 import { DateTime } from 'luxon'
 import { esupervisionAdditionalQuestions } from '../../server/controllers/mocks/esupervisionAdditionalQuestions'
+import { NdeliusEvent } from '../../server/data/model/personalDetails'
 
 const stubOffenderSetup500Response = (): SuperAgentRequest =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -168,6 +169,7 @@ const stubGetVerifiedOffenderByCRN = (
   crn: string,
   schedule: { mode: 'SCHEDULED' | 'AD_HOC'; checkinInterval: string | null; firstCheckin: string | null },
   status: 'VERIFIED' | 'INACTIVE' = 'VERIFIED',
+  sentenceDetails: { currentEvent?: number; events?: NdeliusEvent[] } = {},
 ) => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
     request: {
@@ -189,6 +191,7 @@ const stubGetVerifiedOffenderByCRN = (
         crn,
         status,
         ...schedule,
+        currentEvent: sentenceDetails.currentEvent,
         contactPreference: 'PHONE',
         photoUrl: '/assets/images/placeholder.png',
         details: {
@@ -198,6 +201,7 @@ const stubGetVerifiedOffenderByCRN = (
           },
           mobile: '071838893',
           email: 'address1@gmail.com',
+          events: sentenceDetails.events ?? [],
         },
       },
     },
@@ -214,6 +218,43 @@ export const stubGetStoppedOffenderByCRN = (crn: string) =>
     { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' },
     'INACTIVE',
   )
+
+const stubSentenceEvents = async ({
+  crn,
+  events,
+  currentEvent,
+  status = 'VERIFIED',
+}: {
+  crn: string
+  events: NdeliusEvent[]
+  currentEvent?: number
+  status?: 'VERIFIED' | 'INACTIVE'
+}): Promise<null> => {
+  await superagent.post('http://localhost:9091/__admin/mappings').send({
+    priority: 1,
+    request: { method: 'GET', urlPath: `/v2/offenders/crn/${crn}/personal-details` },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      jsonBody: {
+        crn,
+        name: { forename: 'Joe', surname: 'Bloggs' },
+        mobile: '071838893',
+        email: 'address1@gmail.com',
+        events,
+      },
+    },
+  })
+  if (currentEvent !== undefined) {
+    await stubGetVerifiedOffenderByCRN(
+      crn,
+      { mode: 'SCHEDULED', checkinInterval: 'WEEKLY', firstCheckin: '2025-11-03' },
+      status,
+      { currentEvent, events },
+    )
+  }
+  return null
+}
 
 export const stubGetOffenderHeaderByCRN = (crn: string, tierScore: string = 'D') =>
   superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -417,6 +458,7 @@ export default {
   stubGetAdHocOffenderByCRN,
   stubGetScheduledOffenderByCRN,
   stubGetStoppedOffenderByCRN,
+  stubSentenceEvents,
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubNoUpcomingCheckin,

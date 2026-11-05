@@ -58,6 +58,7 @@ async function resolveOffenderDetails(
       dateOfBirth: caseDetails.dateOfBirth,
       mobile: caseDetails.mobile,
       email: caseDetails.email,
+      events: caseDetails.events,
     },
   }
 }
@@ -91,7 +92,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
 export const getPersonalDetails = (
   hmppsAuthClient: HmppsAuthClient,
   arnsComponents: ArnsComponents,
-  { refresh = false }: { refresh?: boolean } = {},
+  { refresh = false, refreshEvents = false }: { refresh?: boolean; refreshEvents?: boolean } = {},
 ): Route<Promise<void>> => {
   return async (req, res, next) => {
     const { crn } = req.params as Record<string, string>
@@ -114,7 +115,15 @@ export const getPersonalDetails = (
       return renderError(404)(req, res)
     }
 
+    let sentenceEvents = offenderDetails.details?.events ?? []
+    if (refreshEvents && res.locals.flags?.enableSentenceSelection === true && details.offenderDetails) {
+      const personalDetails = await eSupervisionClient.getPersonalDetails(crn)
+      if (!personalDetails) return renderError(404)(req, res)
+      sentenceEvents = personalDetails.events ?? []
+    }
+
     applyHeaderLocals(res, crn, { ...details, offenderDetails })
+    res.locals.sentenceEvents = sentenceEvents
 
     return next()
   }

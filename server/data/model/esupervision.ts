@@ -1,3 +1,5 @@
+import type { NdeliusEvent } from './personalDetails'
+
 type Match = 'MATCH' | 'NO_MATCH' | 'NO_FACE_DETECTED' | 'ERROR'
 type LivenessResult = 'LIVE' | 'NOT_LIVE' | 'ERROR'
 
@@ -88,6 +90,7 @@ export interface OffenderSetupAnswers {
 
 export interface OffenderInfo {
   setupUuid: string
+  currentEvent?: number
   practitionerId: string
   crn: string
   // Absent for an ad-hoc setup, which schedules no first check in.
@@ -164,6 +167,7 @@ interface Name {
 export interface OffenderByCRNResponse {
   uuid: string
   crn: string
+  currentEvent?: number | null
   status: OffenderStatus
   // Null for an ad-hoc person with no check in booked yet.
   firstCheckin?: string | null
@@ -173,6 +177,7 @@ export interface OffenderByCRNResponse {
   contactPreference: 'PHONE' | 'EMAIL'
   photoUrl?: string
   details?: {
+    events?: NdeliusEvent[]
     name?: {
       forename?: string
       surname?: string
@@ -183,7 +188,7 @@ export interface OffenderByCRNResponse {
   }
 }
 
-export interface CheckinScheduleRequest {
+export interface UpdateDetailsRequest {
   checkinSchedule?: {
     requestedBy: string
     // Required for SCHEDULED, optional for AD_HOC - see the API's CheckinScheduleUpdateRequest.
@@ -195,6 +200,7 @@ export interface CheckinScheduleRequest {
     requestedBy: string
     contactPreference: 'PHONE' | 'EMAIL'
   }
+  currentEvent?: number
 }
 
 export interface CheckinScheduleResponse {
@@ -222,6 +228,7 @@ export interface DeactivateOffenderRequest {
 }
 export interface ReactivateOffenderRequest {
   requestedBy: string
+  currentEvent?: number
   reason?: string
   pilotCheck?: string
   eligibilityAnswers: EligibilityAnswers

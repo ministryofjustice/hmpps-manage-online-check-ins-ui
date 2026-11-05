@@ -36,6 +36,7 @@ export const postCheckInDetails = (
     const practitionerId = pp?.username ? pp.username : res.locals.user.username
     const data: OffenderInfo = {
       setupUuid: id,
+      ...(res.locals.flags?.enableSentenceSelection === true ? { currentEvent: savedUserDetails.currentEvent } : {}),
       practitionerId,
       crn,
       // An ad-hoc setup schedules no first check in. The date is normally cleared when ad-hoc is

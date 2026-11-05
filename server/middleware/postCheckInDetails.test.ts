@@ -49,6 +49,7 @@ const buildRequest = () =>
           [crn]: {
             [id]: {
               checkins: {
+                currentEvent: 7,
                 date: '1/8/2026',
                 interval: 'WEEKLY',
                 preferredComs: 'PHONE',
@@ -72,7 +73,7 @@ describe('postCheckInDetails', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    res = mockAppResponse()
+    res = mockAppResponse({ flags: { enableSentenceSelection: true } })
     mockGetProbationPractitioner.mockResolvedValue({
       code: 'ABC123',
       name: { forename: 'Jane', surname: 'Doe' },
@@ -95,6 +96,19 @@ describe('postCheckInDetails', () => {
     await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
 
     expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ startedAt }))
+  })
+
+  it('sends the selected sentence event number when starting setup', async () => {
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ currentEvent: 7 }))
+  })
+
+  it.each([false, undefined])('omits a saved currentEvent when the flag is %s', async enabled => {
+    res.locals.flags = { enableSentenceSelection: enabled }
+
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+
+    expect(mockPostOffenderSetup.mock.calls[0][0]).not.toHaveProperty('currentEvent')
   })
 
   it('leaves startedAt unset when the session has no start time', async () => {

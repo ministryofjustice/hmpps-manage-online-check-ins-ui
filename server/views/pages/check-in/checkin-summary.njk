@@ -1,4 +1,5 @@
 {% extends "../../partials/layout.njk" %}
+{% from "../../_components/sentence-summary/macro.njk" import addSentenceSummaryRow %}
 {% set title = "Check your answers before adding " + case.name.forename + " to online check ins"  %}
 {% set pageTitleText = "Check your answers before adding the person to online check ins" %}
 {% if errorMessages and errorMessages | length %}
@@ -24,6 +25,7 @@
 {% set photoOptopionLabel = "How do you want to take a photo of " + case.name.forename + "?"  %}
 {% set photoPersonLabel = "Photo of " + case.name.forename %}
 {% set confirmEndUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/confirm-end' %}
+{% set changeSentenceUrl = '/case/' + crn + '/appointments/' + id + '/check-in/sentence-selection?cya=true' %}
 {% set changeRationaleUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/rationale?cya=true' %}
 {% set changeFrequencyUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-frequency?cya=true' %}
 {% set changeDateUrl =  '/case/' + crn + '/appointments/' + id + '/check-in/check-in-date?cya=true' %}
@@ -115,6 +117,10 @@
     {% endif %}
     {%  block pageContent %}
     {% set summaryRows = [] %}
+
+    {% if flags.enableSentenceSelection === true %}
+        {% set _ = addSentenceSummaryRow(summaryRows, userDetails, changeSentenceUrl) %}
+    {% endif %}
 
     {# Only the Tier A/B accredited-programme cohort is asked for a rationale. #}
     {% if userDetails.accreditedProgramme %}
