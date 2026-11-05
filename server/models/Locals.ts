@@ -6,6 +6,7 @@ import {
   OffenderByCRNResponse,
   SupervisionPackageStatus,
 } from '../data/model/esupervision'
+import type { NdeliusEvent } from '../data/model/personalDetails'
 import type { CheckInEligibilityJourney } from '../utils/checkInEligibilityContext'
 
 export interface LocalsUser {
@@ -32,6 +33,7 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'eligibilityFeatureToggle', type: 'boolean' },
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'newDesignPopHeader', type: 'boolean' },
+  { key: 'enableSentenceSelection', type: 'boolean' },
   { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
 ]
 
@@ -64,6 +66,7 @@ export interface AppLocals extends Record<string, unknown> {
   cancellableCheckin?: CancellableCheckin | null
   // The upcoming-questions response, fetched by getCancellableCheckin for the overview to reuse.
   upcomingCheckin?: EsupervisionUpcomingQuestionsResponse | null
+  sentenceEvents?: NdeliusEvent[]
   supervisionPackageStatus?: SupervisionPackageStatus | null
   checkInEligibilityJourney?: CheckInEligibilityJourney
   flags?: FeatureFlags

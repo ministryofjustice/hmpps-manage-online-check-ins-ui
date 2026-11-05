@@ -838,7 +838,19 @@
           "namespace": {
             "key": "hmpps-esupervision"
           },
-          "flags": []
+          "flags": [
+            {
+              "key": "enableSentenceSelection",
+              "name": "enableSentenceSelection",
+              "description": "",
+              "enabled": true,
+              "type": "BOOLEAN_FLAG_TYPE",
+              "createdAt": "2026-11-04T00:00:00Z",
+              "updatedAt": "2026-11-04T00:00:00Z",
+              "rules": [],
+              "rollouts": []
+            }
+          ]
         },
         "headers": {
           "Content-Type": "application/json;charset=UTF-8"

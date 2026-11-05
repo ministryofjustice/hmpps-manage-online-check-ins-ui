@@ -10,6 +10,56 @@ const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 
 describe('setup validation re-render', () => {
+  describe.each(['setup', 'reactivation'] as const)('%s frequency errors', journey => {
+    it.each([
+      { eventCount: 2, cya: false, expectedPage: 'sentence-selection' },
+      { eventCount: 2, cya: true, expectedPage: 'summary' },
+      { eventCount: 1, cya: false, expectedPage: 'rationale' },
+    ])('preserves Back to $expectedPage with $eventCount events and cya=$cya', ({ eventCount, cya, expectedPage }) => {
+      const isSetup = journey === 'setup'
+      const group = isSetup ? 'checkins' : 'restartCheckin'
+      const prefix = isSetup
+        ? `/case/${crn}/appointments/${id}/check-in/`
+        : `/case/${crn}/appointments/check-in/manage/${id}/restart-`
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `${prefix}${isSetup ? 'check-in-frequency' : 'checkin'}`,
+        params: { crn, id },
+        query: cya ? { cya: 'true' } : {},
+        body: { esupervision: { [crn]: { [id]: { [group]: {} } } } },
+        session: {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: {
+                  [group]: {
+                    accreditedProgramme: true,
+                    events: Array.from({ length: eventCount }, (_event, index) => ({ number: index + 1 })),
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+      const res: any = {
+        locals: { checkInEligibilityJourney: journey, flags: { enableSentenceSelection: true } },
+        render: jest.fn(),
+      }
+      const next = jest.fn()
+
+      validate(req, res, next)
+
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith(
+        isSetup ? 'pages/check-in/check-in-frequency' : 'pages/check-in/manage/restart-checkin-frequency',
+        expect.objectContaining({
+          backLink: `${prefix}${expectedPage === 'summary' && isSetup ? 'checkin-summary' : expectedPage}`,
+        }),
+      )
+    })
+  })
+
   it('preserves contact details and picks the right view when contact-preference fails', () => {
     const req = httpMocks.createRequest({
       method: 'POST',

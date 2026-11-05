@@ -12,6 +12,7 @@ nunjucksSetup(app)
 const base: Record<string, unknown> = {
   crn,
   id,
+  flags: { enableSentenceSelection: true },
   case: { name: { forename: 'Bob', surname: 'Smith' }, mobileNumber: '07700900000', email: 'bob@example.com' },
   guidanceUrl: 'https://example.com',
   csrfToken: 'token',
@@ -57,6 +58,7 @@ const views = [
   'rationale',
   'accredited-programme-approval',
   'check-in-frequency',
+  'sentence-selection',
   'check-in-date',
   'contact-preference',
   'confirm-contact-preference',
@@ -83,6 +85,96 @@ const render = (view: string, locals: Record<string, unknown>): Promise<string> 
 
 const cancelLinkOf = (html: string) =>
   html.match(/<a[^>]*data-qa="formAnchorLink"[^>]*>/)?.[0].match(/href="([^"]+)"/)?.[1]
+
+describe('sentence selection and summaries', () => {
+  const events = [
+    {
+      number: 1,
+      mainOffence: { description: 'Theft' },
+      sentence: { description: 'Community order', expectedEndDate: '2028-01-02', length: 12, lengthUnit: 'months' },
+    },
+    { number: 2, mainOffence: { description: 'Burglary' }, sentence: null },
+    { number: 3, sentence: { description: 'Undated sentence', expectedEndDate: null as string | null } },
+  ]
+
+  it('renders only the sentence description, end-date hint, and saved selection', async () => {
+    const html = await render('sentence-selection', {
+      ...base,
+      events,
+      currentEvent: 1,
+      eligibilitySessionKey: 'checkins',
+    })
+    expect(html).toContain('Community order')
+    expect(html).toContain('Sentence end date: 2 January 2028')
+    expect(html).toContain('Sentence end date: Not available')
+    expect(html).not.toContain('Burglary')
+    expect(html).not.toContain('value="2"')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('12 months')
+    expect(html).toMatch(/value="1"[^>]*checked/)
+  })
+
+  it.each([
+    ['checkin-summary', `/case/${crn}/appointments/${id}/check-in/sentence-selection?cya=true`],
+    [
+      'manage/restart-checkin-summary',
+      `/case/${crn}/appointments/check-in/manage/${id}/restart-sentence-selection?cya=true`,
+    ],
+  ])('shows the chosen sentence and change link on %s', async (view, changeUrl) => {
+    const html = await render(view, {
+      ...base,
+      userDetails: { ...(base.userDetails as object), events, currentEvent: 1 },
+    })
+    expect(html).toContain('Which sentence do you want to add online check ins to?')
+    expect(html).toContain('Community order')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('12 months')
+    expect(html).toContain('Sentence end date: 2 January 2028')
+    expect(html).toContain(`href="${changeUrl}"`)
+    expect(html).not.toContain('Burglary')
+  })
+
+  it.each(['checkin-summary', 'manage/restart-checkin-summary'])(
+    'hides saved sentence data and Change links when disabled on %s',
+    async view => {
+      const html = await render(view, {
+        ...base,
+        flags: { enableSentenceSelection: false },
+        userDetails: { ...(base.userDetails as object), events, currentEvent: 1 },
+      })
+
+      expect(html).not.toContain('Which sentence do you want to add online check ins to?')
+      expect(html).not.toContain('Community order')
+      expect(html).not.toContain('data-qa="sentenceAction"')
+    },
+  )
+
+  it.each(['checkin-summary', 'manage/restart-checkin-summary'])(
+    'does not display a selected event without a sentence on %s',
+    async view => {
+      const html = await render(view, {
+        ...base,
+        userDetails: { ...(base.userDetails as object), events, currentEvent: 2 },
+      })
+
+      expect(html).not.toContain('Burglary')
+      expect(html).not.toContain('Sentence end date:')
+      expect(html).not.toContain('data-qa="sentenceAction"')
+      expect(html).not.toContain('Community order')
+    },
+  )
+
+  it('shows the sole sentence without a change link', async () => {
+    const html = await render('checkin-summary', {
+      ...base,
+      userDetails: { ...(base.userDetails as object), events: [events[0]], currentEvent: 1 },
+    })
+    expect(html).toContain('Community order')
+    expect(html).not.toContain('Theft')
+    expect(html).not.toContain('12 months')
+    expect(html).not.toContain('data-qa="sentenceAction"')
+  })
+})
 
 describe('check-in-date', () => {
   const setupPage = `/case/${crn}/appointments/${id}/check-in`
