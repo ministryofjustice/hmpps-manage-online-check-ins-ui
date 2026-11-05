@@ -157,8 +157,8 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.get('/case/:crn/appointments/:id/check-in/sentence-selection', [
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient),
+    getPersonalDetails(hmppsAuthClient, arnsComponents, { refreshEvents: true }),
+    controllers.checkIns.getSentenceSelectionPage(),
   ])
   router.post('/case/:crn/appointments/:id/check-in/sentence-selection', [
     restrictPageAccess({ requiredValues: ['id'] }),
@@ -551,16 +551,18 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient),
+    getPersonalDetails(hmppsAuthClient, arnsComponents, { refreshEvents: true }),
+    controllers.checkIns.getSentenceSelectionPage(),
   ])
   router.post('/case/:crn/appointments/check-in/manage/:id/restart-sentence-selection', [
     validateCrnAndId,
     setCheckInEligibilityJourney('reactivation'),
     getCheckinOffenderDetails(hmppsAuthClient),
     validateOffenderCheckin,
+    restrictRestartToStoppedCheckins,
     restrictPageAccess({ requiredValues: ['id'] }),
     restrictEligibilityAccess('setup'),
     getPersonalDetails(hmppsAuthClient, arnsComponents),

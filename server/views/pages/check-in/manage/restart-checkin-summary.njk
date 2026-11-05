@@ -1,4 +1,5 @@
 {% extends "../../../partials/layout.njk" %}
+{% from "../../../_components/sentence-summary/macro.njk" import addSentenceSummaryRow %}
 {% set title = "Check your answers before restarting online check ins"  %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
@@ -100,26 +101,9 @@
     {%  block pageContent %}
     {% set summaryRows = [] %}
 
-    {% for event in userDetails.events %}
-    {% if event.number == userDetails.currentEvent %}
-    {% set sentenceValue %}
-        {{ event.mainOffence.description }}{% if event.sentence %} - {{ event.sentence.description }}{% if event.sentence.length and event.sentence.lengthUnit %} ({{ event.sentence.length }} {{ event.sentence.lengthUnit }}){% endif %}{% endif %}
-        <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
-    {% endset %}
-    {% set _ = summaryRows.push({
-        key: { text: "Sentence" },
-        value: { html: sentenceValue },
-        actions: {
-            items: [{
-                href: changeSentenceUrl,
-                text: "Change",
-                visuallyHiddenText: "sentence associated with online check ins",
-                attributes: { 'data-qa': 'sentenceAction' }
-            }]
-        } if userDetails.events.length > 1 else undefined
-    }) %}
+    {% if flags.enableSentenceSelection === true %}
+        {% set _ = addSentenceSummaryRow(summaryRows, userDetails, changeSentenceUrl) %}
     {% endif %}
-    {% endfor %}
 
     {# An ad-hoc restart schedules no first check in, so there is no date to show or change. #}
     {% if not userDetails.isAdHoc %}

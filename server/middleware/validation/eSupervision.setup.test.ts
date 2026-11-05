@@ -70,7 +70,7 @@ describe('setup validation re-render', () => {
           backLink: overview,
           buttonText: 'Save changes',
           formAnchorLink: overview,
-          formAnchorText: 'Cancel',
+          formAnchorText: 'Cancel and go back',
           errorMessages: {
             [`esupervision-${crn}-${id}-manageCheckin-currentEvent`]:
               'Select which sentence you want to add online check ins to',

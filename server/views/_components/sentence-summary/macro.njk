@@ -1,0 +1,25 @@
+{% macro addSentenceSummaryRow(rows, userDetails, changeUrl) %}
+    {% set events = (userDetails.events or []) | selectattr('sentence') %}
+    {% if events | length > 1 %}
+    {% for event in events %}
+        {% if event.number == userDetails.currentEvent %}
+            {% set sentenceValue %}
+                {{ event.sentence.description }}
+                <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
+            {% endset %}
+            {% set _ = rows.push({
+                key: { text: 'Which sentence do you want to add online check ins to?' },
+                value: { html: sentenceValue },
+                actions: {
+                    items: [{
+                        href: changeUrl,
+                        text: 'Change',
+                        visuallyHiddenText: 'sentence associated with online check ins',
+                        attributes: { 'data-qa': 'sentenceAction' }
+                    }]
+                }
+            }) %}
+        {% endif %}
+    {% endfor %}
+    {% endif %}
+{% endmacro %}

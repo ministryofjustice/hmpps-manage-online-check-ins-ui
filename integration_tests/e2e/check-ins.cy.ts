@@ -35,6 +35,7 @@ import SentenceSelectionPage from '../pages/check-ins/sentence-selection'
 import RestartCheckYourAnswersPage from '../pages/check-ins/restart/restart-check-your-answers.page'
 import RestartConfirmationPage from '../pages/check-ins/restart/restart-confirmation.page'
 import { getCheckinUuid } from '../utils/common'
+import type { NdeliusEvent } from '../../server/data/model/personalDetails'
 
 // The header stub derives each CRN's tier from its last digit, so a spec picks its CRN to pick
 // the tier band the eligibility rules will apply. See wiremock/mappings/eSupervisionAPI.json.
@@ -143,7 +144,7 @@ const passEligibilityCheck = (crn: string = CRN_TIER_DG) => {
   completeEligibilityCheck()
 }
 
-const passEligibilityCheckWithSentences = (events = SENTENCE_EVENTS) => {
+const passEligibilityCheckWithSentences = (events: NdeliusEvent[] = SENTENCE_EVENTS) => {
   startSetup()
   cy.task('stubSentenceEvents', { crn: CRN_TIER_DG, events })
   completeEligibilityCheck()
@@ -734,6 +735,19 @@ context('Appointment check-ins', () => {
     frequencyPage.checkOnPage()
   })
 
+  it('does not offer events without a sentence', () => {
+    passEligibilityCheckWithSentences([
+      ...SENTENCE_EVENTS,
+      { number: 99, mainOffence: { code: '099', description: 'Event without a sentence' }, sentence: null },
+    ])
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+
+    sentenceSelectionPage.getSentences().should('have.length', 2)
+    cy.contains('Event without a sentence').should('not.exist')
+    cy.get('input[type="radio"][value="99"]').should('not.exist')
+  })
+
   it('should show sentences with the furthest end date first', () => {
     passEligibilityCheckWithSentences()
     const sentenceSelectionPage = new SentenceSelectionPage()
@@ -808,7 +822,7 @@ context('Appointment check-ins', () => {
     photoRulesPage.getSubmitBtn().click()
     const checkYourAnswersPage = new CheckYourAnswersPage()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Suspended sentence order')
     checkYourAnswersPage.getElementData('sentenceAction').click()
     sentenceSelectionPage.checkOnPage()
     sentenceSelectionPage.getSelectedSentence().should('have.value', '2')
@@ -817,7 +831,7 @@ context('Appointment check-ins', () => {
     checkYourAnswersPage.checkOnPage()
     checkYourAnswersPage
       .getSummaryListRowByAction('sentenceAction')
-      .should('contain.text', 'Theft')
+      .should('contain.text', 'Community order')
       .and('contain.text', 'Sentence end date: 2 January 2030')
     cy.request('DELETE', 'http://localhost:9091/__admin/requests')
     checkYourAnswersPage.getSubmitBtn().click()
@@ -842,6 +856,29 @@ context('Appointment check-ins', () => {
     passRestartEligibilityCheckWithSentences([SENTENCE_EVENTS[0]])
     const frequencyPage = new RestartCheckinFrequencyPage()
     frequencyPage.checkOnPage()
+  })
+
+  it('blocks restart sentence GET and POST once check ins are running', () => {
+    passRestartEligibilityCheckWithSentences()
+    const sentenceSelectionPage = new SentenceSelectionPage()
+    sentenceSelectionPage.checkOnPage()
+    sentenceSelectionPage.selectSentence(2)
+
+    cy.task('stubSentenceEvents', {
+      crn: RESTART_CRN,
+      events: SENTENCE_EVENTS,
+      currentEvent: 1,
+      status: 'VERIFIED',
+    })
+    sentenceSelectionPage.getSubmitBtn().click()
+
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', RESTART_ROOT)
+
+    cy.visit(`${RESTART_ROOT}/restart-sentence-selection`)
+
+    new ManageCheckins().checkOnPage()
+    cy.location('pathname').should('equal', RESTART_ROOT)
   })
 
   it('should preselect the saved sentence during reactivation when it is still active', () => {
@@ -878,14 +915,14 @@ context('Appointment check-ins', () => {
     contactPreferencePage.getSubmitBtn().click()
     const checkYourAnswersPage = new RestartCheckYourAnswersPage()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Theft')
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Community order')
     checkYourAnswersPage.getElementData('sentenceAction').click()
     sentenceSelectionPage.checkOnPage()
     sentenceSelectionPage.getSelectedSentence().should('have.value', '1')
     sentenceSelectionPage.selectSentence(2)
     sentenceSelectionPage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Suspended sentence order')
     cy.request('DELETE', 'http://localhost:9091/__admin/requests')
     checkYourAnswersPage.getSubmitBtn().click()
     const confirmationPage = new RestartConfirmationPage()
@@ -910,7 +947,7 @@ context('Appointment check-ins', () => {
     contactPreferencePage.getSubmitBtn().click()
     const checkYourAnswersPage = new RestartCheckYourAnswersPage()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage.getElement('.govuk-summary-list').should('contain.text', 'Burglary')
+    checkYourAnswersPage.getElement('.govuk-summary-list').should('not.contain.text', 'Suspended sentence order')
     checkYourAnswersPage.getElementData('sentenceAction').should('not.exist')
     cy.request('DELETE', 'http://localhost:9091/__admin/requests')
     checkYourAnswersPage.getSubmitBtn().click()

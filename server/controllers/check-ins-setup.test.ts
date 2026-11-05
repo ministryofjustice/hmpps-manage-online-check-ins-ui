@@ -1,6 +1,6 @@
 import httpMocks from 'node-mocks-http'
 import controllers from '.'
-import mockAppResponse from './mocks/appResponse'
+import baseAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
 import ESupervisionClient from '../data/eSupervisionClient'
 import { SupervisionPackageStatus } from '../data/model/esupervision'
@@ -22,6 +22,9 @@ jest.mock('../data/hmppsAuthClient', () => {
 const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 const hmppsAuthClient = new HmppsAuthClient(null) as jest.Mocked<HmppsAuthClient>
+
+const mockAppResponse = (locals: Record<string, unknown> = {}) =>
+  baseAppResponse({ flags: { enableSentenceSelection: true }, ...locals })
 
 const requestFor = (body: Record<string, unknown> = {}, session: Record<string, unknown> = {}, url?: string) =>
   httpMocks.createRequest({
@@ -54,24 +57,112 @@ describe('check-in setup flow', () => {
   })
 
   describe('sentence selection', () => {
-    const event = (number: number, expectedEndDate: string | null) => ({
-      number,
-      mainOffence: { code: '001', description: 'Offence' },
-      sentence: { description: 'Community order', expectedEndDate },
+    describe.each(['setup', 'reactivation'] as const)('disabled flag for %s', journey => {
+      it.each([
+        { enabled: false, cya: false },
+        { enabled: undefined, cya: false },
+        { enabled: false, cya: true },
+        { enabled: undefined, cya: true },
+      ])('skips GET and POST without loading or saving events: %j', async ({ enabled, cya }) => {
+        const req = requestFor()
+        req.query.cya = String(cya)
+        const res = mockAppResponse({
+          checkInEligibilityJourney: journey,
+          flags: { enableSentenceSelection: enabled },
+        })
+        const root =
+          journey === 'setup'
+            ? `/case/${crn}/appointments/${id}/check-in/`
+            : `/case/${crn}/appointments/check-in/manage/${id}/restart-`
+        const expected = cya
+          ? `${root}${journey === 'setup' ? 'checkin-summary' : 'summary'}`
+          : `${root}${journey === 'setup' ? 'check-in-frequency' : 'checkin'}`
+
+        await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+        expect(res.redirect).toHaveBeenLastCalledWith(expected)
+
+        await controllers.checkIns.postSentenceSelectionPage()(req, res)
+        expect(res.redirect).toHaveBeenLastCalledWith(expected)
+        expect(res.render).not.toHaveBeenCalled()
+        expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
+        expect(req.session.data).toBeUndefined()
+      })
     })
 
-    const withEvents = (events: ReturnType<typeof event>[]) => {
-      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
-        getPersonalDetails: jest.fn().mockResolvedValue({ crn, events: { events } }),
-      }))
-    }
+    const event = (number: number, expectedEndDate: string | null, hasSentence = true) => ({
+      number,
+      mainOffence: { code: '001', description: 'Offence' },
+      sentence: hasSentence ? { description: 'Community order', expectedEndDate } : null,
+    })
+
+    const withEvents = (events: ReturnType<typeof event>[], locals: Record<string, unknown> = {}) =>
+      mockAppResponse({ sentenceEvents: events, ...locals })
+
+    it.each(['setup', 'reactivation'] as const)(
+      'excludes null sentences and clears their saved selection in %s',
+      async journey => {
+        const eligibleEvents = [event(2, '2028-01-01'), event(3, '2027-01-01')]
+        const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+        const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 1 } } } } } })
+        const res = withEvents([event(1, null, false), ...eligibleEvents], {
+          checkInEligibilityJourney: journey,
+          offenderCheckinsByCRNResponse: { currentEvent: 1 },
+        })
+
+        await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+        expect(req.session.data.esupervision[crn][id][group].events).toEqual(eligibleEvents)
+        expect(req.session.data.esupervision[crn][id][group].currentEvent).toBeUndefined()
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/sentence-selection.njk',
+          expect.objectContaining({ events: eligibleEvents }),
+        )
+      },
+    )
+
+    it('skips selection and selects the sole event with a sentence', async () => {
+      const eligibleEvent = event(2, '2028-01-01')
+      const req = requestFor()
+      const res = withEvents([event(1, null, false), eligibleEvent])
+
+      await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+
+      expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(2)
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
+    })
+
+    it.each(['setup', 'reactivation'] as const)(
+      'rejects a null-sentence event posted from a stale %s session',
+      async journey => {
+        const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
+        const eligibleEvent = event(2, '2028-01-01')
+        const req = requestFor(
+          { esupervision: { [crn]: { [id]: { [group]: { currentEvent: '1' } } } } },
+          {
+            data: {
+              esupervision: { [crn]: { [id]: { [group]: { events: [event(1, null, false), eligibleEvent] } } } },
+            },
+          },
+        )
+        const res = mockAppResponse({ checkInEligibilityJourney: journey })
+
+        await controllers.checkIns.postSentenceSelectionPage()(req, res)
+
+        expect(res.render).toHaveBeenCalledWith(
+          'pages/check-in/sentence-selection.njk',
+          expect.objectContaining({ events: [eligibleEvent], errorMessages: expect.anything() }),
+        )
+        expect(req.session.data.esupervision[crn][id][group].currentEvent).toBeUndefined()
+        expect(res.redirect).not.toHaveBeenCalled()
+      },
+    )
 
     it('orders sentences by furthest end date, with undated sentences last', async () => {
       const events = [event(1, '2027-01-01'), event(2, null), event(3, '2028-01-01')]
-      withEvents(events)
       const req = requestFor()
-      const res = mockAppResponse()
+      const res = withEvents(events)
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/sentence-selection.njk',
         expect.objectContaining({
@@ -81,9 +172,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([[[]], [[event(4, '2028-01-01')]]])('bypasses selection for fewer than two events: %j', async events => {
-      withEvents(events)
       const req = requestFor()
-      const res = mockAppResponse()
+      const res = withEvents(events)
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
       expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(events[0]?.number)
@@ -95,10 +185,9 @@ describe('check-in setup flow', () => {
       { journey: 'reactivation', events: [] },
       { journey: 'reactivation', events: [event(4, '2028-01-01')] },
     ])('returns skipped selection edits to the $journey summary: $events', async ({ journey, events }) => {
-      withEvents(events)
       const req = requestFor()
       req.query.cya = 'true'
-      const res = mockAppResponse({ checkInEligibilityJourney: journey })
+      const res = withEvents(events, { checkInEligibilityJourney: journey })
 
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
 
@@ -111,9 +200,8 @@ describe('check-in setup flow', () => {
     })
 
     it('preselects the previous active event during reactivation', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor()
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: 'reactivation',
         offenderCheckinsByCRNResponse: { currentEvent: 1 },
       })
@@ -122,9 +210,8 @@ describe('check-in setup flow', () => {
     })
 
     it('does not preselect a saved event that is no longer active', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor()
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: 'reactivation',
         offenderCheckinsByCRNResponse: { currentEvent: 3 },
       })
@@ -133,10 +220,9 @@ describe('check-in setup flow', () => {
     })
 
     it('returns to selection when refresh removes the chosen event and Back opens the summary', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: { currentEvent: 7 } } } } } })
       req.query.cya = 'true'
-      const res = mockAppResponse()
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
 
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
 
@@ -153,9 +239,8 @@ describe('check-in setup flow', () => {
 
     it.each(['setup', 'reactivation'] as const)('retains the chosen sentence when revisiting %s', async journey => {
       const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 2 } } } } } })
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: journey,
         offenderCheckinsByCRNResponse: { currentEvent: 1 },
       })
@@ -211,6 +296,36 @@ describe('check-in setup flow', () => {
   })
 
   describe('setup event validation', () => {
+    it.each([false, undefined])('ignores stale event data when the flag is %s', async enabled => {
+      const postOffenderSetup = jest.fn().mockResolvedValue({ uuid: id })
+      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
+        getProbationPractitioner: jest.fn().mockResolvedValue({ username: 'practitioner' }),
+        postOffenderSetup,
+        getProfilePhotoUploadLocation: jest.fn().mockResolvedValue({}),
+      }))
+      const req = requestFor(
+        { contentSha256: 'YWJjMTIz' },
+        {
+          data: {
+            esupervision: {
+              [crn]: {
+                [id]: { checkins: { currentEvent: 99, interval: 'AD_HOC', eligibility: ['none'], tierBand: 'DG' } },
+              },
+            },
+          },
+        },
+      )
+      const res = mockAppResponse({ flags: { enableSentenceSelection: enabled } })
+
+      await controllers.checkIns.getCheckinSummaryPage()(req, res)
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/checkin-summary.njk', expect.anything())
+
+      await controllers.checkIns.postCheckinSummaryPage(hmppsAuthClient)(req, res)
+      expect(postOffenderSetup).toHaveBeenCalled()
+      expect(postOffenderSetup.mock.calls[0][0]).not.toHaveProperty('currentEvent')
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'SUCCESS' }))
+    })
+
     it.each([
       undefined,
       { events: undefined, currentEvent: 7 },
@@ -219,6 +334,7 @@ describe('check-in setup flow', () => {
       { events: [{ number: 1 }, { number: 2 }], currentEvent: undefined },
       { events: [{ number: 1 }, { number: 2 }], currentEvent: 7 },
       { events: [], currentEvent: 7 },
+      { events: [{ number: 7, sentence: null }], currentEvent: 7 },
     ])('redirects incomplete summaries and blocks submission: %j', async checkins => {
       const req = requestFor(
         { contentSha256: 'YWJjMTIz' },
@@ -239,8 +355,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([
-      { events: [{ number: 7 }], currentEvent: 7 },
-      { events: [{ number: 1 }, { number: 7 }], currentEvent: 7 },
+      { events: [{ number: 7, sentence: { description: 'Community order' } }], currentEvent: 7 },
+      { events: [{ number: 1 }, { number: 7, sentence: { description: 'Community order' } }], currentEvent: 7 },
       { events: [], currentEvent: undefined },
     ])('renders and submits a complete selection: %j', async selection => {
       const postOffenderSetup = jest.fn().mockResolvedValue({ uuid: id })
@@ -1313,7 +1429,13 @@ describe('check-in setup flow', () => {
           data: {
             esupervision: {
               [crn]: {
-                [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, photoUploadOption: 'TAKE_A_PIC' } },
+                [id]: {
+                  checkins: {
+                    events: [{ number: 1, sentence: { description: 'Community order' } }],
+                    currentEvent: 1,
+                    photoUploadOption: 'TAKE_A_PIC',
+                  },
+                },
               },
             },
           },
@@ -1333,7 +1455,7 @@ describe('check-in setup flow', () => {
             [crn]: {
               [id]: {
                 checkins: {
-                  events: [{ number: 1 }],
+                  events: [{ number: 1, sentence: { description: 'Community order' } }],
                   currentEvent: 1,
                   interval: 'WEEKLY',
                   photoUploadOption: 'TAKE_A_PIC',
@@ -1360,7 +1482,14 @@ describe('check-in setup flow', () => {
         data: {
           esupervision: {
             [crn]: {
-              [id]: { checkins: { events: [{ number: 1 }], currentEvent: 1, interval: 'WEEKLY', date: '1/1/2030' } },
+              [id]: {
+                checkins: {
+                  events: [{ number: 1, sentence: { description: 'Community order' } }],
+                  currentEvent: 1,
+                  interval: 'WEEKLY',
+                  date: '1/1/2030',
+                },
+              },
             },
           },
         },
