@@ -1940,9 +1940,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         if (status === 400) {
           // The API rejected the reason the page accepted. Keep the answers and let them try again.
           logger.warn(`Cancelling check in ${checkIn.uuid} was rejected by the API: ${(error as Error).message}`)
-          return renderCancelCheckinPage(res, {
-            [`esupervision[${crn}][${id}][manageCheckin][cancelCheckinReason]`]: CANCEL_REASON_REJECTED,
-          })
+          const errorMessages = {
+            [`esupervision-${crn}-${id}-manageCheckin-cancelCheckinReason`]: CANCEL_REASON_REJECTED,
+          }
+          res.locals.errorMessages = errorMessages
+          return renderCancelCheckinPage(res, errorMessages)
         }
         // 409: the person submitted it, or it expired, between the page opening and this post.
         // The overview explains; anything else is a failure to report as usual.
