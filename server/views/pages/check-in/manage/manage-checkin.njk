@@ -214,7 +214,8 @@
     }) }}
 
     {% set selectedEvents = [] %}
-    {% for event in offenderCheckinsByCRNResponse.details.events %}
+    {% set events = (offenderCheckinsByCRNResponse.details.events or []) | selectattr('sentence') %}
+    {% for event in events %}
         {% if event.number == offenderCheckinsByCRNResponse.currentEvent %}
             {% set _ = selectedEvents.push(event) %}
         {% endif %}
@@ -222,7 +223,7 @@
     {% set event = selectedEvents[0] %}
     {% if flags.enableSentenceSelection === true and event %}
         {% set sentenceValue %}
-            <span data-qa="sentenceDescription">{{ event.sentence.description if event.sentence else event.mainOffence.description }}</span>
+            <span data-qa="sentenceDescription">{{ event.sentence.description }}</span>
             {% if event.sentence.expectedEndDate %}
                 <br><span class="govuk-hint" data-qa="sentenceEndDate">Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear }}</span>
             {% endif %}
@@ -248,7 +249,7 @@
                     visuallyHiddenText: 'sentence',
                     attributes: { 'data-qa': 'changeSentenceAction' }
                 }]
-            } if showChange and offenderCheckinsByCRNResponse.details.events | length > 1
+            } if showChange and events | length > 1
         }) }}
     {% endif %}
 

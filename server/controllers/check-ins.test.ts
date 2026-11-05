@@ -159,7 +159,17 @@ describe('checkInsController', () => {
           lengthUnit: 'months',
         },
       },
-      { number: 2, mainOffence: { code: '002', description: 'Burglary' }, sentence: null },
+      {
+        number: 2,
+        mainOffence: { code: '002', description: 'Burglary' },
+        sentence: {
+          date: '2026-01-01',
+          description: 'Suspended sentence order',
+          expectedEndDate: null,
+          length: 12,
+          lengthUnit: 'months',
+        },
+      },
     ]
     const overview = `/case/${crn}/appointments/check-in/manage/${uuid}`
 
@@ -172,6 +182,10 @@ describe('checkInsController', () => {
     })
 
     it('reuses sentence selection with the saved event checked and overview Back and Cancel links', async () => {
+      res.locals.offenderCheckinsByCRNResponse.details.events = [
+        ...events,
+        { number: 99, mainOffence: { code: '099', description: 'No sentence' }, sentence: null },
+      ]
       const req = baseReq()
 
       await controllers.checkIns.getManageSentenceSelection()(req, res)
@@ -191,15 +205,21 @@ describe('checkInsController', () => {
       expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
     })
 
-    it.each([0, 1])('redirects direct visits when only %s eligible events remain', async eventCount => {
-      res.locals.offenderCheckinsByCRNResponse.details.events = events.slice(0, eventCount)
+    it.each([0, 1])(
+      'redirects direct visits with %s sentences even when a sentence-less event exists',
+      async eventCount => {
+        res.locals.offenderCheckinsByCRNResponse.details.events = [
+          ...events.slice(0, eventCount),
+          { number: 99, mainOffence: { code: '099', description: 'No sentence' }, sentence: null },
+        ]
 
-      await controllers.checkIns.getManageSentenceSelection()(baseReq(), res)
+        await controllers.checkIns.getManageSentenceSelection()(baseReq(), res)
 
-      expect(redirectSpy).toHaveBeenCalledWith(overview)
-      expect(renderSpy).not.toHaveBeenCalled()
-      expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
-    })
+        expect(redirectSpy).toHaveBeenCalledWith(overview)
+        expect(renderSpy).not.toHaveBeenCalled()
+        expect(postUpdateOffenderDetailsSpy).not.toHaveBeenCalled()
+      },
+    )
 
     it('saves only currentEvent and returns to the overview', async () => {
       const req = baseReq()

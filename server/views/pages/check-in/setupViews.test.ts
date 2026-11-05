@@ -940,6 +940,7 @@ describe('the manage page sentence card', () => {
       events: [
         { number: 1, sentence: { description: 'Adult Custody < 12m', expectedEndDate: '2028-01-01' } },
         { number: 2, sentence: { description: 'CJA - Community Order', expectedEndDate: '2027-07-01' } },
+        { number: 99, sentence: null },
       ],
     },
   }
@@ -975,12 +976,15 @@ describe('the manage page sentence card', () => {
     expect(html).not.toContain('sentence-selection')
   })
 
-  it('shows the sole sentence without offering Change', async () => {
+  it.each([
+    { choices: [offender.details.events[1]] },
+    { choices: [offender.details.events[1], offender.details.events[2]] },
+  ])('shows the sole eligible sentence without offering Change: %j', async ({ choices }) => {
     const html = await render('manage/manage-checkin', {
       ...base,
       offenderCheckinsByCRNResponse: {
         ...offender,
-        details: { events: [offender.details.events[1]] },
+        details: { events: choices },
       },
       showChange: true,
     })
@@ -1003,7 +1007,7 @@ describe('the manage page sentence card', () => {
     expect(html).not.toContain('Adult Custody &lt; 12m')
   })
 
-  it('handles a selected event with no sentence details', async () => {
+  it('hides a selected event with no sentence details', async () => {
     const html = await render('manage/manage-checkin', {
       ...base,
       offenderCheckinsByCRNResponse: {
@@ -1014,8 +1018,8 @@ describe('the manage page sentence card', () => {
       },
     })
 
-    expect(html).toContain('data-qa="sentenceCard"')
-    expect(html).toContain('Theft')
+    expect(html).not.toContain('data-qa="sentenceCard"')
+    expect(html).not.toContain('Theft')
     expect(html).not.toContain('data-qa="sentenceEndDate"')
   })
 })

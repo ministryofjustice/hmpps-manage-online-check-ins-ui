@@ -16,6 +16,7 @@ describe('setup validation re-render', () => {
       { number: 1, sentence: { expectedEndDate: '2027-01-01' } },
       { number: 2, sentence: { expectedEndDate: '2028-01-01' } },
     ]
+    const sentenceLessEvent: { number: number; sentence: null } = { number: 99, sentence: null }
 
     it.each([false, undefined])('redirects without validating or continuing when the flag is %s', enabled => {
       const req = httpMocks.createRequest({
@@ -42,7 +43,7 @@ describe('setup validation re-render', () => {
       expect(next).not.toHaveBeenCalled()
     })
 
-    it.each([undefined, '999', ['1', '2']])('re-renders an invalid sentence choice: %j', currentEvent => {
+    it.each([undefined, '999', '99', ['1', '2']])('re-renders an invalid sentence choice: %j', currentEvent => {
       const req = httpMocks.createRequest({
         method: 'POST',
         url: `${overview}/sentence`,
@@ -53,7 +54,7 @@ describe('setup validation re-render', () => {
       const res: any = {
         locals: {
           flags: { enableSentenceSelection: true },
-          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events } },
+          offenderCheckinsByCRNResponse: { status: 'VERIFIED', details: { events: [...events, sentenceLessEvent] } },
         },
         render: jest.fn(),
       }
@@ -79,7 +80,7 @@ describe('setup validation re-render', () => {
       )
     })
 
-    it.each([0, 1])('blocks submission when only %s eligible events remain', eventCount => {
+    it.each([0, 1])('blocks submission with %s sentences even when a sentence-less event exists', eventCount => {
       const req = httpMocks.createRequest({
         method: 'POST',
         url: `${overview}/sentence`,
@@ -92,7 +93,7 @@ describe('setup validation re-render', () => {
           flags: { enableSentenceSelection: true },
           offenderCheckinsByCRNResponse: {
             status: 'VERIFIED',
-            details: { events: events.slice(0, eventCount) },
+            details: { events: [...events.slice(0, eventCount), sentenceLessEvent] },
           },
         },
         render: jest.fn(),

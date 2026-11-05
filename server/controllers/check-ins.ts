@@ -2157,14 +2157,16 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const overview = `/case/${crn}/appointments/check-in/manage/${id}`
-      const offender = res.locals.offenderCheckinsByCRNResponse
+      const offender = (res.locals as AppLocals).offenderCheckinsByCRNResponse
       if (res.locals.flags?.enableSentenceSelection !== true || offender?.status !== 'VERIFIED') {
         return res.redirect(overview)
       }
 
-      const events = [...(offender.details?.events ?? [])].sort((first, second) =>
-        (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
-      )
+      const events = (offender.details?.events ?? [])
+        .filter(event => event.sentence)
+        .sort((first, second) =>
+          (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
+        )
       if (events.length < 2) return res.redirect(overview)
 
       const currentEvent = events.find(event => event.number === offender.currentEvent)?.number

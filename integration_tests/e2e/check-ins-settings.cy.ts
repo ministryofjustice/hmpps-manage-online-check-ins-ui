@@ -151,13 +151,20 @@ context('check in settings for a scheduled person', () => {
     })
   })
 
-  it('blocks sentence changes when only one eligible event remains', () => {
+  it('blocks sentence changes with one eligible sentence even when a sentence-less event remains', () => {
     cy.task('stubSentenceEvents', { crn, currentEvent: 2, events: sentenceEvents })
     openManagePage().getElementData('changeSentenceAction').click()
     const sentencePage = new SentenceSelectionPage()
     sentencePage.checkOnPage()
 
-    cy.task('stubSentenceEvents', { crn, currentEvent: 2, events: [sentenceEvents[1]] })
+    cy.task('stubSentenceEvents', {
+      crn,
+      currentEvent: 2,
+      events: [
+        sentenceEvents[1],
+        { number: 99, mainOffence: { code: '099', description: 'No sentence' }, sentence: null },
+      ],
+    })
     sentencePage.getSubmitBtn().click()
 
     const manageCheckins = new ManageCheckins()
