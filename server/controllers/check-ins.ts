@@ -987,7 +987,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getSentenceSelectionPage: hmppsAuthClient => {
+  getSentenceSelectionPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_SENTENCE_SELECTION', crn, SubjectType.CRN)
@@ -996,18 +996,11 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       }
       const context = eligibilityContextFor(res, crn, id)
       const cya = req.query.cya === 'true'
-      const summary =
-        context.journey === 'reactivation'
-          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
-          : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
       if (res.locals.flags?.enableSentenceSelection !== true) {
-        return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+        return res.redirect(context.nextPageAfterSentenceSelection(cya))
       }
       req.session.data ??= {}
-      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-      const personalDetails = await new ESupervisionClient(token).getPersonalDetails(crn)
-      if (!personalDetails) return renderError(404)(req, res)
-      const events = (personalDetails.events ?? [])
+      const events = ((res.locals as AppLocals).sentenceEvents ?? [])
         .filter(event => event.sentence)
         .sort((first, second) =>
           (second.sentence?.expectedEndDate ?? '').localeCompare(first.sentence?.expectedEndDate ?? ''),
@@ -1017,19 +1010,21 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const selected = getDataValue(req.session.data, [...path, 'currentEvent'])
       const previous = res.locals.offenderCheckinsByCRNResponse?.currentEvent
       const currentEvent =
-        events.find(event => String(event.number) === String(selected))?.number ??
-        (context.journey === 'reactivation' ? events.find(event => event.number === previous)?.number : undefined)
-      setDataValue(req.session.data, [...path, 'currentEvent'], events.length === 1 ? events[0].number : currentEvent)
-      if (events.length < 2) return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+        events.length === 1
+          ? events[0].number
+          : (events.find(event => String(event.number) === String(selected))?.number ??
+            (context.journey === 'reactivation' ? events.find(event => event.number === previous)?.number : undefined))
+      setDataValue(req.session.data, [...path, 'currentEvent'], currentEvent)
+      if (events.length < 2) return res.redirect(context.nextPageAfterSentenceSelection(cya))
       const accreditedProgramme = getDataValue(req.session.data, [...path, 'accreditedProgramme'])
       return res.render('pages/check-in/sentence-selection.njk', {
         crn,
         id,
         cya,
         events,
-        currentEvent: events.length === 1 ? events[0].number : currentEvent,
+        currentEvent,
         eligibilitySessionKey: context.eligibilitySessionKey,
-        backLink: cya ? summary : context.urlForEligibilityPage(accreditedProgramme ? 'rationale' : 'is-eligible'),
+        backLink: context.sentenceSelectionBackLink(cya, Boolean(accreditedProgramme)),
       })
     }
   },
@@ -1048,12 +1043,8 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const selected = req.body?.esupervision?.[crn]?.[id]?.[context.eligibilitySessionKey]?.currentEvent
       const event = events.find(choice => String(choice.number) === selected)
       const cya = req.query.cya === 'true'
-      const summary =
-        context.journey === 'reactivation'
-          ? `/case/${crn}/appointments/check-in/manage/${id}/restart-summary`
-          : `/case/${crn}/appointments/${id}/check-in/checkin-summary`
       if (res.locals.flags?.enableSentenceSelection !== true) {
-        return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+        return res.redirect(context.nextPageAfterSentenceSelection(cya))
       }
       if (!event) {
         const accreditedProgramme = getDataValue(req.session.data, [...path, 'accreditedProgramme'])
@@ -1067,12 +1058,12 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           cya,
           events,
           eligibilitySessionKey: context.eligibilitySessionKey,
-          backLink: cya ? summary : context.urlForEligibilityPage(accreditedProgramme ? 'rationale' : 'is-eligible'),
+          backLink: context.sentenceSelectionBackLink(cya, Boolean(accreditedProgramme)),
           errorMessages: res.locals.errorMessages,
         })
       }
       setDataValue(req.session.data, [...path, 'currentEvent'], event.number)
-      return res.redirect(cya ? summary : context.urlForEligibilityPage('check-in-frequency'))
+      return res.redirect(context.nextPageAfterSentenceSelection(cya))
     }
   },
 
@@ -1091,19 +1082,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         'checkins',
         'accreditedProgramme',
       ])
-      let backLink: string
-      if (cya) {
-        backLink = `/case/${crn}/appointments/${id}/check-in/checkin-summary`
-      } else {
-        // Only the accredited-programme cohort passes through rationale on the way here.
-        backLink = accreditedProgramme
-          ? `/case/${crn}/appointments/${id}/check-in/rationale`
-          : `/case/${crn}/appointments/${id}/check-in/is-eligible`
-        const events = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'events'])
-        if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
-          backLink = `/case/${crn}/appointments/${id}/check-in/sentence-selection`
-        }
-      }
+      const events = getDataValue(req.session.data, ['esupervision', crn, id, 'checkins', 'events'])
+      const backLink = getCheckInEligibilityContext('setup', crn, id).frequencyBackLink({
+        cya,
+        accreditedProgramme: Boolean(accreditedProgramme),
+        sentenceSelectionEnabled: res.locals.flags?.enableSentenceSelection === true,
+        eventCount: events?.length ?? 0,
+      })
       return res.render('pages/check-in/check-in-frequency.njk', {
         crn,
         id,
@@ -2289,14 +2274,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!personalDetails) {
         return renderError(404)(req, res)
       }
-      const manage = `/case/${crn}/appointments/check-in/manage/${id}`
       const accreditedProgramme = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'accreditedProgramme'])
-      let backLink = accreditedProgramme ? `${manage}/restart-rationale` : `${manage}/restart-is-eligible`
       const events = getDataValue(data, ['esupervision', crn, id, 'restartCheckin', 'events'])
-      if (res.locals.flags?.enableSentenceSelection === true && events?.length > 1) {
-        backLink = `${manage}/restart-sentence-selection`
-      }
-      if (cya) backLink = `${manage}/restart-summary`
+      const backLink = getCheckInEligibilityContext('reactivation', crn, id).frequencyBackLink({
+        cya,
+        accreditedProgramme: Boolean(accreditedProgramme),
+        sentenceSelectionEnabled: res.locals.flags?.enableSentenceSelection === true,
+        eventCount: events?.length ?? 0,
+      })
       return res.render('pages/check-in/manage/restart-checkin-frequency.njk', {
         crn,
         id,

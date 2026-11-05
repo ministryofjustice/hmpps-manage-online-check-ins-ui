@@ -1,4 +1,5 @@
 {% extends "../../../partials/layout.njk" %}
+{% from "../../../_components/sentence-summary/macro.njk" import addSentenceSummaryRow %}
 {% set title = "Check your answers before restarting online check ins"  %}
 {% if errorMessages and errorMessages | length %}
   {% set pageTitle = makePageTitle({
@@ -101,26 +102,7 @@
     {% set summaryRows = [] %}
 
     {% if flags.enableSentenceSelection === true %}
-    {% for event in userDetails.events %}
-    {% if event.number == userDetails.currentEvent and event.sentence %}
-    {% set sentenceValue %}
-        {{ event.sentence.description }}
-        <br>Sentence end date: {{ event.sentence.expectedEndDate | dateWithYear if event.sentence.expectedEndDate else 'Not available' }}
-    {% endset %}
-    {% set _ = summaryRows.push({
-        key: { text: "Which sentence do you want to add online check ins to?" },
-        value: { html: sentenceValue },
-        actions: {
-            items: [{
-                href: changeSentenceUrl,
-                text: "Change",
-                visuallyHiddenText: "sentence associated with online check ins",
-                attributes: { 'data-qa': 'sentenceAction' }
-            }]
-        } if userDetails.events.length > 1 else undefined
-    }) %}
-    {% endif %}
-    {% endfor %}
+        {% set _ = addSentenceSummaryRow(summaryRows, userDetails, changeSentenceUrl) %}
     {% endif %}
 
     {# An ad-hoc restart schedules no first check in, so there is no date to show or change. #}

@@ -95,20 +95,16 @@ describe('check-in setup flow', () => {
       sentence: hasSentence ? { description: 'Community order', expectedEndDate } : null,
     })
 
-    const withEvents = (events: ReturnType<typeof event>[]) => {
-      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
-        getPersonalDetails: jest.fn().mockResolvedValue({ crn, events }),
-      }))
-    }
+    const withEvents = (events: ReturnType<typeof event>[], locals: Record<string, unknown> = {}) =>
+      mockAppResponse({ sentenceEvents: events, ...locals })
 
     it.each(['setup', 'reactivation'] as const)(
       'excludes null sentences and clears their saved selection in %s',
       async journey => {
         const eligibleEvents = [event(2, '2028-01-01'), event(3, '2027-01-01')]
-        withEvents([event(1, null, false), ...eligibleEvents])
         const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
         const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 1 } } } } } })
-        const res = mockAppResponse({
+        const res = withEvents([event(1, null, false), ...eligibleEvents], {
           checkInEligibilityJourney: journey,
           offenderCheckinsByCRNResponse: { currentEvent: 1 },
         })
@@ -126,9 +122,8 @@ describe('check-in setup flow', () => {
 
     it('skips selection and selects the sole event with a sentence', async () => {
       const eligibleEvent = event(2, '2028-01-01')
-      withEvents([event(1, null, false), eligibleEvent])
       const req = requestFor()
-      const res = mockAppResponse()
+      const res = withEvents([event(1, null, false), eligibleEvent])
 
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
 
@@ -164,10 +159,10 @@ describe('check-in setup flow', () => {
 
     it('orders sentences by furthest end date, with undated sentences last', async () => {
       const events = [event(1, '2027-01-01'), event(2, null), event(3, '2028-01-01')]
-      withEvents(events)
       const req = requestFor()
-      const res = mockAppResponse()
+      const res = withEvents(events)
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
+      expect(hmppsAuthClient.getSystemClientToken).not.toHaveBeenCalled()
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/sentence-selection.njk',
         expect.objectContaining({
@@ -177,9 +172,8 @@ describe('check-in setup flow', () => {
     })
 
     it.each([[[]], [[event(4, '2028-01-01')]]])('bypasses selection for fewer than two events: %j', async events => {
-      withEvents(events)
       const req = requestFor()
-      const res = mockAppResponse()
+      const res = withEvents(events)
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/check-in-frequency`)
       expect(req.session.data.esupervision[crn][id].checkins.currentEvent).toBe(events[0]?.number)
@@ -191,10 +185,9 @@ describe('check-in setup flow', () => {
       { journey: 'reactivation', events: [] },
       { journey: 'reactivation', events: [event(4, '2028-01-01')] },
     ])('returns skipped selection edits to the $journey summary: $events', async ({ journey, events }) => {
-      withEvents(events)
       const req = requestFor()
       req.query.cya = 'true'
-      const res = mockAppResponse({ checkInEligibilityJourney: journey })
+      const res = withEvents(events, { checkInEligibilityJourney: journey })
 
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
 
@@ -207,9 +200,8 @@ describe('check-in setup flow', () => {
     })
 
     it('preselects the previous active event during reactivation', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor()
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: 'reactivation',
         offenderCheckinsByCRNResponse: { currentEvent: 1 },
       })
@@ -218,9 +210,8 @@ describe('check-in setup flow', () => {
     })
 
     it('does not preselect a saved event that is no longer active', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor()
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: 'reactivation',
         offenderCheckinsByCRNResponse: { currentEvent: 3 },
       })
@@ -229,10 +220,9 @@ describe('check-in setup flow', () => {
     })
 
     it('returns to selection when refresh removes the chosen event and Back opens the summary', async () => {
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { checkins: { currentEvent: 7 } } } } } })
       req.query.cya = 'true'
-      const res = mockAppResponse()
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
 
       await controllers.checkIns.getSentenceSelectionPage(hmppsAuthClient)(req, res)
 
@@ -249,9 +239,8 @@ describe('check-in setup flow', () => {
 
     it.each(['setup', 'reactivation'] as const)('retains the chosen sentence when revisiting %s', async journey => {
       const group = journey === 'setup' ? 'checkins' : 'restartCheckin'
-      withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')])
       const req = requestFor({}, { data: { esupervision: { [crn]: { [id]: { [group]: { currentEvent: 2 } } } } } })
-      const res = mockAppResponse({
+      const res = withEvents([event(1, '2027-01-01'), event(2, '2028-01-01')], {
         checkInEligibilityJourney: journey,
         offenderCheckinsByCRNResponse: { currentEvent: 1 },
       })

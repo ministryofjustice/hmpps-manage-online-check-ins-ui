@@ -15,7 +15,16 @@ export interface CheckInEligibilityContext {
   journey: CheckInEligibilityJourney
   eligibilitySessionKey: 'checkins' | 'restartCheckin'
   eligibilityUrlPrefix: string
+  summaryUrl: string
   urlForEligibilityPage: (page: CheckInEligibilityPage) => string
+  nextPageAfterSentenceSelection: (cya: boolean) => string
+  sentenceSelectionBackLink: (cya: boolean, accreditedProgramme: boolean) => string
+  frequencyBackLink: (options: {
+    cya: boolean
+    accreditedProgramme: boolean
+    sentenceSelectionEnabled: boolean
+    eventCount: number
+  }) => string
 }
 
 const reactivationPageNames: Record<CheckInEligibilityPage, string> = {
@@ -40,12 +49,23 @@ export const getCheckInEligibilityContext = (
     ? `/case/${crn}/appointments/check-in/manage/${id}`
     : `/case/${crn}/appointments/${id}/check-in`
   const eligibilityUrlPrefix = isReactivation ? `${root}/restart-` : `${root}/`
+  const summaryUrl = `${root}/${isReactivation ? 'restart-summary' : 'checkin-summary'}`
+  const urlForEligibilityPage = (page: CheckInEligibilityPage) =>
+    `${eligibilityUrlPrefix}${isReactivation ? reactivationPageNames[page] : page}`
 
   return {
     journey,
     eligibilitySessionKey: isReactivation ? 'restartCheckin' : 'checkins',
     eligibilityUrlPrefix,
-    urlForEligibilityPage: (page: CheckInEligibilityPage) =>
-      `${eligibilityUrlPrefix}${isReactivation ? reactivationPageNames[page] : page}`,
+    summaryUrl,
+    urlForEligibilityPage,
+    nextPageAfterSentenceSelection: cya => (cya ? summaryUrl : urlForEligibilityPage('check-in-frequency')),
+    sentenceSelectionBackLink: (cya, accreditedProgramme) =>
+      cya ? summaryUrl : urlForEligibilityPage(accreditedProgramme ? 'rationale' : 'is-eligible'),
+    frequencyBackLink: ({ cya, accreditedProgramme, sentenceSelectionEnabled, eventCount }) => {
+      if (cya) return summaryUrl
+      if (sentenceSelectionEnabled && eventCount > 1) return urlForEligibilityPage('sentence-selection')
+      return urlForEligibilityPage(accreditedProgramme ? 'rationale' : 'is-eligible')
+    },
   }
 }
