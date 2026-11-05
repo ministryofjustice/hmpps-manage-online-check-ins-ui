@@ -5,6 +5,8 @@ import { Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
+  CancelCheckinRequest,
+  CancellableCheckin,
   UpdateDetailsRequest,
   DeactivateOffenderRequest,
   ESupervisionCheckIn,
@@ -20,6 +22,8 @@ import {
 import { NdeliusEvent, PersonalDetailsUpdateRequest, ProbationPractitioner } from '../data/model/personalDetails'
 import renderError from '../middleware/renderError'
 import getDataValue from '../utils/getDataValue'
+import escapeHtml from '../utils/escapeHtml'
+import clearCancelCheckinAnswers from '../utils/clearCancelCheckinAnswers'
 import setDataValue from '../utils/setDataValue'
 import isValidCrn from '../utils/isValidCrn'
 import isValidUUID from '../utils/isValidUUID'
@@ -382,6 +386,8 @@ type CheckInRouteName =
   | 'getManageCheckinPage'
   | 'postManageStopCheckin'
   | 'getStopCheckinPage'
+  | 'getCancelCheckinPage'
+  | 'postCancelCheckin'
   | 'getReviewIdentityCheckIn'
   | 'postReviewIdentityCheckIn'
   | 'getReviewNotesCheckIn'
@@ -434,6 +440,21 @@ type CheckInRouteName =
   | 'postScheduleCheckInDeleteQuestion'
   | 'getScheduleCheckInPreviewFeeling'
   | 'getScheduleCheckInPreviewSupport'
+
+const CANCEL_REASON_REJECTED = 'Reason for cancelling could not be saved. Check it and try again'
+
+// The cancel page, for its GET and for a post the API rejected. Its hidden checkinUuid comes from
+// res.locals.cancellableCheckin.
+const renderCancelCheckinPage = (res: Response, errorMessages?: Record<string, string>) => {
+  const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+  return res.render('pages/check-in/manage/cancel-checkin.njk', {
+    crn: offenderDetails.crn,
+    id: offenderDetails.uuid,
+    case: offenderDetails.details,
+    guidanceUrl: config.guidance.link,
+    errorMessages,
+  })
+}
 
 const checkInsController: Controller<readonly CheckInRouteName[], void> = {
   // The setup flow keys its session data on a uuid minted here, before the person exists in
@@ -1704,12 +1725,15 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
 
       const eSupClient = new ESupervisionClient(token)
-      let upcomingCheckin = null
-      try {
-        const response = await eSupClient.getUpcomingCheckinQuestions(crn)
-        upcomingCheckin = response || null
-      } catch {
-        logger.info(`No upcoming check in questions found for CRN ${crn}`)
+      // getCancellableCheckin fetches this on the way in; fall back to fetching it here.
+      let upcomingCheckin = res.locals.upcomingCheckin ?? null
+      if (res.locals.upcomingCheckin === undefined) {
+        try {
+          const response = await eSupClient.getUpcomingCheckinQuestions(crn)
+          upcomingCheckin = response || null
+        } catch {
+          logger.info(`No upcoming check in questions found for CRN ${crn}`)
+        }
       }
       // questions can be edited until 23:59 the day before a check in is sent out
       const today = new Date().setHours(0, 0, 0, 0)
@@ -1733,12 +1757,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         delete req.session?.data?.esupervision?.[crn]?.[id]?.manageCheckin?.settingsUpdated
       }
       const questionsAdded = getDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'])
+      // The upcoming check-in, if it exists yet, found by getCancellableCheckin. Only an active
+      // person can cancel one.
+      const cancellableCheckin = res.locals.cancellableCheckin ?? null
+      const canCancelCheckin = showChange && !!cancellableCheckin
 
       let successMessageHtml: string | undefined
+      let warningMessageHtml: string | undefined
+      // The banners output their html unescaped, and the name comes from NDelius.
+      const rawForename = checkinRes?.details?.name?.forename
+      const forenameHtml = rawForename ? escapeHtml(rawForename) : undefined
 
       if (questionsAdded) {
         res.locals.success = true
-        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const forename = forenameHtml || 'the person'
         const rawCheckinDate = upcomingCheckin?.expectedCheckinDate
         const nextCheckinLongDate = dateWithYear(rawCheckinDate)
         successMessageHtml = `
@@ -1749,6 +1781,31 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         setDataValue(req.session.data, ['esupervision', crn, id, 'questionsAdded'], undefined)
       }
 
+      // The cancel page records that it cancelled the check in, or that it could not: the check in
+      // was submitted, missed or cancelled in the meantime, or check ins stopped.
+      const cancelled = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'])
+      if (cancelled) {
+        res.locals.success = true
+        const forename = forenameHtml || 'The person'
+        successMessageHtml = `
+          <strong>Upcoming online check in cancelled.</strong>
+          <br>
+          ${forename} will get a notification that the check in has been cancelled.
+        `
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'], undefined)
+      }
+      // A double submit can record both: the first post cancelled it, so the second was refused.
+      const cancelRefused = getDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'])
+      if (cancelRefused && !cancelled) {
+        const forename = forenameHtml || 'the person'
+        warningMessageHtml = `
+          <strong>The online check in for ${forename} could not be cancelled</strong>
+          <br>
+          It has already been submitted, missed or cancelled, or online check ins have stopped.
+        `
+      }
+      setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], undefined)
+
       // An ad-hoc check in is booked from the schedule page, and moved by booking it again.
       const adHocBanners = [
         ['scheduleCheckInCreated', 'created for'],
@@ -1758,7 +1815,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         const bookedDate = getDataValue(req.session.data, ['esupervision', crn, id, flag])
         if (!bookedDate) return
         res.locals.success = true
-        const forename = checkinRes?.details?.name?.forename || 'the person'
+        const forename = forenameHtml || 'the person'
         const adHocDate = dateToLongDate(bookedDate)
         successMessageHtml = `
           <strong>Single online check in for ${forename} has been ${verb} ${adHocDate}</strong>
@@ -1783,7 +1840,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         canChangeDate,
         upcomingCheckin,
         canEditQuestions,
+        canCancelCheckin,
         successMessageHtml,
+        warningMessageHtml,
       })
     }
   },
@@ -1833,6 +1892,73 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       setDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin'], null)
 
       return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
+    }
+  },
+
+  // The check-in to cancel comes from getCancellableCheckin. There is nothing to show when the
+  // upcoming check-in does not exist yet, or the person is no longer on online check-ins, so go back to the overview.
+  getCancelCheckinPage: () => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CANCEL_CHECK_IN', crn, SubjectType.CRN)
+      const offenderDetails = res.locals.offenderCheckinsByCRNResponse
+      if (offenderDetails.status !== 'VERIFIED' || !res.locals.cancellableCheckin) {
+        return res.redirect(303, `/case/${crn}/appointments/check-in/manage/${id}`)
+      }
+      return renderCancelCheckinPage(res)
+    }
+  },
+
+  postCancelCheckin: hmppsAuthClient => {
+    return async (req, res) => {
+      const { crn, id } = req.params as Record<string, string>
+      const overviewPage = `/case/${crn}/appointments/check-in/manage/${id}`
+      // requireShownCheckin has checked this is the check-in the page showed.
+      const checkIn = res.locals.cancellableCheckin as CancellableCheckin
+
+      const reason = getDataValue<string>(req.session.data, [
+        'esupervision',
+        crn,
+        id,
+        'manageCheckin',
+        'cancelCheckinReason',
+      ])
+      const sensitive =
+        getDataValue(req.session.data, ['esupervision', crn, id, 'manageCheckin', 'cancelCheckinSensitive']) === 'true'
+
+      const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+      const eSupervisionClient = new ESupervisionClient(token)
+      const body: CancelCheckinRequest = {
+        cancelledBy: res.locals.user.username,
+        // Sent as entered: the API's length limit is the one the page validates against.
+        reason: reason ?? '',
+        sensitive,
+      }
+      try {
+        await eSupervisionClient.postCancelCheckin(checkIn.uuid, body)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelled'], true)
+      } catch (error) {
+        const { status } = (error ?? {}) as { status?: number }
+        if (status === 400) {
+          // The API rejected the reason the page accepted. Keep the answers and let them try again.
+          logger.warn(`Cancelling check in ${checkIn.uuid} was rejected by the API: ${(error as Error).message}`)
+          const errorMessages = {
+            [`esupervision-${crn}-${id}-manageCheckin-cancelCheckinReason`]: CANCEL_REASON_REJECTED,
+          }
+          res.locals.errorMessages = errorMessages
+          return renderCancelCheckinPage(res, errorMessages)
+        }
+        // 409: the person submitted it, or it expired, between the page opening and this post.
+        // The overview explains; anything else is a failure to report as usual.
+        if (status !== 409) {
+          throw error
+        }
+        logger.info(`Check in ${checkIn.uuid} could not be cancelled: it is no longer open`)
+        setDataValue(req.session.data, ['esupervision', crn, id, 'checkInCancelRefused'], true)
+      }
+      clearCancelCheckinAnswers(req.session.data, crn, id)
+
+      return res.redirect(303, overviewPage)
     }
   },
 

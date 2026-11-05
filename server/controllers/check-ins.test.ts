@@ -2,7 +2,12 @@ import httpMocks from 'node-mocks-http'
 import { DateTime } from 'luxon'
 import controllers from '.'
 
-import { CheckinScheduleResponse, OffenderByCRNResponse } from '../data/model/esupervision'
+import {
+  CancellableCheckin,
+  CheckinScheduleResponse,
+  ESupervisionCheckIn,
+  OffenderByCRNResponse,
+} from '../data/model/esupervision'
 import ESupervisionClient from '../data/eSupervisionClient'
 import mockAppResponse from './mocks/appResponse'
 import HmppsAuthClient from '../data/hmppsAuthClient'
@@ -64,6 +69,10 @@ const updatePersonalDetailsSpy = jest
 const postDeactivateOffender = jest
   .spyOn(ESupervisionClient.prototype, 'postDeactivateOffender')
   .mockImplementation(() => Promise.resolve({} as CheckinScheduleResponse))
+
+const postCancelCheckinSpy = jest
+  .spyOn(ESupervisionClient.prototype, 'postCancelCheckin')
+  .mockImplementation(() => Promise.resolve({} as ESupervisionCheckIn))
 
 const postReactivateOffenderSpy = jest
   .spyOn(ESupervisionClient.prototype, 'postReactivateOffender')
@@ -526,6 +535,302 @@ describe('checkInsController', () => {
         requestedBy: 'user-1',
         reason: 'Reason with \\"quotes\\"',
         sensitive: false,
+      })
+    })
+  })
+
+  describe('cancelling the upcoming check in', () => {
+    const upcomingCheckin: CancellableCheckin = {
+      uuid: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    }
+    const overviewPage = `/case/${crn}/appointments/check-in/manage/${uuid}`
+    const manageReq = (data: Record<string, unknown> = {}, body: Record<string, unknown> = {}) =>
+      httpMocks.createRequest({ params: { crn, id: uuid }, session: { data }, body })
+    const rendered = () => (renderSpy as jest.Mock).mock.calls.at(-1)[1]
+
+    beforeEach(() => {
+      mockIsValidCrn.mockReturnValue(true)
+      mockIsValidUUID.mockReturnValue(true)
+      res.locals.cancellableCheckin = upcomingCheckin
+    })
+
+    afterEach(() => {
+      res.locals.cancellableCheckin = undefined
+    })
+
+    describe('getManageCheckinPage', () => {
+      it('offers to cancel the upcoming check in', async () => {
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+        expect(rendered().canCancelCheckin).toBe(true)
+      })
+
+      it('does not offer to cancel when the upcoming check in does not exist yet', async () => {
+        res.locals.cancellableCheckin = null
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+        expect(rendered().canCancelCheckin).toBe(false)
+      })
+
+      it('shows the upcoming check in the middleware fetched rather than fetching it again', async () => {
+        const getUpcoming = jest.spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions')
+        getUpcoming.mockClear()
+        res.locals.upcomingCheckin = { expectedCheckinDate: '2026-11-04', questions: [] }
+
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+
+        expect(getUpcoming).not.toHaveBeenCalled()
+        expect(rendered().upcomingCheckin).toEqual({ expectedCheckinDate: '2026-11-04', questions: [] })
+        res.locals.upcomingCheckin = undefined
+      })
+
+      it('fetches the upcoming check in itself when the middleware did not run', async () => {
+        const getUpcoming = jest
+          .spyOn(ESupervisionClient.prototype, 'getUpcomingCheckinQuestions')
+          .mockResolvedValueOnce({ expectedCheckinDate: '2026-11-05', questions: [] })
+        res.locals.upcomingCheckin = undefined
+
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+
+        expect(getUpcoming).toHaveBeenCalledWith(crn)
+        expect(rendered().upcomingCheckin).toEqual({ expectedCheckinDate: '2026-11-05', questions: [] })
+      })
+
+      it('does not offer to cancel when the person is no longer on online check ins', async () => {
+        res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, status: 'INACTIVE' }
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+        expect(rendered().canCancelCheckin).toBe(false)
+      })
+
+      it('confirms a cancellation once, then clears it', async () => {
+        const req = manageReq({ esupervision: { [crn]: { [uuid]: { checkInCancelled: true } } } })
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+        expect(res.locals.success).toBe(true)
+        expect(rendered().successMessageHtml).toContain('Upcoming online check in cancelled.')
+        expect(rendered().successMessageHtml).toContain(
+          'Joe will get a notification that the check in has been cancelled',
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelled'],
+          undefined,
+        )
+      })
+
+      it('explains once when the API refused the cancellation, then clears it', async () => {
+        const req = manageReq({ esupervision: { [crn]: { [uuid]: { checkInCancelRefused: true } } } })
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+        expect(rendered().warningMessageHtml).toContain('The online check in for Joe could not be cancelled')
+        expect(rendered().warningMessageHtml).toContain(
+          'already been submitted, missed or cancelled, or online check ins have stopped',
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelRefused'],
+          undefined,
+        )
+      })
+
+      it('escapes the name in the banners', async () => {
+        res.locals.offenderCheckinsByCRNResponse = {
+          ...offenderCheckinsByCRNResponse,
+          details: {
+            ...offenderCheckinsByCRNResponse.details,
+            name: { ...offenderCheckinsByCRNResponse.details.name, forename: '<img src=x onerror=alert(1)>' },
+          },
+        }
+        const flagged = (flag: string) => manageReq({ esupervision: { [crn]: { [uuid]: { [flag]: true } } } })
+
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(flagged('checkInCancelled'), res)
+        expect(rendered().successMessageHtml).toContain('&lt;img src=x onerror=alert(1)&gt; will get a notification')
+        expect(rendered().successMessageHtml).not.toContain('<img')
+
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(flagged('checkInCancelRefused'), res)
+        expect(rendered().warningMessageHtml).toContain('for &lt;img src=x onerror=alert(1)&gt; could not')
+        expect(rendered().warningMessageHtml).not.toContain('<img')
+      })
+
+      // A double submit: the first post cancelled it, so the second was refused.
+      it('shows only the cancellation when it was also refused, and clears both', async () => {
+        const req = manageReq({
+          esupervision: { [crn]: { [uuid]: { checkInCancelled: true, checkInCancelRefused: true } } },
+        })
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(req, res)
+
+        expect(rendered().successMessageHtml).toContain('Upcoming online check in cancelled.')
+        expect(rendered().warningMessageHtml).toBeUndefined()
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelled'],
+          undefined,
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelRefused'],
+          undefined,
+        )
+      })
+
+      it('shows no banner when nothing was cancelled', async () => {
+        await controllers.checkIns.getManageCheckinPage(hmppsAuthClient)(manageReq(), res)
+        expect(rendered().successMessageHtml).toBeUndefined()
+        expect(rendered().warningMessageHtml).toBeUndefined()
+      })
+    })
+
+    describe('getCancelCheckinPage', () => {
+      it('renders the cancel check in page', async () => {
+        await controllers.checkIns.getCancelCheckinPage()(manageReq(), res)
+
+        const [template, context] = (renderSpy as jest.Mock).mock.calls.pop()
+        expect(template).toBe('pages/check-in/manage/cancel-checkin.njk')
+        expect(context.crn).toBe(crn)
+        expect(context.id).toBe(uuid)
+        expect(context.case).toEqual(offenderCheckinsByCRNResponse.details)
+        checkSendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_MANAGE_CANCEL_CHECK_IN', crn, SubjectType.CRN)
+      })
+
+      it('returns to the overview when there is no upcoming check in to cancel', async () => {
+        res.locals.cancellableCheckin = null
+        await controllers.checkIns.getCancelCheckinPage()(manageReq(), res)
+
+        expect(renderSpy).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
+      })
+
+      it('returns to the overview when the person is no longer on online check ins', async () => {
+        res.locals.offenderCheckinsByCRNResponse = { ...offenderCheckinsByCRNResponse, status: 'INACTIVE' }
+        await controllers.checkIns.getCancelCheckinPage()(manageReq(), res)
+
+        expect(renderSpy).not.toHaveBeenCalled()
+        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
+      })
+    })
+
+    describe('postCancelCheckin', () => {
+      const answers = (cancelCheckinReason: string, cancelCheckinSensitive: string) => ({
+        esupervision: { [crn]: { [uuid]: { manageCheckin: { cancelCheckinReason, cancelCheckinSensitive } } } },
+      })
+      // The page posts the uuid of the check-in it showed.
+      const postReq = (data: Record<string, unknown>, checkinUuid: unknown = upcomingCheckin.uuid) =>
+        manageReq(data, { checkinUuid })
+
+      it('cancels the upcoming check in, records it for the overview, clears the answers and redirects', async () => {
+        const req = postReq(answers('Attending in person instead', 'true'))
+
+        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(req, res)
+
+        expect(hmppsAuthClient.getSystemClientToken).toHaveBeenCalledWith('user-1')
+        expect(postCancelCheckinSpy).toHaveBeenCalledWith(upcomingCheckin.uuid, {
+          cancelledBy: 'user-1',
+          reason: 'Attending in person instead',
+          sensitive: true,
+        })
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelled'],
+          true,
+        )
+        // Only the cancel page's answers: anything else in progress under manageCheckin stays.
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageCheckin', 'cancelCheckinReason'],
+          undefined,
+        )
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageCheckin', 'cancelCheckinSensitive'],
+          undefined,
+        )
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageCheckin'],
+          expect.anything(),
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
+      })
+
+      it('sends a reason that is not sensitive as such', async () => {
+        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(postReq(answers('Reason', 'false')), res)
+
+        expect(postCancelCheckinSpy).toHaveBeenCalledWith(upcomingCheckin.uuid, {
+          cancelledBy: 'user-1',
+          reason: 'Reason',
+          sensitive: false,
+        })
+      })
+
+      // Escaping would lengthen it past the limit the page validated against.
+      it('sends the reason exactly as entered', async () => {
+        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(
+          postReq(answers('Reason with "quotes"', 'false')),
+          res,
+        )
+
+        expect(postCancelCheckinSpy).toHaveBeenCalledWith(
+          upcomingCheckin.uuid,
+          expect.objectContaining({ reason: 'Reason with "quotes"' }),
+        )
+      })
+
+      // The person submitted it, or it expired, after the page was opened.
+      it('records that the API refused, rather than failing, when the check in is no longer open', async () => {
+        postCancelCheckinSpy.mockRejectedValueOnce(Object.assign(new Error('Conflict'), { status: 409 }))
+        const req = postReq(answers('Reason', 'false'))
+
+        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(req, res)
+
+        expect(mockSetDataValue).toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelRefused'],
+          true,
+        )
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelled'],
+          expect.anything(),
+        )
+        expect(redirectSpy).toHaveBeenCalledWith(303, overviewPage)
+      })
+
+      // The API rejected a reason the page's validation accepted.
+      it('shows the cancel page again with an error, keeping the answers, when the API rejects the request', async () => {
+        postCancelCheckinSpy.mockRejectedValueOnce(Object.assign(new Error('http 400: Bad Request'), { status: 400 }))
+        const req = postReq(answers('Reason', 'false'))
+
+        await controllers.checkIns.postCancelCheckin(hmppsAuthClient)(req, res)
+
+        const [template, context] = (renderSpy as jest.Mock).mock.calls.at(-1)
+        expect(template).toBe('pages/check-in/manage/cancel-checkin.njk')
+        // Keyed as the validator keys field errors, and on res.locals, where decorateFormAttributes
+        // looks for the field's own message.
+        const expected = {
+          [`esupervision-${crn}-${uuid}-manageCheckin-cancelCheckinReason`]:
+            'Reason for cancelling could not be saved. Check it and try again',
+        }
+        expect(context.errorMessages).toEqual(expected)
+        expect(res.locals.errorMessages).toEqual(expected)
+        expect(redirectSpy).not.toHaveBeenCalled()
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'manageCheckin', 'cancelCheckinReason'],
+          undefined,
+        )
+        expect(mockSetDataValue).not.toHaveBeenCalledWith(
+          req.session.data,
+          ['esupervision', crn, uuid, 'checkInCancelRefused'],
+          true,
+        )
+      })
+
+      it('lets any other API failure propagate', async () => {
+        const failure = Object.assign(new Error('Server error'), { status: 500 })
+        postCancelCheckinSpy.mockRejectedValueOnce(failure)
+
+        await expect(
+          controllers.checkIns.postCancelCheckin(hmppsAuthClient)(postReq(answers('Reason', 'false')), res),
+        ).rejects.toBe(failure)
+        expect(redirectSpy).not.toHaveBeenCalled()
       })
     })
   })

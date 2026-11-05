@@ -383,6 +383,65 @@ const stubGetUpcomingCheckinQuestions = (daysAhead: number | null = 5) => {
   })
 }
 
+// The person's upcoming check in, daysAhead from today (0 = open today), with the uuid the overview
+// needs to offer cancelling it.
+const openCheckinUuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
+
+const stubCancellableCheckin = (daysAhead: number = 0) => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'GET',
+      urlPattern: '/v2/questions/upcoming/.+?/offender-questions.*',
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      jsonBody: {
+        expectedCheckinDate: DateTime.now().plus({ days: daysAhead }).toISO(),
+        questions: [],
+        checkinUuid: openCheckinUuid,
+      },
+    },
+  })
+}
+
+const stubCancelCheckin = () => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'POST',
+      urlPath: `/v2/offender_checkins/${openCheckinUuid}/cancel`,
+    },
+    response: {
+      status: 200,
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      jsonBody: {
+        uuid: openCheckinUuid,
+        crn: 'X778160',
+        status: 'CANCELLED',
+        dueDate: DateTime.now().toISODate(),
+        cancelledAt: DateTime.now().toISO(),
+        cancelledBy: 'PRACT001',
+        checkinLogs: { logs: [] },
+      },
+    },
+  })
+}
+
+// The check in was submitted or expired after the cancel page was opened.
+const stubCancelCheckinConflict = () => {
+  return superagent.post('http://localhost:9091/__admin/mappings').send({
+    request: {
+      method: 'POST',
+      urlPath: `/v2/offender_checkins/${openCheckinUuid}/cancel`,
+    },
+    response: {
+      status: 409,
+      headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+      jsonBody: { status: 409, userMessage: 'Checkin cannot be cancelled. Current status: SUBMITTED' },
+    },
+  })
+}
+
 // Nothing booked: the API answers 404 when the person has no upcoming check in.
 const stubNoUpcomingCheckin = () => {
   return superagent.post('http://localhost:9091/__admin/mappings').send({
@@ -524,6 +583,9 @@ export default {
   stubGetUpcomingCheckinQuestionItems,
   stubGetUpcomingCheckinQuestions,
   stubNoUpcomingCheckin,
+  stubCancellableCheckin,
+  stubCancelCheckin,
+  stubCancelCheckinConflict,
   stubAssignQuestions,
   stubDeleteAssignedQuestionsFromCheckIn,
   stubPractitionerAlerts,

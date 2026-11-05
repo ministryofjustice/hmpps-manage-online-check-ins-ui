@@ -12,6 +12,7 @@ jest.mock('uuid', () => ({
 
 const manageBase = `/case/${crn}/appointments/check-in/manage/${id}`
 const manageStopCheckinsUrl = `${manageBase}/stop-checkin`
+const manageCancelCheckinUrl = `${manageBase}/cancel-checkin`
 const setupBaseUrl = `/case/${crn}/appointments/${id}/check-in`
 const reqBase = {
   method: 'POST',
@@ -53,6 +54,60 @@ describe('Test eSuperVision validation', () => {
     const res = makeRes()
     validation.eSuperVision(req, res, next)
     expect(next).toHaveBeenCalled()
+  })
+
+  describe('Test cancel-checkin', () => {
+    const withAnswers = (manageCheckin: Record<string, string>) => {
+      const esupervision = { [crn]: { [id]: { manageCheckin } } }
+      return makeReq({ url: manageCancelCheckinUrl, body: { esupervision }, session: { data: { esupervision } } })
+    }
+    const errorsOf = (res: ReturnType<typeof makeRes>) => (res.render as jest.Mock).mock.calls[0][1].errorMessages
+
+    it('passes when both a reason and the sensitive answer are given', () => {
+      const req = withAnswers({ cancelCheckinReason: 'Attending in person instead', cancelCheckinSensitive: 'false' })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).toHaveBeenCalled()
+      expect(res.render).not.toHaveBeenCalled()
+    })
+
+    it('re-renders the cancel page with both errors when nothing is answered', () => {
+      const req = makeReq({ url: manageCancelCheckinUrl, body: { esupervision: {} }, session: { data: {} } })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).not.toHaveBeenCalled()
+      expect(res.render).toHaveBeenCalledWith('pages/check-in/manage/cancel-checkin', expect.anything())
+      expect(Object.values(errorsOf(res))).toEqual([
+        'Enter reason for cancelling',
+        'Select if the reason for cancelling includes sensitive information',
+      ])
+    })
+
+    it('treats a reason of only spaces as not entered', () => {
+      const req = withAnswers({ cancelCheckinReason: '   ', cancelCheckinSensitive: 'true' })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).not.toHaveBeenCalled()
+      expect(Object.values(errorsOf(res))).toEqual(['Enter reason for cancelling'])
+    })
+
+    it('holds the reason to the length the API accepts', () => {
+      const req = withAnswers({ cancelCheckinReason: 'x'.repeat(4001), cancelCheckinSensitive: 'true' })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).not.toHaveBeenCalled()
+      expect(Object.values(errorsOf(res))).toEqual(['Reason for cancelling must be 4000 characters or less'])
+    })
+
+    it('fails when only the sensitive answer is missing', () => {
+      const req = withAnswers({ cancelCheckinReason: 'Attending in person instead' })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+      expect(next).not.toHaveBeenCalled()
+      expect(Object.values(errorsOf(res))).toEqual([
+        'Select if the reason for cancelling includes sensitive information',
+      ])
+    })
   })
 
   describe('Test stop-checkin', () => {

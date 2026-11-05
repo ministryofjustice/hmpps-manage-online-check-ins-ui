@@ -10,6 +10,7 @@
 {% set scheduleCheckInLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/schedule-check-in' %}
 {% set changeContactLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/contact' %}
 {% set stopCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/stop-checkin' %}
+{% set cancelCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/cancel-checkin' %}
 {% set restartCheckinLink = '/case/' + crn + '/appointments/check-in/manage/' + id +  '/restart' %}
 {% set photoLabel = "Photo of " + case.name.forename %}
 {% set photoUrl = offenderCheckinsByCRNResponse.photoUrl %}
@@ -38,6 +39,14 @@
         attributes: { "data-qa": "updateBanner"},
         iconFallbackText: 'Success'
     }) if success }}
+
+    {{ mojBanner({
+        type: 'warning',
+        html: warningMessageHtml,
+        classes: 'govuk-!-margin-bottom-2',
+        attributes: { "data-qa": "warningBanner"},
+        iconFallbackText: 'Warning'
+    }) if warningMessageHtml }}
 {% endblock %}
 
 {% block pageContent %}
@@ -79,7 +88,7 @@
                     {% set questionNumber = loop.index %}
                     {% set rows = (rows.push({
                         key: { html: '<span data-qa="question' + questionNumber + 'Label">Question ' + questionNumber + '</span>' },
-                        value: { html: '<span data-qa="question' + questionNumber + 'Value">' + item.question + '</span>' }
+                        value: { html: '<span data-qa="question' + questionNumber + 'Value">' + (item.question | escape) + '</span>' }
                     }), rows) %}
             {% endfor %}
             {% set nextCheckinQuestionsText %}
@@ -87,6 +96,22 @@
                     rows: rows
                 }) }}
             {% endset %}
+            {# Questions can be changed until the check in is sent out; once it is open it can be cancelled instead. #}
+            {% set upcomingCheckinActions = [] %}
+            {% if hasUpcomingCheckin and showChange and canEditQuestions %}
+                {% set _ = upcomingCheckinActions.push({
+                    text: 'Change questions',
+                    href: changeQuestionsLink,
+                    visuallyHiddenText: 'for upcoming check in'
+                }) %}
+            {% endif %}
+            {% if canCancelCheckin %}
+                {% set _ = upcomingCheckinActions.push({
+                    text: 'Cancel check in',
+                    href: cancelCheckinLink,
+                    attributes: { 'data-qa': 'cancel-checkin-link' }
+                }) %}
+            {% endif %}
             {{ appSummaryCard({
                 titleText: 'Upcoming online check in',
                 headingLevel: 3,
@@ -94,14 +119,8 @@
                 attributes: {'data-qa': 'checkinQuestionsCard'},
                 html: nextCheckinQuestionsText,
                 actions: {
-                    items: [
-                        {
-                            text: 'Change questions',
-                            href: changeQuestionsLink,
-                            visuallyHiddenText: 'for upcoming check in'
-                        }
-                    ]
-                } if hasUpcomingCheckin and showChange and canEditQuestions
+                    items: upcomingCheckinActions
+                } if upcomingCheckinActions.length
             }) }}
         {% endif %}
     {% set checkin %}

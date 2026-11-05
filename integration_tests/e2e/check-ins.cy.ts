@@ -9,6 +9,7 @@ import RestartCheckinDatePage from '../pages/check-ins/restart/restart-checkin-d
 import RestartCheckinFrequencyPage from '../pages/check-ins/restart/restart-checkin-frequency.page'
 import RestartEditContactPreferencePage from '../pages/check-ins/restart/restart-edit-contact-preference.page'
 import StopCheckins from '../pages/check-ins/stop-checkins'
+import CancelCheckin from '../pages/check-ins/cancel-checkin'
 import CheckYourAnswersPage from '../pages/check-ins/check-your-answers'
 import CheckinConfirmationPage from '../pages/check-ins/confirmation.page'
 import ConfirmContactPreferencePage from '../pages/check-ins/confirm-contact-preference'
@@ -1512,6 +1513,95 @@ context('check-ins overview and manage pages', () => {
       )
     })
   })
+  describe('cancelling the upcoming check in', () => {
+    const overview = '/case/X778160/appointments/check-in/manage'
+    const overviewWithId = `${overview}/3fa85f64-5717-4562-b3fc-2c963f66afa7`
+    const cancelUrl = `${overviewWithId}/cancel-checkin`
+
+    it('does not offer to cancel when the upcoming check in does not exist yet', () => {
+      cy.task('resetMocks')
+      cy.visit(overview)
+      const manageCheckins = new ManageCheckins()
+      manageCheckins.checkOnPage()
+      manageCheckins.getCancelCheckinLink().should('not.exist')
+
+      // Nor can the page be reached directly.
+      cy.visit(cancelUrl)
+      manageCheckins.checkOnPage()
+    })
+
+    it('cancels the open check in with a reason and confirms on the overview', () => {
+      cy.task('resetMocks')
+      cy.task('stubCancellableCheckin')
+      cy.task('stubCancelCheckin')
+      cy.visit(overview)
+      const manageCheckins = new ManageCheckins()
+      manageCheckins.checkOnPage()
+      manageCheckins.getCancelCheckinLink().should('contain.text', 'Cancel check in').click()
+
+      const cancelCheckin = new CancelCheckin()
+      cancelCheckin.checkOnPage()
+      cancelCheckin.getIntro().should('contain.text', 'Learn more about cancelling an online check in')
+      cancelCheckin.getGoBackLink().should('contain.text', 'Go back to online check ins')
+
+      cancelCheckin.getSubmitBtn().click()
+      cancelCheckin.checkErrorSummaryBox([
+        'Enter reason for cancelling',
+        'Select if the reason for cancelling includes sensitive information',
+      ])
+
+      cancelCheckin.getReason().type('Attending in person instead')
+      cancelCheckin.getSensitiveOption('false').click({ force: true })
+
+      cy.intercept('POST', cancelUrl).as('cancelCheckin')
+      cancelCheckin.getSubmitBtn().click()
+      cy.wait('@cancelCheckin').then(({ response }) => {
+        expect(response?.headers.location).to.eq(overviewWithId)
+      })
+
+      manageCheckins.checkOnPage()
+      manageCheckins
+        .getUpdateBanner()
+        .should('contain.text', 'Upcoming online check in cancelled')
+        .and('contain.text', 'Joe will get a notification that the check in has been cancelled')
+    })
+
+    it('offers to cancel a check in that is still to come, alongside changing its questions', () => {
+      cy.task('resetMocks')
+      cy.task('stubCancellableCheckin', 5)
+      cy.visit(overview)
+      const manageCheckins = new ManageCheckins()
+      manageCheckins.checkOnPage()
+      manageCheckins.getCancelCheckinLink().should('contain.text', 'Cancel check in')
+      cy.contains('a', 'Change questions').should('exist')
+
+      manageCheckins.getCancelCheckinLink().click()
+      const cancelCheckin = new CancelCheckin()
+      cancelCheckin.checkOnPage()
+      cancelCheckin.getIntro().should('contain.text', 'Learn more about cancelling an online check in')
+    })
+
+    it('explains on the overview when the check in can no longer be cancelled', () => {
+      cy.task('resetMocks')
+      cy.task('stubCancellableCheckin')
+      cy.task('stubCancelCheckinConflict')
+      cy.visit(cancelUrl)
+      const cancelCheckin = new CancelCheckin()
+      cancelCheckin.checkOnPage()
+      cancelCheckin.getReason().type('Attending in person instead')
+      cancelCheckin.getSensitiveOption('true').click({ force: true })
+      cancelCheckin.getSubmitBtn().click()
+
+      const manageCheckins = new ManageCheckins()
+      manageCheckins.checkOnPage()
+      manageCheckins
+        .getWarningBanner()
+        .should('contain.text', 'The online check in for Joe could not be cancelled')
+        .and('contain.text', 'already been submitted, missed or cancelled, or online check ins have stopped')
+      manageCheckins.getUpdateBanner().should('not.exist')
+    })
+  })
+
   it('should be able to stop and restart online check ins', () => {
     cy.task('resetMocks')
     cy.task('stubGetStoppedOffenderByCRN', 'X778160')
