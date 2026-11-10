@@ -129,8 +129,12 @@ describe('sentence selection and summaries', () => {
     expect(html).toContain('Community order')
     expect(html).not.toContain('Theft')
     expect(html).not.toContain('12 months')
-    expect(html).toContain('Sentence end date: 2 January 2028')
+    expect(html).not.toContain('Sentence end date:')
+    expect(html).not.toContain('2 January 2028')
     expect(html).toContain(`href="${changeUrl}"`)
+    expect(html).toMatch(
+      /Change\s*<span class="govuk-visually-hidden">\s*which sentence do you want to add online check ins to\s*<\/span>/,
+    )
     expect(html).not.toContain('Burglary')
   })
 
