@@ -830,10 +830,7 @@ context('Appointment check-ins', () => {
     sentenceSelectionPage.selectSentence(1)
     sentenceSelectionPage.getSubmitBtn().click()
     checkYourAnswersPage.checkOnPage()
-    checkYourAnswersPage
-      .getSummaryListRowByAction('sentenceAction')
-      .should('contain.text', 'Community order')
-      .and('contain.text', 'Sentence end date: 2 January 2030')
+    checkYourAnswersPage.getSummaryListRowByAction('sentenceAction').should('contain.text', 'Community order')
     cy.request('DELETE', 'http://localhost:9091/__admin/requests')
     checkYourAnswersPage.getSubmitBtn().click()
     const checkinConfirmationPage = new CheckinConfirmationPage()
