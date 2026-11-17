@@ -149,7 +149,7 @@
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
-    "glob": "^13.0.6",
+    "glob": "^14.0.6",
     "govuk-frontend": "6.6.0",
     "helmet": "^8.3.0",
     "http-errors": "^2.0.1",
@@ -226,7 +226,8 @@
   },
   "overrides": {
     "@ministryofjustice/hmpps-azure-telemetry": {
-      "@opentelemetry/core": "^2.10.0"
+      "@opentelemetry/core": "^2.10.0",
+      "@opentelemetry/instrumentation-http": "0.222.0"
     },
     "@ministryofjustice/hmpps-auth-clients": "3.0.0",
     "cypress-multi-reporters": {
@@ -243,6 +244,8 @@
     },
     "nunjucks": {
       "chokidar": "$chokidar"
-    }
+    },
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.9",
+    "glob@>=9.0.0 <14.0.2": "^14.0.6"
   }
 }

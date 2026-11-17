@@ -668,6 +668,20 @@ describe('Test eSuperVision validation', () => {
       expect(res.redirect).toHaveBeenCalledWith(listQuestionsUrl)
     })
 
+    it('fetches the schedule-check-in list again from its canonical URL rather than echoing the request URL', () => {
+      const req = makeReq({
+        url: `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/list/?x=1`,
+        body: { esupervision: { [crn]: { [id]: { scheduleCheckIn: { bespokeQuestionInput: '' } } } } },
+        session: { data: { esupervision: { [crn]: { [id]: { scheduleCheckIn: {} } } } } },
+      })
+      const res = makeRes()
+      validation.eSuperVision(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(
+        `/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in/questions/list`,
+      )
+    })
+
     it('leaves a submission at the three-question cap to the controller to redirect', () => {
       const req = makeReq({
         url: listQuestionsUrl,

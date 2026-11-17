@@ -4362,6 +4362,29 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/review/identity`)
     })
 
+    it('returns to the in-service identity page passed as back from the notes page', async () => {
+      res.locals.checkIn = { status: 'SUBMITTED' }
+      const identityUrl = `/case/${crn}/appointments/${uuid}/check-in/review/identity?back=${encodeURIComponent(mpopBack)}`
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: identityUrl },
+      })
+      await controllers.checkIns.getReviewNotesCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(identityUrl)
+    })
+
+    it('does not redirect from the notes page to an absolute back URL, even on an allowed origin', async () => {
+      res.locals.checkIn = { status: 'SUBMITTED' }
+      const req = httpMocks.createRequest({
+        params: { crn, id: uuid },
+        session: { data: {} },
+        query: { back: mpopBack },
+      })
+      await controllers.checkIns.getReviewNotesCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/review/identity`)
+    })
+
     it.each([
       ['/case/:crn/appointments/:id/check-in/view-expired', '/VIEW-EXPIRED/', 'view-expired'],
       ['/case/:crn/appointments/:id/check-in/view', '/View/', 'view'],
