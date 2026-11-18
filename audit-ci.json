@@ -2,5 +2,12 @@
   "low": true,
   "package-manager": "auto",
   "registry": "https://registry.npmjs.org",
-  "allowlist": []
+  "allowlist": [
+    {
+      "GHSA-fc5q-39xc-vjpf": {
+        "active": true,
+        "notes": "picomatch ReDoS via attacker-supplied extglob patterns; no patched release (<=4.0.7). Only reached via build/dev tooling (sass watcher, tinyglobby, jest, chokidar) with developer-authored patterns, never user input"
+      }
+    }
+  ]
 }

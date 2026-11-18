@@ -2004,7 +2004,13 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       const { data } = req.session
       const checkInSession = getDataValue(data, ['esupervision', crn, id, 'checkins'])
       if (checkInSession?.manualIdCheck === undefined) {
-        return res.redirect(safeBackUrl(back) ?? `/case/${crn}/appointments/${id}/check-in/review/identity`)
+        // `back` here is the identity review page within this service, so only follow it to a /case/ path
+        const backUrl = safeBackUrl(back)
+        return res.redirect(
+          backUrl && backUrl.startsWith('/case/')
+            ? backUrl
+            : `/case/${crn}/appointments/${id}/check-in/review/identity`,
+        )
       }
 
       if (checkIn.status !== 'SUBMITTED') {
