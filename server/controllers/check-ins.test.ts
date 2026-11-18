@@ -4385,6 +4385,37 @@ describe('checkInsController', () => {
       expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/${uuid}/check-in/review/identity`)
     })
 
+    it.each(['SCHEDULED', 'CREATED'])('redirects a %s check in to the manage page for the person', async status => {
+      res.locals.checkIn = { status }
+      const offenderUuid = 'a1b2c3d4-0000-4000-8000-000000000001'
+      const getOffenderByCRN = jest
+        .spyOn(ESupervisionClient.prototype, 'getOffenderByCRN')
+        .mockResolvedValueOnce({ uuid: offenderUuid } as never)
+      const req = httpMocks.createRequest({ params: { crn, id: uuid }, query: { back: mpopBack } })
+      await controllers.checkIns.getUpdateCheckIn(hmppsAuthClient)(req, res)
+      expect(getOffenderByCRN).toHaveBeenCalledWith(crn)
+      expect(redirectSpy).toHaveBeenCalledWith(`/case/${crn}/appointments/check-in/manage/${offenderUuid}`)
+    })
+
+    it('shows not found for an upcoming check in when the person is not found', async () => {
+      res.locals.checkIn = { status: 'SCHEDULED' }
+      jest.spyOn(ESupervisionClient.prototype, 'getOffenderByCRN').mockResolvedValueOnce(null)
+      const req = httpMocks.createRequest({ params: { crn, id: uuid } })
+      await controllers.checkIns.getUpdateCheckIn(hmppsAuthClient)(req, res)
+      expect(redirectSpy).not.toHaveBeenCalled()
+      expect(renderError).toHaveBeenCalledWith(404)
+    })
+
+    it('shows not found for a cancelled check in', async () => {
+      res.locals.checkIn = { status: 'CANCELLED' }
+      const getOffenderByCRN = jest.spyOn(ESupervisionClient.prototype, 'getOffenderByCRN')
+      const req = httpMocks.createRequest({ params: { crn, id: uuid } })
+      await controllers.checkIns.getUpdateCheckIn(hmppsAuthClient)(req, res)
+      expect(getOffenderByCRN).not.toHaveBeenCalled()
+      expect(redirectSpy).not.toHaveBeenCalled()
+      expect(renderError).toHaveBeenCalledWith(404)
+    })
+
     it.each([
       ['/case/:crn/appointments/:id/check-in/view-expired', '/VIEW-EXPIRED/', 'view-expired'],
       ['/case/:crn/appointments/:id/check-in/view', '/View/', 'view'],
