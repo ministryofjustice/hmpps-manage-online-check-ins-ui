@@ -36,12 +36,15 @@
         checked: currentEligibility.includes("accreditedProgramme")
     }), eligibilityItems) %}
 {% endif %}
+{# With the useEligibilityEndpoint flag on, recall comes from the ESUP API and isn't asked #}
+{% if askRecalled !== false %}
+    {% set eligibilityItems = (eligibilityItems.push({
+        value: "recalled",
+        text: "Recalled to prison",
+        checked: currentEligibility.includes("recalled")
+    }), eligibilityItems) %}
+{% endif %}
 {% set eligibilityItems = (eligibilityItems.push(
-    {
-    value: "recalled",
-    text: "Recalled to prison",
-    checked: currentEligibility.includes("recalled")
-    },
     {
     value: "deviceRestriction",
     text: "Has a sentence restriction that means they can't use a device or the internet",

@@ -11,6 +11,7 @@ import { validateWithSpec } from '../../utils/validationUtils'
 import config from '../../config'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER } from '../../utils/getTierBand'
 import { eligibilityViews } from '../../utils/eligibilityRules'
+import { useEligibilityEndpoint } from '../../utils/eligibilityCheck'
 import { CheckInEligibilityPage, getCheckInEligibilityContext } from '../../utils/checkInEligibilityContext'
 import { fromApiSchedule } from '../../utils/checkinSchedule'
 import { isBespokeDraftId } from '../../utils/bespokeQuestions'
@@ -43,6 +44,9 @@ const eSuperVision: Route<void> = (req, res, next) => {
     crn,
     id,
   ).eligibilityUrlPrefix
+  // Re-renders of the eligibility pages need the same journey switches the controller passes them
+  localParams.askRecalled = !useEligibilityEndpoint(res.locals)
+  localParams.askedPilotCheck = !useEligibilityEndpoint(res.locals)
   const baseUrl = req.url.split('?')[0]
   let render = `pages/${[
     url

@@ -25,6 +25,7 @@ const SERVER_OWNED_GROUP_KEYS = [
   'notEligibleReason',
   'notEligibleReasonBullets',
   'additionalTierInformation',
+  'eligibilityCheck',
 ]
 
 const autoStoreSessionData = (_hmppsAuthClient: HmppsAuthClient): Route<Promise<void>> => {

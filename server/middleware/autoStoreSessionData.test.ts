@@ -390,6 +390,7 @@ describe('/middleware/autoStoreSessionData', () => {
                 accreditedProgramme: '',
                 tierBand: 'DG',
                 additionalTierInformation: 'true',
+                eligibilityCheck: { outcome: 'ELIGIBLE', ruleCode: 'IS_TIER_D_TO_G' },
               },
             },
           },

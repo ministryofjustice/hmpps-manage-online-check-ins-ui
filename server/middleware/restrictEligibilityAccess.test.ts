@@ -1,5 +1,7 @@
 import httpMocks from 'node-mocks-http'
 import type { Response } from 'express'
+import { StoredEligibilityCheck } from '../utils/eligibilityCheck'
+import { EligibilityAnswers } from '../data/model/esupervision'
 import restrictEligibilityAccess from './restrictEligibilityAccess'
 
 const crn = 'X778160'
@@ -31,12 +33,12 @@ const buildReq = (checkins: Record<string, unknown> | undefined) => {
   })
 }
 
-const buildRes = (checkInEligibilityJourney: 'setup' | 'reactivation' = 'setup') =>
+const buildRes = (checkInEligibilityJourney: 'setup' | 'reactivation' = 'setup', flags: Record<string, boolean> = {}) =>
   ({
     redirect: jest.fn(),
     status: jest.fn().mockReturnThis(),
     render: jest.fn(),
-    locals: { checkInEligibilityJourney },
+    locals: { checkInEligibilityJourney, flags },
   }) as unknown as Response
 
 describe('restrictEligibilityAccess', () => {
@@ -531,5 +533,102 @@ describe('restrictEligibilityAccess', () => {
     expect(next).not.toHaveBeenCalled()
     expect(res.redirect).not.toHaveBeenCalled()
     expect(res.status).toHaveBeenCalledWith(404)
+  })
+
+  describe('with the useEligibilityEndpoint flag on', () => {
+    const flagged = () => buildRes('setup', { useEligibilityEndpoint: true })
+    const allDiscussed = ['optional', 'canStop', 'notEnforceable', 'moreTime']
+    const dgAnswers: EligibilityAnswers = { accreditedProgramme: null, deviceRestriction: false, youthSentence: null }
+    const abProgrammeAnswers: EligibilityAnswers = {
+      accreditedProgramme: true,
+      deviceRestriction: false,
+      youthSentence: false,
+    }
+    const eligibleCheck = (ruleCode: string, answers = dgAnswers): StoredEligibilityCheck => ({
+      outcome: 'ELIGIBLE',
+      message: null,
+      ruleCode,
+      answers,
+    })
+
+    it('lets an eligible, discussed person through on the API outcome alone', async () => {
+      const req = buildReq({
+        tierBand: 'DG',
+        eligibility: ['none'],
+        discussion: allDiscussed,
+        eligibilityCheck: eligibleCheck('IS_TIER_D_TO_G'),
+      })
+      const res = flagged()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('setup')(req, res, next)
+
+      expect(next).toHaveBeenCalled()
+      expect(res.redirect).not.toHaveBeenCalled()
+    })
+
+    it('sends an ineligible outcome to not-eligible', async () => {
+      const req = buildReq({
+        tierBand: 'C',
+        eligibility: ['none'],
+        eligibilityCheck: { outcome: 'INELIGIBLE', message: 'No', ruleCode: 'IS_TIER_C', answers: dgAnswers },
+      })
+      const res = flagged()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('is-eligible')(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['no check was stored', undefined],
+      ['the check was made before any answers', { outcome: 'UNKNOWN', message: null, ruleCode: null, answers: null }],
+      [
+        'the answers have changed since the check',
+        eligibleCheck('IS_TIER_D_TO_G', { ...dgAnswers, deviceRestriction: true }),
+      ],
+    ])('sends the person back to eligibility-check when %s', async (_, eligibilityCheck) => {
+      const req = buildReq({ tierBand: 'DG', eligibility: ['none'], discussion: allDiscussed, eligibilityCheck })
+      const res = flagged()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('setup')(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/eligibility-check`)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('keeps the pilot question out of the journey', async () => {
+      const req = buildReq({
+        tierBand: 'C',
+        eligibility: ['none'],
+        eligibilityCheck: eligibleCheck('PRACTITIONER_HAS_PILOT_CASE'),
+      })
+      const res = flagged()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('pilot-check')(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
+      expect(next).not.toHaveBeenCalled()
+    })
+
+    it('requires the five accredited programme discussion points on that route', async () => {
+      const req = buildReq({
+        tierBand: 'AB',
+        eligibility: ['accreditedProgramme'],
+        discussion: allDiscussed,
+        eligibilityCheck: eligibleCheck('IN_EARLY_ENGAGEMENT', abProgrammeAnswers),
+      })
+      const res = flagged()
+      const next = jest.fn()
+
+      await restrictEligibilityAccess('setup')(req, res, next)
+
+      expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/is-eligible`)
+      expect(next).not.toHaveBeenCalled()
+    })
   })
 })
