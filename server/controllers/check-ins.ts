@@ -2167,6 +2167,14 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
           `/case/${crn}/appointments/${id}/check-in/${statusMap[checkIn.status]}${back ? `?back=${encodeURIComponent(back as string)}` : ''}`,
         )
       }
+      // An upcoming or open check in has nothing to review yet, so manage the person's check ins instead.
+      if (checkIn.status === 'SCHEDULED' || checkIn.status === 'CREATED') {
+        const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+        const offender = await new ESupervisionClient(token).getOffenderByCRN(crn)
+        if (offender?.uuid) {
+          return res.redirect(`/case/${crn}/appointments/check-in/manage/${offender.uuid}`)
+        }
+      }
       return renderError(404)(req, res)
     }
   },
