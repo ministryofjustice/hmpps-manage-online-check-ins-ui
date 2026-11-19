@@ -32,7 +32,6 @@ export interface FeatureFlagDescriptor {
 export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'eligibilityFeatureToggle', type: 'boolean' },
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
-  { key: 'newDesignPopHeader', type: 'boolean' },
   { key: 'enableSentenceSelection', type: 'boolean' },
   { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
 ]

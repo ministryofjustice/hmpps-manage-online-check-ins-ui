@@ -29,11 +29,10 @@ async function fetchPersonalDetails(
   arnsComponents: ArnsComponents,
   authOptions: AuthOptions,
   crn: string,
-  includePractitioner: boolean,
 ): Promise<CachedPersonalDetails> {
   const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
-    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(undefined),
+    eSupervisionClient.getProbationPractitioner(crn),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
@@ -99,14 +98,12 @@ export const getPersonalDetails = (
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const eSupervisionClient = new ESupervisionClient(token)
 
-    const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
     let details = refresh ? undefined : readCache(req, crn)
-    // A cache entry written while the flag was off never fetched practitioner details, so it
-    // must be treated as stale once the flag turns on, or allocated cases render as unallocated.
-    const missingPractitioner = includePractitioner && details?.practitionerDetails === undefined
-    if (!details || missingPractitioner) {
+    // A cache entry written before practitioner details were always fetched has none, so it is
+    // treated as stale, or allocated cases would render as unallocated.
+    if (!details || details.practitionerDetails === undefined) {
       const authOptions = asUser(res.locals.user.token)
-      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn, includePractitioner)
+      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn)
       writeCache(req, crn, details)
     }
 

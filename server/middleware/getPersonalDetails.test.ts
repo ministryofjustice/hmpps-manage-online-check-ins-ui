@@ -33,7 +33,9 @@ const buildReq = () =>
   httpMocks.createRequest({
     params: { crn },
     session: {
-      data: { personalDetails: { [crn]: { offenderDetails, headerDetails: { tierScore: 'G' } } } },
+      data: {
+        personalDetails: { [crn]: { offenderDetails, practitionerDetails: null, headerDetails: { tierScore: 'G' } } },
+      },
     },
   })
 
@@ -48,6 +50,7 @@ describe('getPersonalDetails', () => {
         ({
           getOffenderByCRN: jest.fn().mockResolvedValue(offenderDetails),
           getOffenderHeaderByCRN: jest.fn().mockResolvedValue({ tierScore: 'NOT_SUPERVISED' }),
+          getProbationPractitioner: jest.fn().mockResolvedValue(null),
         }) as unknown as ESupervisionClient,
     )
   })
