@@ -77,20 +77,10 @@ const hasValidEventSelection = (details?: Pick<CheckinUserDetails, 'events' | 'c
     : events.some(event => event.number === currentEvent && event.sentence != null)
 }
 
-// getPersonalDetails middleware already fetches practitioner details when the new header flag is
-// on, so reuse res.locals.practitioner instead of making the same request again here.
-const getAllocationPractitioner = async (
-  hmppsAuthClient: HmppsAuthClient,
-  res: Response,
-  crn: string,
-): Promise<ProbationPractitioner | null> => {
-  if (res.locals.flags?.newDesignPopHeader) {
-    return (res.locals.practitioner as ProbationPractitioner | null) ?? null
-  }
-  const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
-  const eSupervisionClient = new ESupervisionClient(token)
-  return eSupervisionClient.getProbationPractitioner(crn)
-}
+// getPersonalDetails middleware already fetches practitioner details for the person header, so
+// reuse res.locals.practitioner instead of making the same request again here.
+const getAllocationPractitioner = (res: Response): ProbationPractitioner | null =>
+  (res.locals.practitioner as ProbationPractitioner | null) ?? null
 
 // moj date-picker minDate workaround (https://github.com/ministryofjustice/moj-frontend/issues/923)
 const getMinDate = (daysAhead = 0): string => {
@@ -488,7 +478,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getEligibilityPage: hmppsAuthClient => {
+  getEligibilityPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -501,7 +491,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!band) {
         return undefined
       }
-      const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
+      const practitioner = getAllocationPractitioner(res)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
@@ -647,7 +637,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getInstructionsPage: hmppsAuthClient => {
+  getInstructionsPage: () => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -659,7 +649,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!band) {
         return undefined
       }
-      const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
+      const practitioner = getAllocationPractitioner(res)
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }

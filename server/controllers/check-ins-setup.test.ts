@@ -453,7 +453,7 @@ describe('check-in setup flow', () => {
         offenderCheckinsByCRNResponse: { uuid: id, contactPreference: 'EMAIL', checkinInterval: 'FOUR_WEEKS' },
       })
 
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
 
       expect(res.render).toHaveBeenCalledWith(
         expect.any(String),
@@ -488,7 +488,7 @@ describe('check-in setup flow', () => {
     it('shows the accredited programme guidance for Tier A/B', async () => {
       const req = requestFor()
       const res = responseForTier('A')
-      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getInstructionsPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/instructions.njk',
         expect.objectContaining({ crn, id, accreditedProgramme: true }),
@@ -501,7 +501,7 @@ describe('check-in setup flow', () => {
     ])('hides the accredited programme guidance for tier %s', async tierScore => {
       const req = requestFor()
       const res = responseForTier(tierScore)
-      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getInstructionsPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/instructions.njk',
         expect.objectContaining({ crn, id, accreditedProgramme: false }),
@@ -518,7 +518,7 @@ describe('check-in setup flow', () => {
     it('errors rather than guessing a band when the tier is unknown', async () => {
       const req = requestFor()
       const res = responseForTier('Z1')
-      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getInstructionsPage()(req, res)
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.render).not.toHaveBeenCalledWith('pages/check-in/instructions.njk', expect.anything())
     })
@@ -526,7 +526,7 @@ describe('check-in setup flow', () => {
     it('rules the person out when their tier is missing', async () => {
       const req = requestFor()
       const res = responseForTier('MISSING')
-      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getInstructionsPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(res.render).not.toHaveBeenCalledWith('pages/check-in/instructions.njk', expect.anything())
     })
@@ -542,7 +542,7 @@ describe('check-in setup flow', () => {
     ])('renders the eligibility check for tier %s with band %s', async (tierScore, tierBand) => {
       const req = requestFor()
       const res = responseForTier(tierScore, { supervisionPackageStatus: ON_PACKAGE })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ crn, id, tierScore, tierBand }),
@@ -552,7 +552,7 @@ describe('check-in setup flow', () => {
     it('errors rather than guessing a band when the tier is unknown', async () => {
       const req = requestFor()
       const res = responseForTier('Z1', { supervisionPackageStatus: ON_PACKAGE })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.render).not.toHaveBeenCalledWith(expect.stringContaining('eligibility-check'), expect.anything())
     })
@@ -562,7 +562,7 @@ describe('check-in setup flow', () => {
     it('rules the person out when their tier is missing', async () => {
       const req = requestFor()
       const res = responseForTier('MISSING')
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('has not been assigned a Tier yet')
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
@@ -574,7 +574,7 @@ describe('check-in setup flow', () => {
     it('rules the person out when they are not currently being supervised', async () => {
       const req = requestFor()
       const res = responseForTier('NOT_SUPERVISED', { supervisionPackageStatus: ON_PACKAGE })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe(
         'is not currently being supervised',
@@ -610,7 +610,7 @@ describe('check-in setup flow', () => {
             supervisionPackageStatus: ON_PACKAGE,
             offenderCheckinsByCRNResponse: { uuid: id },
           })
-          await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+          await controllers.checkIns.getEligibilityPage()(req, res)
           expect(req.session.data.esupervision[crn][id][sessionKey].tierBand).toBeUndefined()
 
           const laterRes = mockAppResponse({ checkInEligibilityJourney: journey })
@@ -631,7 +631,7 @@ describe('check-in setup flow', () => {
         tierProvisional: true,
         supervisionPackageStatus: ON_PACKAGE,
       })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReason).toBe('is in a provisional Tier')
       expect(req.session.data.esupervision[crn][id].checkins.notEligibleReasonBullets).toEqual([])
@@ -643,7 +643,7 @@ describe('check-in setup flow', () => {
     it('lets a settled tier through when the header reports no provisional flag', async () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: ON_PACKAGE })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ tierBand: 'DG' }),
@@ -656,7 +656,7 @@ describe('check-in setup flow', () => {
     it('sends the person straight to not-eligible when the ESUP call says no supervision package', async () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: { ...ON_PACKAGE, onSupervisionPackage: false } })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
         'is not on a supervision package',
@@ -670,7 +670,7 @@ describe('check-in setup flow', () => {
       async tierScore => {
         const req = requestFor()
         const res = responseForTier(tierScore, { supervisionPackageStatus: { ...ON_PACKAGE, inFinalThird: true } })
-        await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+        await controllers.checkIns.getEligibilityPage()(req, res)
         expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
         expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
           'is in the final third of their sentence',
@@ -687,7 +687,7 @@ describe('check-in setup flow', () => {
       const res = responseForTier('D', {
         supervisionPackageStatus: { onSupervisionPackage: false, inFinalThird: true, inEarlyEngagement: false },
       })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
         'is not on a supervision package',
       )
@@ -698,7 +698,7 @@ describe('check-in setup flow', () => {
     it('still renders the form for a person in early engagement', async () => {
       const req = requestFor()
       const res = responseForTier('A', { supervisionPackageStatus: { ...ON_PACKAGE, inEarlyEngagement: true } })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ tierBand: 'AB' }),
@@ -710,7 +710,7 @@ describe('check-in setup flow', () => {
     it('records every ESUP answer', async () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: { ...ON_PACKAGE, inEarlyEngagement: true } })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(req.session.data.esupervision[crn][id].supervisionPackageStatus).toEqual({
         onSupervisionPackage: true,
         inFinalThird: false,
@@ -723,7 +723,7 @@ describe('check-in setup flow', () => {
     it('sends the person straight to not-eligible when the ESUP call 404s', async () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: null })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments/${id}/check-in/not-eligible`)
       expect(req.session.data?.esupervision?.[crn]?.[id]?.checkins?.notEligibleReason).toBe(
         'is not on a supervision package',
@@ -736,7 +736,7 @@ describe('check-in setup flow', () => {
     it('treats absent final third and early engagement flags as false', async () => {
       const req = requestFor()
       const res = responseForTier('D', { supervisionPackageStatus: { onSupervisionPackage: true } })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ tierBand: 'DG' }),
@@ -1606,27 +1606,23 @@ describe('check-in setup flow', () => {
 
   describe('unallocated cases', () => {
     it('are redirected away from the setup flow', async () => {
-      ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({
-        getProbationPractitioner: jest.fn().mockResolvedValue({ unallocated: true }),
-      }))
       const req = requestFor()
-      const res = responseForTier('B', { supervisionPackageStatus: ON_PACKAGE })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      const res = responseForTier('B', { practitioner: { unallocated: true }, supervisionPackageStatus: ON_PACKAGE })
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
     })
   })
 
-  describe('allocation check with the new pop header flag on', () => {
+  describe('allocation check', () => {
     it('reuses res.locals.practitioner instead of calling getProbationPractitioner again', async () => {
       const getProbationPractitioner = jest.fn()
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
       const req = requestFor()
       const res = responseForTier('B', {
-        flags: { newDesignPopHeader: true },
         practitioner: { unallocated: false },
         supervisionPackageStatus: ON_PACKAGE,
       })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(getProbationPractitioner).not.toHaveBeenCalled()
       expect(res.render).toHaveBeenCalledWith(
         'pages/check-in/eligibility/eligibility-check.njk',
@@ -1639,10 +1635,9 @@ describe('check-in setup flow', () => {
       ;(ESupervisionClient as jest.Mock).mockImplementation(() => ({ getProbationPractitioner }))
       const req = requestFor()
       const res = responseForTier('B', {
-        flags: { newDesignPopHeader: true },
         practitioner: { unallocated: true },
       })
-      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getEligibilityPage()(req, res)
       expect(getProbationPractitioner).not.toHaveBeenCalled()
       expect(res.redirect).toHaveBeenCalledWith(`/case/${crn}/appointments`)
     })

@@ -862,17 +862,6 @@
               "rollouts": []
             },
             {
-              "key": "newDesignPopHeader",
-              "name": "newDesignPopHeader",
-              "description": "",
-              "enabled": false,
-              "type": "BOOLEAN_FLAG_TYPE",
-              "createdAt": "2026-11-04T00:00:00Z",
-              "updatedAt": "2026-11-04T00:00:00Z",
-              "rules": [],
-              "rollouts": []
-            },
-            {
               "key": "enablePersonHeaderTierV3",
               "name": "enablePersonHeaderTierV3",
               "description": "",
