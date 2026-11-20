@@ -72,7 +72,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getSupervisionPackageStatus(hmppsAuthClient),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postEligibilityPage(),
+    controllers.checkIns.postEligibilityPage(hmppsAuthClient),
   )
 
   router.get('/case/:crn/appointments/:id/check-in/pilot-check', [
@@ -484,7 +484,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     getSupervisionPackageStatus(hmppsAuthClient),
     validate.eSuperVision,
     autoStoreSessionData(hmppsAuthClient),
-    controllers.checkIns.postEligibilityPage(),
+    controllers.checkIns.postEligibilityPage(hmppsAuthClient),
   )
 
   router.get('/case/:crn/appointments/check-in/manage/:id/restart-pilot-check', [

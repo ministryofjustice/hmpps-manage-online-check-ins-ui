@@ -26,6 +26,24 @@ const ON_PACKAGE: SupervisionPackageStatus = {
 describe('getSupervisionPackageStatus', () => {
   beforeEach(() => jest.clearAllMocks())
 
+  it('skips the call when the eligibility endpoint is in use', async () => {
+    const getStatus = jest.fn()
+    jest
+      .mocked(ESupervisionClient)
+      .mockImplementation(() => ({ getSupervisionPackageStatus: getStatus }) as unknown as ESupervisionClient)
+    const req = httpMocks.createRequest({ params: { crn, id } })
+    const res = {
+      locals: { user: { username: 'a-user' }, flags: { useEligibilityEndpoint: true } },
+    } as unknown as Response
+    const next = jest.fn()
+
+    await getSupervisionPackageStatus(hmppsAuthClient)(req, res, next)
+
+    expect(getStatus).not.toHaveBeenCalled()
+    expect(res.locals.supervisionPackageStatus).toBeUndefined()
+    expect(next).toHaveBeenCalled()
+  })
+
   it('puts the ESUP answers on res.locals for the eligibility rules to read', async () => {
     const getStatus = jest.fn().mockResolvedValue(ON_PACKAGE)
     jest

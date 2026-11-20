@@ -1,9 +1,7 @@
 import nock from 'nock'
-import config from '../config'
-import { isValidHost } from '../utils/isValidHost'
-import { isValidPath } from '../utils/isValidPath'
-
 import {
+  EligibilityCheckRequest,
+  EligibilityCheckResponse,
   CancelCheckinRequest,
   DeactivateOffenderRequest,
   EsupervisionAssignQuestionsRequest,
@@ -16,6 +14,10 @@ import {
   ReactivateOffenderRequest,
   ScheduleAdHocCheckinRequest,
 } from './model/esupervision'
+import config from '../config'
+import { isValidHost } from '../utils/isValidHost'
+import { isValidPath } from '../utils/isValidPath'
+
 import { ProbationPractitioner } from './model/personalDetails'
 
 import ESupervisionClient from './eSupervisionClient'
@@ -159,6 +161,30 @@ describe('ESupervisionClient', () => {
       const output = await client.getOffenderByCRN(crn)
 
       expect(output).toBeNull()
+    })
+  })
+
+  describe('checkEligibility', () => {
+    const crn = 'X000001'
+    const request: EligibilityCheckRequest = {
+      practitionerId: 'PRACT.ONE',
+      eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
+    }
+
+    it('should POST the practitioner and answers and return the outcome', async () => {
+      const response: EligibilityCheckResponse = { outcome: 'ELIGIBLE', message: null, ruleCode: 'IS_TIER_D_TO_G' }
+      fakeESupervisionApi
+        .post(`/v2/offenders/crn/${crn}/eligibility`, body => JSON.stringify(body) === JSON.stringify(request))
+        .matchHeader('authorization', `Bearer ${token.access_token}`)
+        .reply(200, response)
+
+      expect(await client.checkEligibility(crn, request)).toEqual(response)
+    })
+
+    it('should return null when NDelius does not know the CRN', async () => {
+      fakeESupervisionApi.post(`/v2/offenders/crn/${crn}/eligibility`).reply(404)
+
+      expect(await client.checkEligibility(crn, request)).toBeNull()
     })
   })
 

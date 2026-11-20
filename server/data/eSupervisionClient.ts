@@ -5,6 +5,8 @@ import {
   UpdateDetailsRequest,
   CheckinScheduleResponse,
   DeactivateOffenderRequest,
+  EligibilityCheckRequest,
+  EligibilityCheckResponse,
   EsupervisionAssignQuestionsRequest,
   EsupervisionAssignQuestionsResponse,
   ESupervisionCheckIn,
@@ -224,6 +226,16 @@ export default class ESupervisionClient extends RestClient {
   // package
   async getSupervisionPackageStatus(crn: string): Promise<SupervisionPackageStatus | null> {
     return this.get({ path: `/v2/offenders/crn/${crn}/supervision-package`, handle404: true })
+  }
+
+  // POST /v2/offenders/crn/{crn}/eligibility — the ESUP API's eligibility rules, with the
+  // practitioner's answers once they have been given. Null when NDelius does not know the CRN.
+  async checkEligibility(crn: string, request: EligibilityCheckRequest): Promise<EligibilityCheckResponse | null> {
+    return this.post({
+      path: `/v2/offenders/crn/${crn}/eligibility`,
+      data: request,
+      handle404: true,
+    })
   }
 
   // POST /v2/offenders/crn/{crn}/schedule-ad-hoc-check-in

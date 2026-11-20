@@ -586,6 +586,13 @@ describe('eligibility/eligibility-check', () => {
     expect(valuesIn(html)).toEqual(['accreditedProgramme', 'recalled', 'deviceRestriction', 'youthSentence', 'none'])
   })
 
+  // With the useEligibilityEndpoint flag on the ESUP API checks recall itself
+  it.each(['AB', 'C', 'DG'])('does not ask tier %s about recall when told not to', async band => {
+    const html = await render('eligibility/eligibility-check', { ...base, tierBand: band, askRecalled: false })
+    expect(valuesIn(html)).not.toContain('recalled')
+    expect(valuesIn(html)).toContain('deviceRestriction')
+  })
+
   it.each(['C', 'DG'])('asks tier %s only the questions every tier gets', async band => {
     const html = await render('eligibility/eligibility-check', { ...base, tierBand: band })
     expect(valuesIn(html)).toEqual(allTiers)
@@ -665,6 +672,38 @@ describe('eligibility/not-eligible', () => {
     expect(html).toContain('This is because Bob:')
     expect(html).toContain('<li>has been recalled to prison</li>')
     expect(html).toContain('<li>is in the final third of their sentence</li>')
+  })
+
+  // The useEligibilityEndpoint journey renders the API's sentence as it is
+  it('shows the ESUP API reason in place of the built one', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      apiReason: true,
+      apiMessage: 'Bob Smith is not eligible for online check ins because they are not on a supervision package.',
+      returnToOverviewPage: true,
+    })
+    expect(html).toContain(
+      'Bob Smith is not eligible for online check ins because they are not on a supervision package.',
+    )
+    expect(html).not.toContain('This is because Bob')
+    expect(html).not.toContain('go back and check eligibility again')
+    expect(html).not.toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+  })
+
+  it('still reads as a sentence when the API sends no reason', async () => {
+    const html = await render('eligibility/not-eligible', { ...base, apiReason: true, apiMessage: null })
+    expect(html).toContain('Bob is not eligible to use online check ins.')
+    expect(html).not.toContain('This is because Bob')
+  })
+
+  it('offers the eligibility check again for an API reason the practitioner answered', async () => {
+    const html = await render('eligibility/not-eligible', {
+      ...base,
+      apiReason: true,
+      apiMessage: 'Bob Smith is not eligible for online check ins because they have device restrictions.',
+    })
+    expect(html).toContain('go back and check eligibility again')
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
   })
 
   it('reads a single reason as one sentence', async () => {
@@ -1206,5 +1245,20 @@ describe('an ad-hoc setup', () => {
     expect(html).not.toContain('I&#39;ll schedule them one at a time')
     expect(html).toContain(`href="/case/${crn}/appointments/check-in/manage/${id}/schedule-check-in"`)
     expect(html).toContain('Schedule a check in')
+  })
+})
+
+describe('eligibility/pilot-is-eligible', () => {
+  const setupBase = { ...base, eligibilityUrlPrefix: `/case/${crn}/appointments/${id}/check-in/` }
+
+  it('goes back to the pilot question it followed', async () => {
+    const html = await render('eligibility/pilot-is-eligible', setupBase)
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/pilot-check"`)
+  })
+
+  it('goes back to the eligibility check when no pilot question was asked', async () => {
+    const html = await render('eligibility/pilot-is-eligible', { ...setupBase, askedPilotCheck: false })
+    expect(html).toContain(`href="/case/${crn}/appointments/${id}/check-in/eligibility-check"`)
+    expect(html).not.toContain('check-in/pilot-check"')
   })
 })

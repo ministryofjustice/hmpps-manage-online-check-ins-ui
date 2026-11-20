@@ -2,7 +2,8 @@
    eligibilityViews points both bands at this file. #}
 {% extends "./_is-eligible.njk" %}
 
-{% set backLink = eligibilityUrlPrefix + 'pilot-check' %}
+{# The useEligibilityEndpoint journey has no pilot question to go back to #}
+{% set backLink = eligibilityUrlPrefix + ('eligibility-check' if askedPilotCheck === false else 'pilot-check') %}
 
 {% block eligibilityReason %}
     <p class="govuk-body">This is because they are in Tier {{tierScore}} and you have one or more people who were using online check ins before 1 October 2026</p>

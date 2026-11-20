@@ -297,6 +297,33 @@ describe('setup validation re-render', () => {
     )
   })
 
+  it.each([
+    [true, false],
+    [undefined, true],
+  ])(
+    're-renders the eligibility check with the useEligibilityEndpoint flag %s asking about recall: %s',
+    (flag, asked) => {
+      const req = httpMocks.createRequest({
+        method: 'POST',
+        url: `/case/${crn}/appointments/${id}/check-in/eligibility-check`,
+        params: { crn, id },
+        query: {},
+        body: { esupervision: { [crn]: { [id]: { checkins: {} } } } },
+        session: { data: {} },
+      })
+      const res: any = {
+        locals: { tierScore: 'D', flags: { useEligibilityEndpoint: flag } },
+        render: jest.fn(),
+      }
+      validate(req, res, jest.fn())
+
+      const [view, locals] = res.render.mock.calls[0]
+      expect(view).toBe('pages/check-in/eligibility/eligibility-check')
+      expect(locals.askRecalled).toBe(asked)
+      expect(locals.askedPilotCheck).toBe(asked)
+    },
+  )
+
   it('validates restart eligibility under restartCheckin and re-renders the shared eligibility view', () => {
     const req = httpMocks.createRequest({
       method: 'POST',

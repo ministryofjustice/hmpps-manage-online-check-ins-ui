@@ -14,7 +14,7 @@
    come from the ESUP API and rule the person out before the check even renders, so going back would
    loop the same way. Early engagement does come back here, since it only rules the person out
    alongside the accredited programme box - unticking that is a real way to revisit it. #}
-{% set returnToOverviewPage = missingTier or provisionalTier or notSupervised or noSupervisionPackage or inFinalThird %}
+{% set returnToOverviewPage = returnToOverviewPage or missingTier or provisionalTier or notSupervised or noSupervisionPackage or inFinalThird %}
 {% set backLink = '/case/' + crn if returnToOverviewPage else eligibilityUrlPrefix + 'eligibility-check' %}
 {% set buttonText = "Go to " + case.name.forename + "'s overview" %}
 
@@ -47,6 +47,14 @@
     {% elif provisionalTier %}
         <p class="govuk-body" data-qa="provisionalTier">This is because they are currently in a provisional Tier.</p>
         <p class="govuk-body">They will be assigned a Tier once their risk scores have been completed and the system has calculated their final Tier. You can come back and check eligibility again. </p>
+    {% elif apiReason %}
+        {# The useEligibilityEndpoint journey: the ESUP API's reason for the first rule that failed,
+           already a whole sentence naming the person. Every ruling-out rule has one; the fallback
+           only covers a rule added without. #}
+        <p class="govuk-body" data-qa="apiReason">{{ apiMessage or (case.name.forename + " is not eligible to use online check ins.") }}</p>
+        {% if not additionalTierInformation and not returnToOverviewPage %}
+            <p class="govuk-body">If you think this information is wrong, you can go back and check eligibility again.</p>
+        {% endif %}
     {% elif reasonBullets and reasonBullets | length %}
         <p class="govuk-body">This is because {{case.name.forename}}{{ " " + reason if reason }}:</p>
         <ul class="govuk-list govuk-list--bullet" data-qa="reasonBullets">
