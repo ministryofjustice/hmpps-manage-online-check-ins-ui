@@ -32,8 +32,22 @@ export const postCheckInDetails = (
       ? parsedFirstCheckin.toFormat('yyyy/M/dd')
       : savedUserDetails?.date
 
+    // Setup records the practitioner the person is allocated to - never the signed-in user in their
+    // place. Without one who can sign in, the person can't be set up: the same reason the ESUP API's
+    // eligibility rules give (IS_PRACTITIONER_ASSIGNED), shown on the page.
     const pp: ProbationPractitioner | null = await eSupervisionClient.getProbationPractitioner(crn)
-    const practitionerId = pp?.username ? pp.username : res.locals.user.username
+    const practitionerId = pp && !pp.unallocated ? pp.username?.trim() : undefined
+    if (!practitionerId) {
+      logger.warn(`Checkin Registration rejected for crn ${crn}: no allocated practitioner who can sign in`)
+      const name = res.locals.case?.name
+      const person = name ? `${name.forename} ${name.surname}` : 'The person'
+      throw Object.assign(new Error('No allocated practitioner'), {
+        data: {
+          status: 422,
+          userMessage: `${person} must have probation practitioner assigned to them before they can be set up to use online check ins`,
+        },
+      })
+    }
     const data: OffenderInfo = {
       setupUuid: id,
       ...(res.locals.flags?.enableSentenceSelection === true ? { currentEvent: savedUserDetails.currentEvent } : {}),

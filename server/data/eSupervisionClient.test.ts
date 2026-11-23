@@ -167,11 +167,10 @@ describe('ESupervisionClient', () => {
   describe('checkEligibility', () => {
     const crn = 'X000001'
     const request: EligibilityCheckRequest = {
-      practitionerId: 'PRACT.ONE',
       eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
     }
 
-    it('should POST the practitioner and answers and return the outcome', async () => {
+    it('should POST the answers and return the outcome', async () => {
       const response: EligibilityCheckResponse = { outcome: 'ELIGIBLE', message: null, ruleCode: 'IS_TIER_D_TO_G' }
       fakeESupervisionApi
         .post(`/v2/offenders/crn/${crn}/eligibility`, body => JSON.stringify(body) === JSON.stringify(request))

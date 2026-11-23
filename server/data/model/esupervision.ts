@@ -394,9 +394,8 @@ export interface PractitionerAlertsResponse {
 // the eligibility rules.
 // POST /v2/offenders/crn/{crn}/eligibility. Without answers the API checks only the rules that need
 // none, so a person they don't rule out comes back UNKNOWN.
+// No practitioner: the API judges the one the person is allocated to in NDelius
 export interface EligibilityCheckRequest {
-  // The practitioner the person is set up for; decides whether they have ever had a pilot case
-  practitionerId: string
   eligibilityAnswers?: EligibilityAnswers
 }
 

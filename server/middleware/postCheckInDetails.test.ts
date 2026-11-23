@@ -84,6 +84,37 @@ describe('postCheckInDetails', () => {
     mockGetProfilePhotoUploadLocation.mockResolvedValue({} as UploadLocationResponse)
   })
 
+  it('records the allocated practitioner, not the signed-in user', async () => {
+    await postCheckInDetails(hmppsAuthClient)(buildRequest(), res)
+
+    expect(mockPostOffenderSetup).toHaveBeenCalledWith(expect.objectContaining({ practitionerId: 'jane.doe' }))
+    expect(res.locals.user.username).not.toBe('jane.doe')
+  })
+
+  it.each([
+    ['no allocated practitioner', null],
+    [
+      'an allocated practitioner with no username',
+      { code: 'ABC123', name: { forename: 'Jane', surname: 'Doe' }, unallocated: false },
+    ],
+    [
+      'an unallocated placeholder',
+      { code: 'N01UATU', name: { forename: 'Unallocated', surname: 'Staff' }, unallocated: true, username: 'UNALLOC' },
+    ],
+  ])("refuses setup, with the eligibility rule's reason, for %s", async (_, practitioner) => {
+    mockGetProbationPractitioner.mockResolvedValue(practitioner)
+    res.locals.case = { name: { forename: 'Joe', surname: 'Bloggs' } } as typeof res.locals.case
+
+    await expect(postCheckInDetails(hmppsAuthClient)(buildRequest(), res)).rejects.toMatchObject({
+      data: {
+        status: 422,
+        userMessage:
+          'Joe Bloggs must have probation practitioner assigned to them before they can be set up to use online check ins',
+      },
+    })
+    expect(mockPostOffenderSetup).not.toHaveBeenCalled()
+  })
+
   it('clears the cached personal details for the CRN once setup completes', async () => {
     const req = buildRequest()
 

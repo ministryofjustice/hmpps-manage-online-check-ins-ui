@@ -246,20 +246,17 @@ function initialiseRestart(req: Request, res: Response, crn: string, id: string)
   )
 }
 
-// Asks the ESUP API whether the person is eligible, with the practitioner's answers once they have
-// been given. The practitioner is the one setup will record - the allocated one, falling back to
-// whoever is signed in - so the pilot rule here agrees with the check the API makes at setup.
-// Null when NDelius does not know the CRN.
+// The ESUP API's eligibility check, with the practitioner's answers once they have been given. The
+// API judges the practitioner the person is allocated to in NDelius, so no practitioner is sent -
+// in particular not the signed-in user. Null when NDelius does not know the CRN.
 async function checkEligibilityWithApi(
   hmppsAuthClient: HmppsAuthClient,
   res: Response,
   crn: string,
-  practitioner: ProbationPractitioner | null,
   answers: EligibilityAnswers | null,
 ): Promise<StoredEligibilityCheck | null> {
   const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
   const response = await new ESupervisionClient(token).checkEligibility(crn, {
-    practitionerId: practitioner?.username || res.locals.user.username,
     ...(answers ? { eligibilityAnswers: answers } : {}),
   })
   return response ? toStoredEligibilityCheck(response, answers) : null
@@ -314,15 +311,13 @@ async function renderEligibilityPageFromApi(
   id: string,
 ): Promise<void> {
   const eligibilityContext = eligibilityContextFor(res, crn, id)
-  const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
-  if (practitioner?.unallocated) {
-    return res.redirect(`/case/${crn}/appointments`)
-  }
+  // No unallocated redirect here: the API rules out a person without an allocated practitioner who
+  // can sign in (IS_PRACTITIONER_ASSIGNED), and the not-eligible page says why.
   initialiseRestart(req, res, crn, id)
 
   let check: StoredEligibilityCheck | null
   try {
-    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, practitioner, null)
+    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, null)
   } catch (error) {
     logger.error(error, `Eligibility check failed for crn ${crn}`)
     return renderError(500)(req, res)
@@ -387,8 +382,7 @@ async function postEligibilityPageToApi(
   )
   let check: StoredEligibilityCheck | null
   try {
-    const practitioner = await getAllocationPractitioner(hmppsAuthClient, res, crn)
-    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, practitioner, answers)
+    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, answers)
   } catch (error) {
     logger.error(error, `Eligibility check failed for crn ${crn}`)
     return renderError(500)(req, res)

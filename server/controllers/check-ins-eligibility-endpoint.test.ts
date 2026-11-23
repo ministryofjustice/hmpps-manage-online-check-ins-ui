@@ -66,7 +66,7 @@ describe('eligibility journey with the useEligibilityEndpoint flag on', () => {
 
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
 
-      expect(checkEligibility).toHaveBeenCalledWith(crn, { practitionerId: 'ALLOCATED.PP' })
+      expect(checkEligibility).toHaveBeenCalledWith(crn, {})
       expect(res.redirect).toHaveBeenCalledWith(`${root}/not-eligible`)
       expect(stored(req).eligibilityCheck).toEqual({
         outcome: 'INELIGIBLE',
@@ -91,15 +91,33 @@ describe('eligibility journey with the useEligibilityEndpoint flag on', () => {
       expect(stored(req).tierBand).toBe('AB')
     })
 
-    it('checks for whoever is signed in when no practitioner is allocated a username', async () => {
-      getProbationPractitioner.mockResolvedValue({ unallocated: false })
+    it('sends no practitioner - the API judges the allocated one, never the signed-in user', async () => {
       givenCheck({ outcome: 'UNKNOWN', message: null })
       const req = requestFor()
       const res = flaggedResponse('D')
 
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
 
-      expect(checkEligibility).toHaveBeenCalledWith(crn, { practitionerId: res.locals.user.username })
+      expect(checkEligibility).toHaveBeenCalledWith(crn, {})
+      expect(checkEligibility.mock.calls[0][1]).not.toHaveProperty('practitionerId')
+    })
+
+    it("shows the API's reason, not a silent redirect, when no practitioner who can sign in is allocated", async () => {
+      getProbationPractitioner.mockResolvedValue({ unallocated: true })
+      givenCheck({
+        outcome: 'INELIGIBLE',
+        message:
+          'Joe Bloggs must have probation practitioner assigned to them before they can be set up to use online check ins',
+        ruleCode: 'IS_PRACTITIONER_ASSIGNED',
+      })
+      const req = requestFor()
+      const res = flaggedResponse('D')
+
+      await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
+
+      expect(res.redirect).toHaveBeenCalledWith(`${root}/not-eligible`)
+      expect(res.redirect).not.toHaveBeenCalledWith(`/case/${crn}/appointments`)
+      expect(stored(req).eligibilityCheck.ruleCode).toBe('IS_PRACTITIONER_ASSIGNED')
     })
 
     it('records a header that disagrees with the API as the matching rule', async () => {
@@ -152,7 +170,6 @@ describe('eligibility journey with the useEligibilityEndpoint flag on', () => {
       await controllers.checkIns.postEligibilityPage(hmppsAuthClient)(req, res)
 
       expect(checkEligibility).toHaveBeenCalledWith(crn, {
-        practitionerId: 'ALLOCATED.PP',
         eligibilityAnswers: { accreditedProgramme: null, deviceRestriction: false, youthSentence: null },
       })
       expect(res.redirect).toHaveBeenCalledWith(`${root}/is-eligible`)
