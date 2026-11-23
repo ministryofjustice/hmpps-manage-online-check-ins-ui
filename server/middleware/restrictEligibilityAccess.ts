@@ -6,11 +6,20 @@ import renderError from './renderError'
 import type { AppLocals } from '../models/Locals'
 import { getCheckInEligibilityContext } from '../utils/checkInEligibilityContext'
 import {
+  eligibilityAnswersFromSelections,
+  EligibilityTarget,
   hasCompletedDiscussion,
   nextAfterEligibilityCheck,
   nextAfterPilotCheck,
   toSelections,
 } from '../utils/eligibilityRules'
+import {
+  isAccreditedProgrammeRoute,
+  sameEligibilityAnswers,
+  StoredEligibilityCheck,
+  targetForEligibilityCheck,
+  useEligibilityEndpoint,
+} from '../utils/eligibilityCheck'
 
 // Every page from pilot-check onwards depends on the eligibility answers (and, where there is one,
 // the pilot-check answer) actually leading there - restrictPageAccess only checks that *some*
@@ -39,51 +48,75 @@ const restrictEligibilityAccess = (page: 'pilot-check' | 'is-eligible' | 'setup'
     const supervisionPackageStatus = getDataValue(data, ['esupervision', crn, id, 'supervisionPackageStatus'])
     const band = checkins?.tierBand
 
-    if (!checkins || !band || !supervisionPackageStatus) {
-      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
-    }
+    let accreditedProgramme: boolean
 
-    if (!toSelections(checkins.eligibility).length) {
-      return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
-    }
-
-    // Recorded by the eligibility-check pages from the ESUP call, since those answers are not fetched
-    // again on the later pages this guards.
-    //
-    // No tier score is passed: this runs ahead of getPersonalDetails, so there is none on res.locals.
-    // Only `target` is read below - the reason is never rendered from here, so the band label the
-    // rules fall back to does not reach the practitioner.
-    const eligibility = nextAfterEligibilityCheck(
-      band,
-      {
-        onSupervisionPackage: Boolean(supervisionPackageStatus?.onSupervisionPackage),
-        inFinalThird: Boolean(supervisionPackageStatus?.inFinalThird),
-        inEarlyEngagement: Boolean(supervisionPackageStatus?.inEarlyEngagement),
-      },
-      toSelections(checkins.eligibility),
-    )
-    let outcome = eligibility.target
-
-    if (eligibility.target === 'pilot-check') {
-      if (page === 'pilot-check') {
-        return next()
+    if (useEligibilityEndpoint(res.locals)) {
+      // The ESUP API decided: trust its stored answer only while it still matches the answers held
+      // now, since a later page can post new ones past the check.
+      if (!checkins || !band || !toSelections(checkins.eligibility).length) {
+        return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
       }
-      // Anything past pilot-check is only reachable once it has actually been answered.
-      if (!checkins.pilotCheck) {
-        return res.redirect(eligibilityContext.urlForEligibilityPage('pilot-check'))
+      const check = checkins.eligibilityCheck as StoredEligibilityCheck | undefined
+      const target = targetForEligibilityCheck(check)
+      if (
+        !target ||
+        !sameEligibilityAnswers(check.answers, eligibilityAnswersFromSelections(checkins.eligibility, band))
+      ) {
+        return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
       }
-      outcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck)).target
-    } else if (page === 'pilot-check') {
-      return res.redirect(eligibilityContext.urlForEligibilityPage(eligibility.target))
-    }
+      // The pilot question isn't asked in this journey
+      if (page === 'pilot-check' || target !== 'is-eligible') {
+        return res.redirect(eligibilityContext.urlForEligibilityPage(target))
+      }
+      accreditedProgramme = isAccreditedProgrammeRoute(check)
+    } else {
+      if (!checkins || !band || !supervisionPackageStatus) {
+        return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
+      }
 
-    if (outcome !== 'is-eligible') {
-      return res.redirect(eligibilityContext.urlForEligibilityPage(outcome))
+      if (!toSelections(checkins.eligibility).length) {
+        return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
+      }
+
+      // Recorded by the eligibility-check pages from the ESUP call, since those answers are not fetched
+      // again on the later pages this guards.
+      //
+      // No tier score is passed: this runs ahead of getPersonalDetails, so there is none on res.locals.
+      // Only `target` is read below - the reason is never rendered from here, so the band label the
+      // rules fall back to does not reach the practitioner.
+      const eligibility = nextAfterEligibilityCheck(
+        band,
+        {
+          onSupervisionPackage: Boolean(supervisionPackageStatus?.onSupervisionPackage),
+          inFinalThird: Boolean(supervisionPackageStatus?.inFinalThird),
+          inEarlyEngagement: Boolean(supervisionPackageStatus?.inEarlyEngagement),
+        },
+        toSelections(checkins.eligibility),
+      )
+      let outcome: EligibilityTarget = eligibility.target
+
+      if (eligibility.target === 'pilot-check') {
+        if (page === 'pilot-check') {
+          return next()
+        }
+        // Anything past pilot-check is only reachable once it has actually been answered.
+        if (!checkins.pilotCheck) {
+          return res.redirect(eligibilityContext.urlForEligibilityPage('pilot-check'))
+        }
+        outcome = nextAfterPilotCheck(band as 'AB' | 'C', String(checkins.pilotCheck)).target
+      } else if (page === 'pilot-check') {
+        return res.redirect(eligibilityContext.urlForEligibilityPage(eligibility.target))
+      }
+
+      if (outcome !== 'is-eligible') {
+        return res.redirect(eligibilityContext.urlForEligibilityPage(outcome))
+      }
+      accreditedProgramme = Boolean(eligibility.accreditedProgramme)
     }
     // The discussion checkboxes are answered on is-eligible, so that is where an unconfirmed
     // discussion goes back to rather than the discuss-before-signup dead end.
-    // From the rules rather than the stored flag, which a later page can post new answers past.
-    const accreditedProgramme = Boolean(eligibility.accreditedProgramme)
+    // From the rules (or the API's stored outcome) rather than the stored flag, which a later page
+    // can post new answers past.
     const isAccreditedProgrammeApprovalPage =
       req.path === eligibilityContext.urlForEligibilityPage('accredited-programme-approval')
     const isRationalePage = req.path === eligibilityContext.urlForEligibilityPage('rationale')

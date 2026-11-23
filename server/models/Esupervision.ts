@@ -72,6 +72,9 @@ export interface LocalParams {
   hasContactDetails?: boolean
   isAdHoc?: boolean
   tierBand?: string
+  // Off in the useEligibilityEndpoint journey, where recall comes from the API and there is no pilot question
+  askRecalled?: boolean
+  askedPilotCheck?: boolean
   eligibilitySessionKey?: 'checkins' | 'restartCheckin' | 'manageCheckin'
   events?: NdeliusEvent[]
   currentEvent?: number

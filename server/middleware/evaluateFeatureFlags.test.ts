@@ -2,6 +2,7 @@ import httpMocks from 'node-mocks-http'
 import type { Response } from 'express'
 import evaluateFeatureFlags from './evaluateFeatureFlags'
 import FeatureFlagService from '../services/featureFlagService'
+import config from '../config'
 
 jest.mock('../services/featureFlagService')
 
@@ -28,8 +29,8 @@ describe('evaluateFeatureFlags', () => {
       { key: 'flag-two', type: 'boolean' },
     ])(req, res, nextSpy)
 
-    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('flag-one', 'global')
-    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('flag-two', 'global')
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('flag-one', 'global', expect.anything())
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('flag-two', 'global', expect.anything())
     expect(res.locals.flags['flag-one']).toBe(true)
     expect(res.locals.flags['flag-two']).toBe(false)
     expect(nextSpy).toHaveBeenCalled()
@@ -42,7 +43,7 @@ describe('evaluateFeatureFlags', () => {
 
     await evaluateFeatureFlags(featureFlagService, [{ key: 'template-version', type: 'variant' }])(req, res, nextSpy)
 
-    expect(featureFlagService.evaluateVariant).toHaveBeenCalledWith('template-version', 'global')
+    expect(featureFlagService.evaluateVariant).toHaveBeenCalledWith('template-version', 'global', expect.anything())
     expect(featureFlagService.evaluateBoolean).not.toHaveBeenCalled()
     expect(res.locals.flags['template-version']).toBe('v2')
     expect(nextSpy).toHaveBeenCalled()
@@ -55,8 +56,26 @@ describe('evaluateFeatureFlags', () => {
 
     await evaluateFeatureFlags(featureFlagService)(req, res, nextSpy)
 
-    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('enableSentenceSelection', 'global')
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith(
+      'enableSentenceSelection',
+      'global',
+      expect.anything(),
+    )
     expect(res.locals.flags.enableSentenceSelection).toBe(true)
     expect(nextSpy).toHaveBeenCalled()
+  })
+
+  it("sends the environment as context, so a flag's rollout can set test apart from dev", async () => {
+    const featureFlagService = new FeatureFlagService() as jest.Mocked<FeatureFlagService>
+    featureFlagService.evaluateBoolean.mockResolvedValue(true)
+    const { env } = config
+    config.env = 'test'
+    try {
+      await evaluateFeatureFlags(featureFlagService, [{ key: 'flag-one', type: 'boolean' }])(req, resFor(), nextSpy)
+    } finally {
+      config.env = env
+    }
+
+    expect(featureFlagService.evaluateBoolean).toHaveBeenCalledWith('flag-one', 'global', { environment: 'test' })
   })
 })

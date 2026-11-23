@@ -9,6 +9,7 @@ import {
   CancellableCheckin,
   UpdateDetailsRequest,
   DeactivateOffenderRequest,
+  EligibilityAnswers,
   ESupervisionCheckIn,
   EsupervisionAssignBespokeQuestion,
   EsupervisionAssignTemplateQuestion,
@@ -49,6 +50,14 @@ import safeBackUrl from '../utils/safeBackUrl'
 import sendAuditMessage, { SubjectType } from '../middleware/sendAuditMessage'
 import { CheckinFrequency, fromApiSchedule, nextScheduledDay, toApiSchedule } from '../utils/checkinSchedule'
 import getTierBand, { MISSING_TIER, NOT_SUPERVISED_TIER, TierBand, TierStatus } from '../utils/getTierBand'
+import {
+  isAccreditedProgrammeRoute,
+  notEligibleDisplay,
+  StoredEligibilityCheck,
+  targetForEligibilityCheck,
+  toStoredEligibilityCheck,
+  useEligibilityEndpoint,
+} from '../utils/eligibilityCheck'
 import {
   eligibilityViews,
   eligibilityAnswersFromSelections,
@@ -208,6 +217,191 @@ function setNotEligibleReason(
   setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'notEligibleReason'], reason)
   setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'notEligibleReasonBullets'], [])
   setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'additionalTierInformation'], false)
+}
+
+// A restart starts from the person's saved settings, the first time its eligibility check loads.
+function initialiseRestart(req: Request, res: Response, crn: string, id: string): void {
+  req.session.data = req.session.data || {}
+  if (
+    eligibilityContextFor(res, crn, id).journey !== 'reactivation' ||
+    getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'])
+  ) {
+    return
+  }
+  const offenderSettings = res.locals.offenderCheckinsByCRNResponse
+  setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
+  setDataValue(
+    req.session.data,
+    ['esupervision', crn, id, 'restartCheckin', 'interval'],
+    fromApiSchedule(offenderSettings),
+  )
+  setDataValue(
+    req.session.data,
+    ['esupervision', crn, id, 'restartCheckin', 'preferredComs'],
+    offenderSettings?.contactPreference,
+  )
+}
+
+// The ESUP API's eligibility check, with the practitioner's answers once they have been given. The
+// API judges the practitioner the person is allocated to in NDelius, so no practitioner is sent -
+// in particular not the signed-in user. Null when NDelius does not know the CRN.
+async function checkEligibilityWithApi(
+  hmppsAuthClient: HmppsAuthClient,
+  res: Response,
+  crn: string,
+  answers: EligibilityAnswers | null,
+): Promise<StoredEligibilityCheck | null> {
+  const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
+  const response = await new ESupervisionClient(token).checkEligibility(crn, {
+    ...(answers ? { eligibilityAnswers: answers } : {}),
+  })
+  return response ? toStoredEligibilityCheck(response, answers) : null
+}
+
+function storeEligibilityCheck(req: Request, res: Response, crn: string, id: string, check: StoredEligibilityCheck) {
+  const { eligibilitySessionKey } = eligibilityContextFor(res, crn, id)
+  req.session.data = req.session.data || {}
+  setDataValue(req.session.data, ['esupervision', crn, id, eligibilitySessionKey, 'eligibilityCheck'], check)
+}
+
+// requireBand for the flagged journey. The API has already passed the Tier rules by the time this
+// runs, so a header with no usable band disagrees with it; rather than loop through requireBand's
+// not-eligible reasons, which this journey's not-eligible page doesn't read, the header's status is
+// recorded as the matching rule. A score that can't be read at all is still an error.
+const HEADER_TIER_RULES: Record<typeof MISSING_TIER | typeof NOT_SUPERVISED_TIER, string> = {
+  [MISSING_TIER]: 'IS_TIER_MISSING',
+  [NOT_SUPERVISED_TIER]: 'HAS_ACTIVE_EVENT',
+}
+
+function requireBandForApiJourney(req: Request, res: Response, crn: string, id: string): TierBand | null {
+  const status: TierStatus | null = getTierBand(res.locals.tierScore as string)
+  const headerRule =
+    status === MISSING_TIER || status === NOT_SUPERVISED_TIER
+      ? HEADER_TIER_RULES[status]
+      : res.locals.tierProvisional === true && 'IS_TIER_PROVISIONAL'
+  if (headerRule) {
+    logger.warn(`Person header for crn ${crn} disagrees with the eligibility check: ${headerRule}`)
+    storeEligibilityCheck(req, res, crn, id, {
+      outcome: 'INELIGIBLE',
+      message: null,
+      ruleCode: headerRule,
+      answers: null,
+    })
+    res.redirect(eligibilityContextFor(res, crn, id).urlForEligibilityPage('not-eligible'))
+    return null
+  }
+  if (!status || status === MISSING_TIER || status === NOT_SUPERVISED_TIER) {
+    renderError(500)(req, res)
+    return null
+  }
+  return status
+}
+
+// The flagged eligibility-check page: the API rules out whoever it can before anything is asked,
+// and the checkboxes are only shown to people it can't decide on yet.
+async function renderEligibilityPageFromApi(
+  hmppsAuthClient: HmppsAuthClient,
+  req: Request,
+  res: Response,
+  crn: string,
+  id: string,
+): Promise<void> {
+  const eligibilityContext = eligibilityContextFor(res, crn, id)
+  // No unallocated redirect here: the API rules out a person without an allocated practitioner who
+  // can sign in (IS_PRACTITIONER_ASSIGNED), and the not-eligible page says why.
+  initialiseRestart(req, res, crn, id)
+
+  let check: StoredEligibilityCheck | null
+  try {
+    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, null)
+  } catch (error) {
+    logger.error(error, `Eligibility check failed for crn ${crn}`)
+    return renderError(500)(req, res)
+  }
+  if (!check) {
+    return renderError(404)(req, res)
+  }
+  storeEligibilityCheck(req, res, crn, id, check)
+  if (check.outcome === 'INELIGIBLE') {
+    setDataValue(
+      req.session.data,
+      ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'],
+      undefined,
+    )
+    return res.redirect(eligibilityContext.urlForEligibilityPage('not-eligible'))
+  }
+
+  // The API has passed everything it can check without answers, the Tier included
+  const band = requireBandForApiJourney(req, res, crn, id)
+  if (!band) {
+    return undefined
+  }
+  setDataValue(req.session.data, ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'], band)
+  return res.render(`pages/check-in/${eligibilityViews[band]['eligibility-check']}.njk`, {
+    crn,
+    id,
+    back: req.query.back,
+    tierBand: band,
+    tierScore: res.locals.tierScore,
+    guidanceUrl: config.guidance.link,
+    eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
+    eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
+    // Recall comes from the API now, so the practitioner isn't asked
+    askRecalled: false,
+    data: req.session.data,
+  })
+}
+
+// The flagged eligibility-check post: the API decides with the answers, and the outcome it gives
+// is stored with them for restrictEligibilityAccess.
+async function postEligibilityPageToApi(
+  hmppsAuthClient: HmppsAuthClient,
+  req: Request,
+  res: Response,
+  crn: string,
+  id: string,
+): Promise<void> {
+  const eligibilityContext = eligibilityContextFor(res, crn, id)
+  const band = requireBandForApiJourney(req, res, crn, id)
+  if (!band) {
+    return undefined
+  }
+  req.session.data = req.session.data || {}
+  const { data } = req.session
+  const groupPath = ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey]
+  setDataValue(data, [...groupPath, 'id'], id)
+  setDataValue(data, [...groupPath, 'tierBand'], band)
+
+  const answers = eligibilityAnswersFromSelections(
+    req.body?.esupervision?.[crn]?.[id]?.[eligibilityContext.eligibilitySessionKey]?.eligibility,
+    band,
+  )
+  let check: StoredEligibilityCheck | null
+  try {
+    check = await checkEligibilityWithApi(hmppsAuthClient, res, crn, answers)
+  } catch (error) {
+    logger.error(error, `Eligibility check failed for crn ${crn}`)
+    return renderError(500)(req, res)
+  }
+  if (!check) {
+    return renderError(404)(req, res)
+  }
+  const target = targetForEligibilityCheck(check)
+  if (!target) {
+    logger.error(`Eligibility check for crn ${crn} was still ${check.outcome} with answers given`)
+    return renderError(500)(req, res)
+  }
+  storeEligibilityCheck(req, res, crn, id, check)
+
+  // As postEligibilityPage: the rationale step and the summary key off this, and answers for the
+  // accredited-programme route must not outlive leaving it.
+  const accreditedProgramme = isAccreditedProgrammeRoute(check)
+  setDataValue(data, [...groupPath, 'accreditedProgramme'], accreditedProgramme)
+  if (!accreditedProgramme) {
+    setDataValue(data, [...groupPath, 'accreditedProgrammeApproval'], undefined)
+    setDataValue(data, [...groupPath, 'rationale'], undefined)
+  }
+  return res.redirect(eligibilityContext.urlForEligibilityPage(target))
 }
 
 // The tier statuses that are not bands at all, each ruling the person out on its own. A missing tier
@@ -484,7 +678,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
     }
   },
 
-  getEligibilityPage: () => {
+  getEligibilityPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       const { back } = req.query
@@ -492,6 +686,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       await sendAuditMessage(res, 'VIEW_MANAGE_ONLINE_CHECK_INS_CHECK_CHECK_IN_ELIGIBILITY', crn, SubjectType.CRN)
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
+      }
+      if (useEligibilityEndpoint(res.locals)) {
+        return renderEligibilityPageFromApi(hmppsAuthClient, req, res, crn, id)
       }
       const band = requireBand(req, res, crn, id)
       if (!band) {
@@ -501,24 +698,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (practitioner?.unallocated) {
         return res.redirect(`/case/${crn}/appointments`)
       }
-      req.session.data = req.session.data || {}
-      if (
-        eligibilityContext.journey === 'reactivation' &&
-        !getDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'])
-      ) {
-        const offenderSettings = res.locals.offenderCheckinsByCRNResponse
-        setDataValue(req.session.data, ['esupervision', crn, id, 'restartCheckin', 'id'], id)
-        setDataValue(
-          req.session.data,
-          ['esupervision', crn, id, 'restartCheckin', 'interval'],
-          fromApiSchedule(offenderSettings),
-        )
-        setDataValue(
-          req.session.data,
-          ['esupervision', crn, id, 'restartCheckin', 'preferredComs'],
-          offenderSettings?.contactPreference,
-        )
-      }
+      initialiseRestart(req, res, crn, id)
       setDataValue(
         req.session.data,
         ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey, 'tierBand'],
@@ -570,16 +750,20 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         guidanceUrl: config.guidance.link,
         eligibilitySessionKey: eligibilityContext.eligibilitySessionKey,
         eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
+        askRecalled: true,
         data: req.session.data,
       })
     }
   },
 
-  postEligibilityPage: () => {
+  postEligibilityPage: hmppsAuthClient => {
     return async (req, res) => {
       const { crn, id } = req.params as Record<string, string>
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
+      }
+      if (useEligibilityEndpoint(res.locals)) {
+        return postEligibilityPageToApi(hmppsAuthClient, req, res, crn, id)
       }
       const eligibilityContext = eligibilityContextFor(res, crn, id)
       const band = requireBand(req, res, crn, id)
@@ -765,7 +949,9 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
       if (!isValidCrn(crn) || !isValidUUID(id)) {
         return renderError(404)(req, res)
       }
-      const band = requireBand(req, res, crn, id)
+      const band = useEligibilityEndpoint(res.locals)
+        ? requireBandForApiJourney(req, res, crn, id)
+        : requireBand(req, res, crn, id)
       if (!band) {
         return undefined
       }
@@ -783,6 +969,7 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         crn,
         id,
         back,
+        askedPilotCheck: !useEligibilityEndpoint(res.locals),
         tierScore: res.locals.tierScore,
         guidanceUrl: config.guidance.link,
         data: req.session.data,
@@ -833,6 +1020,26 @@ const checkInsController: Controller<readonly CheckInRouteName[], void> = {
         return renderError(404)(req, res)
       }
       const checkins = ['esupervision', crn, id, eligibilityContext.eligibilitySessionKey]
+      if (useEligibilityEndpoint(res.locals)) {
+        // Only the first reason, in the API's rule order
+        const check = getDataValue<StoredEligibilityCheck | undefined>(req.session.data, [
+          ...checkins,
+          'eligibilityCheck',
+        ])
+        if (check?.outcome !== 'INELIGIBLE') {
+          return res.redirect(eligibilityContext.urlForEligibilityPage('eligibility-check'))
+        }
+        return res.render('pages/check-in/eligibility/not-eligible.njk', {
+          crn,
+          id,
+          back,
+          apiReason: true,
+          apiMessage: check.message,
+          guidanceUrl: config.guidance.link,
+          eligibilityUrlPrefix: eligibilityContext.eligibilityUrlPrefix,
+          ...notEligibleDisplay(check.ruleCode),
+        })
+      }
       const supervisionPackageStatus = ['esupervision', crn, id, 'supervisionPackageStatus']
       // Both come from the ESUP call rather than an answer, so the page offers no way back to the
       // eligibility check - see the back link in not-eligible.njk.

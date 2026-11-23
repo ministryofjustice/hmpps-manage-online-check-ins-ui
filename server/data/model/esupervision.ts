@@ -392,6 +392,23 @@ export interface PractitionerAlertsResponse {
 
 // The facts about the person's supervision returned by the supervision-package endpoint and used by
 // the eligibility rules.
+// POST /v2/offenders/crn/{crn}/eligibility. Without answers the API checks only the rules that need
+// none, so a person they don't rule out comes back UNKNOWN.
+// No practitioner: the API judges the one the person is allocated to in NDelius
+export interface EligibilityCheckRequest {
+  eligibilityAnswers?: EligibilityAnswers
+}
+
+export type EligibilityCheckOutcome = 'ELIGIBLE' | 'INELIGIBLE' | 'UNKNOWN'
+
+export interface EligibilityCheckResponse {
+  outcome: EligibilityCheckOutcome
+  // The deciding rule's reason, already naming the person
+  message: string | null
+  // The rule that decided the outcome; null when every rule passed or the outcome is UNKNOWN
+  ruleCode?: string | null
+}
+
 export interface SupervisionPackageStatus {
   onSupervisionPackage: boolean
   inFinalThird: boolean

@@ -34,6 +34,8 @@ export const featureFlags: FeatureFlagDescriptor[] = [
   { key: 'mockAccreditedProgrammeTiersABToggle', type: 'boolean' },
   { key: 'enableSentenceSelection', type: 'boolean' },
   { key: 'enablePersonHeaderTierV3', type: 'boolean' }, // gitleaks:allow - feature flag name, not a secret
+  // On: the eligibility journey asks the ESUP API's eligibility endpoint instead of applying its own rules
+  { key: 'useEligibilityEndpoint', type: 'boolean' },
 ]
 
 export type FeatureFlags = Record<string, boolean | string | undefined>

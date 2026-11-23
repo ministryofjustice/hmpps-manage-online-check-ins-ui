@@ -32,7 +32,7 @@ export interface ProbationPractitioner {
   code: string
   name: Name
   unallocated: boolean
-  username: string
+  username?: string
   email?: string
   probationDeliveryUnit?: PDU
 }
