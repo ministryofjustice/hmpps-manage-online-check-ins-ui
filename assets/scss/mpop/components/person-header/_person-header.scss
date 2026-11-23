@@ -1,0 +1,103 @@
+@use 'govuk-frontend/dist/govuk/index' as *;
+
+.person-header {
+  margin-bottom: govuk-spacing(4);
+}
+
+.person-header__band {
+  display: flex;
+  align-items: flex-start;
+  gap: govuk-spacing(4);
+  background-color: govuk-colour("blue");
+  color: govuk-colour("white");
+  padding: govuk-spacing(4) govuk-spacing(4) govuk-spacing(3);
+}
+
+.person-header__band--with-photo {
+  padding-bottom: govuk-spacing(4);
+}
+
+.person-header__photo {
+  flex-shrink: 0;
+  width: 120px;
+  height: 160px;
+  object-fit: cover;
+}
+
+.person-header__details {
+  min-width: 0;
+}
+
+.person-header__name {
+  color: govuk-colour("white");
+}
+
+.person-header__crn {
+  color: govuk-colour("white");
+}
+
+.person-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: govuk-spacing(6);
+  row-gap: govuk-spacing(1);
+  margin: 0;
+  color: govuk-colour("white");
+
+  li {
+    list-style: none;
+  }
+}
+
+.person-header__name .app-status-badge {
+  position: relative;
+  top: -8px;
+  margin-left: 10px;
+}
+
+.person-header__risk-panel {
+  display: flex;
+  flex-direction: column;
+  gap: govuk-spacing(2);
+  background-color: govuk-colour("black", $variant: "tint-95");
+  padding: govuk-spacing(3) govuk-spacing(4);
+}
+
+.person-header__risk-panel + .person-header__risk-panel {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.person-header__risk-tags,
+.person-header__risk-tags .pop-header-risk-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.person-header__risk-tags[hidden] {
+  display: none;
+}
+
+.person-header__risk-flags-toggle {
+  @include govuk-font($size: 19);
+  align-self: flex-start;
+  margin: -2px 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: govuk-functional-colour(link);
+  text-align: left;
+  cursor: pointer;
+
+  @media (forced-colors: active) {
+    color: LinkText;
+  }
+}
+
+/* More risk flags link */
+.person-header__risk-tags .risk-badge-more {
+  @include govuk-font($size: 19);
+  white-space: nowrap;
+}

@@ -149,7 +149,11 @@ describe('eligibility journey with the useEligibilityEndpoint flag on', () => {
 
     it('does not use the API with the flag off', async () => {
       const req = requestFor()
-      const res = baseAppResponse({ tierScore: 'D', supervisionPackageStatus: { onSupervisionPackage: true } })
+      const res = baseAppResponse({
+        tierScore: 'D',
+        supervisionPackageStatus: { onSupervisionPackage: true },
+        practitioner: { unallocated: false, username: 'ALLOCATED.PP' },
+      })
 
       await controllers.checkIns.getEligibilityPage(hmppsAuthClient)(req, res)
 
@@ -261,9 +265,9 @@ describe('eligibility journey with the useEligibilityEndpoint flag on', () => {
   describe('instructions page', () => {
     it('is unaffected by the flag', async () => {
       const req = requestFor()
-      const res = flaggedResponse('D')
+      const res = flaggedResponse('D', { practitioner: { unallocated: false, username: 'ALLOCATED.PP' } })
 
-      await controllers.checkIns.getInstructionsPage(hmppsAuthClient)(req, res)
+      await controllers.checkIns.getInstructionsPage()(req, res)
 
       expect(checkEligibility).not.toHaveBeenCalled()
       expect(res.render).toHaveBeenCalledWith(expect.stringContaining('instructions'), expect.anything())
