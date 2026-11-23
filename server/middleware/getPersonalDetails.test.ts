@@ -76,6 +76,65 @@ describe('getPersonalDetails', () => {
     expect(next).toHaveBeenCalledTimes(1)
   })
 
+  describe('practitioner details', () => {
+    const freshClient = (getProbationPractitioner: jest.Mock) =>
+      jest.mocked(ESupervisionClient).mockImplementation(
+        () =>
+          ({
+            getOffenderByCRN: jest.fn().mockResolvedValue(offenderDetails),
+            getOffenderHeaderByCRN: jest.fn().mockResolvedValue({ tierScore: 'NOT_SUPERVISED' }),
+            getProbationPractitioner,
+          }) as unknown as ESupervisionClient,
+      )
+
+    it('re-fetches a legacy cache entry that has no practitioner details', async () => {
+      const practitioner = { name: { forename: 'Pat', surname: 'Jones' }, unallocated: false }
+      const getProbationPractitioner = jest.fn().mockResolvedValue(practitioner)
+      freshClient(getProbationPractitioner)
+      const req = buildReq()
+      delete req.session.data.personalDetails[crn].practitionerDetails
+      const res = buildRes()
+
+      await getPersonalDetails(hmppsAuthClient, arnsComponents)(req, res, jest.fn())
+
+      expect(getProbationPractitioner).toHaveBeenCalledWith(crn)
+      expect(res.locals.practitioner).toEqual(practitioner)
+      expect(req.session.data.personalDetails[crn].practitionerDetails).toEqual(practitioner)
+    })
+
+    it('keeps a cached null practitioner (a 404) without re-fetching', async () => {
+      const getProbationPractitioner = jest.fn()
+      freshClient(getProbationPractitioner)
+      const req = buildReq()
+      const res = buildRes()
+
+      await getPersonalDetails(hmppsAuthClient, arnsComponents)(req, res, jest.fn())
+
+      expect(getProbationPractitioner).not.toHaveBeenCalled()
+      expect(res.locals.practitioner).toBeNull()
+      expect(res.locals.tierScore).toBe('G')
+    })
+
+    it('still renders the header when the practitioner lookup fails, and retries on the next request', async () => {
+      const getProbationPractitioner = jest.fn().mockRejectedValue(new Error('Gateway timeout'))
+      freshClient(getProbationPractitioner)
+      const req = buildReq()
+      const next = jest.fn()
+      const res = buildRes()
+
+      await getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true })(req, res, next)
+
+      expect(next).toHaveBeenCalledTimes(1)
+      expect(res.locals.practitioner).toBeUndefined()
+      expect(res.locals.managedBy.text).toBe('Unallocated')
+      expect(req.session.data.personalDetails[crn].practitionerDetails).toBeUndefined()
+
+      getProbationPractitioner.mockResolvedValue(null)
+      await getPersonalDetails(hmppsAuthClient, arnsComponents)(req, buildRes(), jest.fn())
+      expect(getProbationPractitioner).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it('exposes fresh setup events from the single personal-details lookup', async () => {
     const events: NdeliusEvent[] = [{ number: 1, mainOffence: { code: '001', description: 'Offence' }, sentence: null }]
     const getPersonalDetailsSpy = jest.fn().mockResolvedValue({

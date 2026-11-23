@@ -78,9 +78,15 @@ const hasValidEventSelection = (details?: Pick<CheckinUserDetails, 'events' | 'c
 }
 
 // getPersonalDetails middleware already fetches practitioner details for the person header, so
-// reuse res.locals.practitioner instead of making the same request again here.
-const getAllocationPractitioner = (res: Response): ProbationPractitioner | null =>
-  (res.locals.practitioner as ProbationPractitioner | null) ?? null
+// reuse res.locals.practitioner instead of making the same request again here. Undefined means the
+// lookup failed, and setup must not go ahead on an allocation that could not be checked.
+const getAllocationPractitioner = (res: Response): ProbationPractitioner | null => {
+  const practitioner = res.locals.practitioner as ProbationPractitioner | null | undefined
+  if (practitioner === undefined) {
+    throw new Error('Practitioner details are unavailable, so allocation cannot be checked')
+  }
+  return practitioner
+}
 
 // moj date-picker minDate workaround (https://github.com/ministryofjustice/moj-frontend/issues/923)
 const getMinDate = (daysAhead = 0): string => {

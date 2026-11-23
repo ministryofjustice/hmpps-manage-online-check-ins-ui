@@ -23,8 +23,9 @@ const crn = 'X000001'
 const id = '11111111-1111-4111-8111-111111111111'
 const hmppsAuthClient = new HmppsAuthClient(null) as jest.Mocked<HmppsAuthClient>
 
+// getPersonalDetails always puts the practitioner on res.locals; default to an allocated case.
 const mockAppResponse = (locals: Record<string, unknown> = {}) =>
-  baseAppResponse({ flags: { enableSentenceSelection: true }, ...locals })
+  baseAppResponse({ flags: { enableSentenceSelection: true }, practitioner: { unallocated: false }, ...locals })
 
 const requestFor = (body: Record<string, unknown> = {}, session: Record<string, unknown> = {}, url?: string) =>
   httpMocks.createRequest({
@@ -1628,6 +1629,16 @@ describe('check-in setup flow', () => {
         'pages/check-in/eligibility/eligibility-check.njk',
         expect.objectContaining({ crn }),
       )
+    })
+
+    it('fails rather than starting setup when the practitioner lookup failed', async () => {
+      const req = requestFor()
+      const res = responseForTier('B', { practitioner: undefined, supervisionPackageStatus: ON_PACKAGE })
+      await expect(controllers.checkIns.getEligibilityPage()(req, res)).rejects.toThrow(
+        'Practitioner details are unavailable',
+      )
+      expect(res.render).not.toHaveBeenCalled()
+      expect(res.redirect).not.toHaveBeenCalled()
     })
 
     it('redirects unallocated cases away from the setup flow using res.locals.practitioner', async () => {

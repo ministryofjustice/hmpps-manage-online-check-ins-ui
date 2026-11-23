@@ -9,6 +9,7 @@ import renderError from './renderError'
 import { OffenderByCRNResponse } from '../data/model/esupervision'
 import { getManagedByDetails } from '../utils/getManagedByDetails'
 import config from '../config'
+import logger from '../../logger'
 
 type PartialOffenderByCRNResponse = Partial<OffenderByCRNResponse>
 
@@ -32,7 +33,13 @@ async function fetchPersonalDetails(
 ): Promise<CachedPersonalDetails> {
   const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
-    eSupervisionClient.getProbationPractitioner(crn),
+    // Only the header and the allocation check need the practitioner, so a failed lookup must not
+    // take the whole page down. It is left undefined, never cached as null, so the next request
+    // retries it and the allocation check can tell a failure from a 404.
+    eSupervisionClient.getProbationPractitioner(crn).catch((error: Error): undefined => {
+      logger.warn(`Practitioner details unavailable for ${crn}: ${error.message}`)
+      return undefined
+    }),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
@@ -84,7 +91,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   // An absent flag means the tier is settled: only an explicit true says the score is provisional.
   res.locals.tierProvisional = headerDetails?.tierProvisional === true
   res.locals.overallRisk = headerDetails?.overallRisk || ''
-  res.locals.practitioner = practitionerDetails ?? null
+  res.locals.practitioner = practitionerDetails
   res.locals.managedBy = getManagedByDetails(crn, practitionerDetails)
 }
 
