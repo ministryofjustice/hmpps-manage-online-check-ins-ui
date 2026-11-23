@@ -45,9 +45,10 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   // getPersonalDetails supplies res.locals.case, which every page renders in its heading.
   router.get('/case/:crn/appointments/check-in/eligibility-check', [controllers.checkIns.getStartSetup()])
 
+  // The allocation check reads the practitioner, so it must not come from a header cached earlier.
   router.get('/case/:crn/appointments/:id/check-in/instructions', [
-    getPersonalDetails(hmppsAuthClient, arnsComponents),
-    controllers.checkIns.getInstructionsPage(hmppsAuthClient),
+    getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true }),
+    controllers.checkIns.getInstructionsPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/instructions',
@@ -64,7 +65,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
   router.get('/case/:crn/appointments/:id/check-in/eligibility-check', [
     getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true }),
     getSupervisionPackageStatus(hmppsAuthClient),
-    controllers.checkIns.getEligibilityPage(hmppsAuthClient),
+    controllers.checkIns.getEligibilityPage(),
   ])
   router.post(
     '/case/:crn/appointments/:id/check-in/eligibility-check',
@@ -471,7 +472,7 @@ export default function eSuperVisionCheckInsRoutes(router: Router, { hmppsAuthCl
     restrictRestartToStoppedCheckins,
     getPersonalDetails(hmppsAuthClient, arnsComponents, { refresh: true }),
     getSupervisionPackageStatus(hmppsAuthClient),
-    controllers.checkIns.getEligibilityPage(hmppsAuthClient),
+    controllers.checkIns.getEligibilityPage(),
   ])
   router.post(
     '/case/:crn/appointments/check-in/manage/:id/restart-eligibility-check',

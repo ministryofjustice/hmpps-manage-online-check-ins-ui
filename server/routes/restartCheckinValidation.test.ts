@@ -56,6 +56,7 @@ describe('restart journey validates before storing', () => {
   beforeEach(() => {
     jest.spyOn(ESupervisionClient.prototype, 'getOffenderByCRN').mockResolvedValue(offender as any)
     jest.spyOn(ESupervisionClient.prototype, 'getOffenderHeaderByCRN').mockResolvedValue(null)
+    jest.spyOn(ESupervisionClient.prototype, 'getProbationPractitioner').mockResolvedValue(null)
     jest.spyOn(ESupervisionClient.prototype, 'getPersonalDetails').mockResolvedValue({
       crn,
       name: offender.details.name,

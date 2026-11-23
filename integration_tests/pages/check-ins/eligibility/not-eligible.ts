@@ -5,7 +5,10 @@ export default class NotEligiblePage extends Page {
     super('is not eligible to use online check ins')
   }
 
-  getReason = (): PageElement => cy.get('.govuk-body').first()
+  // The person header also carries govuk-body, so skip it to reach the page's own paragraphs.
+  private bodyParagraphs = (): PageElement => cy.get('.govuk-body').not('.person-header')
+
+  getReason = (): PageElement => this.bodyParagraphs().first()
 
   // Where more than one fact ruled the person out, the reason introduces a list instead of
   // completing a sentence.
@@ -27,7 +30,7 @@ export default class NotEligiblePage extends Page {
 
   // The paragraph after the reason - for a missing Tier, how a Tier comes to be assigned; for every
   // other reason, the invitation to check eligibility again.
-  getGuidance = (): PageElement => cy.get('.govuk-body').eq(1)
+  getGuidance = (): PageElement => this.bodyParagraphs().eq(1)
 
   getBackLink = (): PageElement => cy.get('.govuk-back-link')
 

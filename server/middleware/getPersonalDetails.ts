@@ -9,6 +9,7 @@ import renderError from './renderError'
 import { OffenderByCRNResponse } from '../data/model/esupervision'
 import { getManagedByDetails } from '../utils/getManagedByDetails'
 import config from '../config'
+import logger from '../../logger'
 
 type PartialOffenderByCRNResponse = Partial<OffenderByCRNResponse>
 
@@ -29,11 +30,16 @@ async function fetchPersonalDetails(
   arnsComponents: ArnsComponents,
   authOptions: AuthOptions,
   crn: string,
-  includePractitioner: boolean,
 ): Promise<CachedPersonalDetails> {
   const [offenderDetails, practitionerDetails, headerDetails, riskData] = await Promise.all([
     eSupervisionClient.getOffenderByCRN(crn),
-    includePractitioner ? eSupervisionClient.getProbationPractitioner(crn) : Promise.resolve(undefined),
+    // Only the header and the allocation check need the practitioner, so a failed lookup must not
+    // take the whole page down. It is left undefined, never cached as null, so the next request
+    // retries it and the allocation check can tell a failure from a 404.
+    eSupervisionClient.getProbationPractitioner(crn).catch((error: Error): undefined => {
+      logger.warn(`Practitioner details unavailable for ${crn}: ${error.message}`)
+      return undefined
+    }),
     eSupervisionClient.getOffenderHeaderByCRN(crn),
     arnsComponents.getRiskData(authOptions, 'crn', crn),
   ])
@@ -85,7 +91,7 @@ function applyHeaderLocals(res: Response, crn: string, details: CachedPersonalDe
   // An absent flag means the tier is settled: only an explicit true says the score is provisional.
   res.locals.tierProvisional = headerDetails?.tierProvisional === true
   res.locals.overallRisk = headerDetails?.overallRisk || ''
-  res.locals.practitioner = practitionerDetails ?? null
+  res.locals.practitioner = practitionerDetails
   res.locals.managedBy = getManagedByDetails(crn, practitionerDetails)
 }
 
@@ -99,14 +105,12 @@ export const getPersonalDetails = (
     const token = await hmppsAuthClient.getSystemClientToken(res.locals.user.username)
     const eSupervisionClient = new ESupervisionClient(token)
 
-    const includePractitioner = Boolean(res.locals.flags?.newDesignPopHeader)
     let details = refresh ? undefined : readCache(req, crn)
-    // A cache entry written while the flag was off never fetched practitioner details, so it
-    // must be treated as stale once the flag turns on, or allocated cases render as unallocated.
-    const missingPractitioner = includePractitioner && details?.practitionerDetails === undefined
-    if (!details || missingPractitioner) {
+    // A cache entry written before practitioner details were always fetched has none, so it is
+    // treated as stale, or allocated cases would render as unallocated.
+    if (!details || details.practitionerDetails === undefined) {
       const authOptions = asUser(res.locals.user.token)
-      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn, includePractitioner)
+      details = await fetchPersonalDetails(eSupervisionClient, arnsComponents, authOptions, crn)
       writeCache(req, crn, details)
     }
 
