@@ -1,5 +1,6 @@
 import config from '../config'
 import { ProbationPractitioner } from '../data/model/personalDetails'
+import { convertToTitleCase } from './utils'
 
 export interface ManagedByDetails {
   text: string
@@ -19,7 +20,7 @@ export const getManagedByDetails = (
   if (!practitioner || practitioner.unallocated) {
     return { text: 'Unallocated', href }
   }
-  const name = `${practitioner.name.forename} ${practitioner.name.surname}`.trim()
+  const name = convertToTitleCase(`${practitioner.name.forename} ${practitioner.name.surname}`).trim()
   const pdu = practitioner.probationDeliveryUnit?.description
   return { text: pdu ? `${name} (${pdu})` : name, href }
 }

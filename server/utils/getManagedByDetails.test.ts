@@ -20,6 +20,25 @@ describe('utils/getManagedByDetails', () => {
     })
   })
 
+  it('capitalises the practitioner name', () => {
+    expect(
+      getManagedByDetails('X000001', {
+        ...practitioner,
+        name: { forename: 'joe', surname: 'bloggs' },
+      }).text,
+    ).toEqual('Joe Bloggs (London Probation Delivery Unit)')
+  })
+
+  it('preserves the PDU description capitalisation', () => {
+    expect(
+      getManagedByDetails('X000001', {
+        ...practitioner,
+        name: { forename: 'joe', surname: 'bloggs' },
+        probationDeliveryUnit: { code: 'PDU001', description: 'Cardiff and Newport Probation Unit' },
+      }).text,
+    ).toEqual('Joe Bloggs (Cardiff and Newport Probation Unit)')
+  })
+
   it('omits the brackets when there is no PDU description', () => {
     expect(getManagedByDetails('X000001', { ...practitioner, probationDeliveryUnit: { code: 'PDU001' } }).text).toEqual(
       'Test Practitioner',
